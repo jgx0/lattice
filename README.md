@@ -44,3 +44,50 @@ Edit `publish.config.json`:
 }
 ```
 
+The checked-in `vault/` is a filesystem demo vault, not a browser-bundled upload. Any note can be the homepage. Other notes get sanitized, URL-encoded slugs. Set `base` to `/notes/` when deploying under a subdirectory.
+
+Environment overrides are supported:
+
+```sh
+OBSIDIAN_VAULT="/path/to/Your Vault" npm run dev
+PUBLISH_CONFIG="/path/to/publish.config.json" npm run build
+```
+
+`site.navigation` orders folders and full note paths. `site.navigationFolders` can map a note path to a different public folder without moving the source file:
+
+```json
+{
+  "site": {
+    "navigationFolders": {
+      "Research/Methods.md": "Guides/Research"
+    }
+  }
+}
+```
+
+## Real Obsidian themes
+
+The generator reads the vault's `.obsidian/appearance.json`:
+
+- `cssTheme` selects `.obsidian/themes/<theme>/theme.css`.
+- `enabledCssSnippets` selects `.obsidian/snippets/<snippet>.css`.
+- `accentColor`, text/monospace fonts and text size are applied when configured.
+- The vault's `publish.css` is loaded afterward.
+
+Use the actual theme installed in Obsidian—there is no imitation-theme selector. The demo vault includes the original **Minimal** theme and its license, verified against the reader; the default appearance remains Obsidian's baseline. Set `cssTheme` to `"Minimal"` in the demo's `.obsidian/appearance.json`, or override the selected theme in build configuration:
+
+```json
+{
+  "vault": "/path/to/Your Vault",
+  "theme": "Minimal",
+  "snippets": ["typography", "tables"],
+  "css": ["./site-overrides.css"],
+  "bodyClasses": ["minimal-style-default", "minimal-tabs-style-default"],
+  "site": {
+    "title": "My notes",
+    "home": "Home.md",
+    "theme": "system"
+  }
+}
+```
+
