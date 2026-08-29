@@ -91,3 +91,50 @@ Use the actual theme installed in Obsidian—there is no imitation-theme selecto
 }
 ```
 
+Top-level `theme` is a community theme name or a CSS file path; `site.theme` is the reader's light/dark/system color mode. Set top-level `theme` to `"default"` to ignore a vault theme, or `snippets` to `[]` to ignore enabled vault snippets. Additional CSS paths are relative to the config file. Relative CSS imports, fonts and images are collected at build time and their URLs are rewritten to emitted assets. Remote CSS URLs remain remote and need connectivity.
+
+The reader uses Obsidian's `.theme-light`/`.theme-dark`, workspace, file tree, `.markdown-preview-view`, `.markdown-rendered`, callout, metadata and hover-popover classes, plus native CSS variables such as `--background-primary`, `--text-normal`, `--font-text`, `--file-line-width` and `--h1-size`. Baseline rules have low specificity and theme CSS loads afterward. No author names, reading times, maturity labels, product attribution or decorative page footers are injected.
+
+**Compatibility limit:** Obsidian is an Electron application. Themes that style plugin-only controls, editing panes or Style Settings plugin state cannot reproduce those features on a published page. Their reader CSS and native variables work where matching elements exist. Use snippets, `publish.css`, or `bodyClasses` for theme-specific settings; theme plugins are not executed.
+
+## Reader features
+
+- Collapsible nested file navigation, inline global search, clean note URLs and browser back/forward navigation.
+- Hover previews, backlinks, automatically generated outlines, local/global graphs, and horizontal stacked pages.
+- Wikilinks and aliases, Markdown links, heading/block anchors, and note/heading/block transclusions.
+- YAML properties, native-style callouts, disabled tasks, footnotes, highlighting, fenced code and bundled LaTeX output.
+- Images, audio, video, inline PDFs and sanitized HTML/iframes. Native playback depends on browser support.
+- `.base` embeds with table/list/cards views, filters/formulas, configured sort/limits and clickable column sorting.
+- Bases `this.file` context uses the host note, including `this.file.properties`, for related-note filters.
+
+Bases implements a bounded, no-eval expression subset, not Obsidian's entire evolving runtime. Unsupported expressions fail visibly. Plugin execution, Dataview, Canvas editing, Sync, collaboration, account services and password-protected hosting are not included.
+
+## Privacy and safety
+
+Notes under `hiddenPaths` and notes with frontmatter `publish: false` are filtered **before rendering**, so they cannot enter transclusions, Bases rows, previews, search or graph data. Assets and `.obsidian` source files are not blindly copied into the output. Symlinked vault files/directories are skipped; filesystem and CSS import boundaries are checked.
+
+HTML is sanitized at compilation with a window-bound DOMPurify instance. Scripts, handlers, dangerous URLs and raw `srcdoc` are removed. External frames are sandboxed; generated PDF frames retain restrictive sandboxing. CSS files are trusted author input: only use themes/snippets you trust.
+
+The vault is read locally. Neither the build nor live server uploads it. A publicly deployed site is public; review output and source embeds before deployment.
+
+## Verification
+
+```sh
+npm test
+npm run build
+npm audit
+```
+
+Tests cover rendering/link/search/Bases behavior, true Node compilation without browser globals, themes/CSS assets, privacy filtering, static clean-route HTML, preview serving, live-watcher error recovery and React reader interactions.
+
+## Code structure
+
+- `build/config.ts`: validated build configuration.
+- `build/compile.ts`: filesystem vault loading, theme ingestion and rendering.
+- `build/vaultPlugin.ts`: virtual compiled-site module, live watching and output emission.
+- `build/staticPages.ts`: semantic no-JavaScript note pages.
+- `src/App.tsx`: public reader; no source-vault processing.
+- `src/SidebarTree.tsx`, `src/GraphView.tsx`, `src/MarkdownContent.tsx`: reader components.
+- `src/lib/`: build-time note model, safe Markdown/Bases rendering and client-only search.
+
+Independent project; not affiliated with Obsidian.
