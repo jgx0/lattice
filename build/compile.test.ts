@@ -45,3 +45,51 @@ describe('filesystem build configuration', () => {
     expect(override.vaultPath).toBe(path.join(root, 'second'));
     expect(override.settings.title).toBe('Override');
   });
+  it('rejects invalid settings and unsafe base/hidden paths', async () => {
+    const { root, put } = await fixture();
+    for (const config of [
+      { base: 'https://example.com/' }, { base: '/%2e%2e/' }, { base: '/x?y' },
+      { site: { theme: 'Minimal' } }, { site: { showGraph: 'yes' } },
+      { site: { hiddenPaths: ['../private'] } }, { site: { accent: 'red; color: blue' } },
+    ]) {
+      await put('publish.config.json', JSON.stringify({ vault: './vault', ...config }));
+      await expect(loadConfig(root)).rejects.toThrow();
+    }
+  });
+});
+
+describe('Node vault compiler', () => {
+  it('renders published content, Unicode clean links, previews, and host-relative Bases/transclusion without globals', async () => {
+    const { root, put } = await fixture({ base: '/garden/', site: { title: 'Garden', home: 'Welcome.md', hiddenPaths: ['Hidden'] } });
+    await put('vault/Welcome.md', '---\ncssclasses: [wide, garden]\n---\n# Welcome\n[[Projects/Host#Part]]\n[[日本語]]\n![[Projects/Host#Part]]\n![[Private]]\n![[Hidden/Secret]]');
+    await put('vault/Projects/Host.md', '# Part\nHost text\n\n![[View.base]]\n\n## Inner\nNested\n\n# Excluded\nNot transcluded');
+    await put('vault/Projects/Child.md', '---\nproject: Host\n---\n# Child\n[[Welcome]]');
+    await put('vault/Projects/View.base', 'filters: "project == this.file.name"\nviews:\n  - type: table\n    order: [file.name, project]');
+    await put('vault/日本語.md', '# 日本語\nUnicode');
+    await put('vault/Private.md', '---\npublish: false\n---\nSECRET_PRIVATE_BODY');
+    await put('vault/Hidden/Secret.md', 'SECRET_HIDDEN_BODY');
+    await put('vault/Privacy.md', '---\nprivate: true\n---\nSECRET_PRIVATE_PROPERTY');
+    const globals = [globalThis.window, globalThis.document, globalThis.DOMParser];
+    const { site, assets, dependencies } = await compileVault(await loadConfig(root));
+    expect([globalThis.window, globalThis.document, globalThis.DOMParser]).toEqual(globals);
+    const welcome = site.notes.find(note => note.path === 'Welcome.md')!;
+    expect(welcome.url).toBe('/garden/');
+    expect(welcome.html).toContain('href="/garden/projects/host#part"');
+    expect(welcome.html).toContain('data-anchor="part"');
+    expect(welcome.html).toContain('href="/garden/%E6%97%A5%E6%9C%AC%E8%AA%9E"');
+    expect(welcome.html).toContain('data-note="Projects/Child.md"');
+    expect(welcome.html).not.toContain('Not transcluded');
+    expect(welcome.previewHtml).toContain('<h1 id="welcome">');
+    expect(welcome.outgoing).toEqual(['Projects/Host.md', '日本語.md']);
+    expect(welcome.backlinks).toEqual(['Projects/Child.md']);
+    expect(JSON.stringify(site)).not.toContain('SECRET_');
+    expect(site.notes).toHaveLength(4);
+    expect(site.bodyClasses).toEqual(expect.arrayContaining(['wide', 'garden']));
+    expect(site.bodyClasses).not.toContain('theme-light');
+    expect(site.bodyClasses).not.toContain('theme-dark');
+    expect(assets.size).toBe(0);
+    expect(dependencies).toContain(path.join(root, 'vault/Projects/View.base'));
+    expect(dependencies).toContain(path.join(root, 'vault/.obsidian/appearance.json'));
+  });
+  it('loads real Obsidian theme CSS, enabled snippets, publish.css and configured CSS in order and copies local URLs', async () => {
+    const { root, put } = await fixture({ css: ['./extra.css'], bodyClasses: ['is-published'] });
