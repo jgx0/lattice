@@ -141,3 +141,51 @@ describe('Node vault compiler', () => {
     expect(assets.size).toBe(5);
     expect([...assets.keys()].some(key => /\.md$|\.base$|\.css$/.test(key))).toBe(false);
   });
+  it('supports explicit local theme overrides and fails visibly for unsupported themes or escaping CSS URLs', async () => {
+    const { root, put } = await fixture({ theme: './my-theme/theme.css', snippets: [] });
+    await put('my-theme/theme.css', '/* override */body{color:hotpink}');
+    await put('vault/.obsidian/appearance.json', JSON.stringify({ cssTheme: 'Missing', enabledCssSnippets: ['Missing'] }));
+    expect((await compileVault(await loadConfig(root))).site.themeCss).toContain('/* override */');
+    await put('publish.config.json', JSON.stringify({ vault: './vault', theme: 'default', snippets: [] }));
+    expect((await compileVault(await loadConfig(root))).site.themeCss).toBe('');
+    await put('publish.config.json', JSON.stringify({ vault: './vault', theme: 'Missing' }));
+    await expect(compileVault(await loadConfig(root))).rejects.toThrow(/Unsupported or unavailable theme/);
+    await put('vault/.obsidian/themes/Unsafe/theme.css', '.x{background:url("../../../../../outside.png")}');
+    await put('outside.png', new Uint8Array([1]));
+    await put('publish.config.json', JSON.stringify({ vault: './vault', theme: 'Unsafe', snippets: [] }));
+    await expect(compileVault(await loadConfig(root))).rejects.toThrow();
+  });
+  it('collects recursive local CSS imports, preserves qualifiers and remote imports, and rejects cycles', async () => {
+    const { root, put } = await fixture({ theme: 'Imports', snippets: [] });
+    await put('vault/.obsidian/themes/Imports/theme.css', '@import "parts/one.css" layer(theme) supports(display:grid) screen;\n@import url("https://example.com/remote.css") print;\nbody{color:red}');
+    const imported = await put('vault/.obsidian/themes/Imports/parts/one.css', '@import url("./two.css");\n.one{background:url("../images/pic.png")}');
+    await put('vault/.obsidian/themes/Imports/parts/two.css', '.two{color:blue}');
+    await put('vault/.obsidian/themes/Imports/images/pic.png', new Uint8Array([1, 2]));
+    const result = await compileVault(await loadConfig(root));
+    expect(result.site.themeCss).toMatch(/@import url\("\/_theme\/[a-f0-9]+-one.css"\) layer\(theme\) supports\(display:grid\) screen;/);
+    expect(result.site.themeCss).toContain('@import url("https://example.com/remote.css") print;');
+    const sheets = [...result.assets].filter(([key]) => key.endsWith('.css'));
+    expect(sheets).toHaveLength(2);
+    const one = Buffer.from(sheets.find(([key]) => key.endsWith('-one.css'))![1]).toString();
+    expect(one).toMatch(/@import url\("\/_theme\/[a-f0-9]+-two.css"\);/);
+    expect(one).toMatch(/url\("\/_theme\/[a-f0-9]+-pic.png"\)/);
+    expect(result.dependencies).toContain(imported);
+    await put('vault/.obsidian/themes/Imports/parts/two.css', '@import "../theme.css";');
+    await expect(compileVault(await loadConfig(root))).rejects.toThrow(/Circular CSS import/);
+  });
+
+  it('never follows vault symlinks or emits hidden assets and fails for a private home', async () => {
+    const { root, put } = await fixture({ site: { title: 'Safe', home: 'Welcome.md', hiddenPaths: ['Hidden'] } });
+    const outside = await put('outside/Leak.md', 'SECRET_SYMLINK');
+    await symlink(outside, path.join(root, 'vault/Leak.md'));
+    await symlink(path.join(root, 'vault'), path.join(root, 'vault/Cycle'));
+    await put('vault/Hidden/pic.png', new Uint8Array([1]));
+    await put('vault/Welcome.md', '![[Leak]]\n<img src="Hidden/pic.png">');
+    const result = await compileVault(await loadConfig(root));
+    expect(JSON.stringify(result.site)).not.toContain('SECRET_SYMLINK');
+    expect(result.assets.size).toBe(0);
+    await put('vault/Welcome.md', '---\npublish: false\n---\nPRIVATE_HOME');
+    await put('vault/Visible.md', '# Visible');
+    await expect(compileVault(await loadConfig(root))).rejects.toThrow(/home note is missing or private/);
+  });
+});
