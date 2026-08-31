@@ -59,3 +59,65 @@ export async function compileVault(config: BuildConfig): Promise<CompileResult> 
       if (!inside(realBoundary, resolved) || (inside(vaultRoot, file) && !inside(vaultRoot, resolved))) throw new Error(`Path escapes allowed root: ${file}`);
       if (!(await stat(resolved)).isFile()) throw new Error(`Expected a file: ${file}`);
       dependencies.add(resolved);
+      return await readFile(resolved);
+    } catch (error) {
+      if (optional && (error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+      throw error;
+    }
+  };
+  const scan = async (directory: string): Promise<void> => {
+    dependencies.add(directory);
+    const entries = await readdir(directory, { withFileTypes: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name, 'en'));
+    for (const entry of entries) {
+      const absolute = path.join(directory, entry.name);
+      const relative = slash(path.relative(vaultRoot, absolute));
+      // Never follow vault symlinks: prevents cycles, aliases, and accidental outside/private publication.
+      if (entry.isSymbolicLink() || hidden(relative, config)) continue;
+      if (entry.isDirectory()) { await scan(absolute); continue; }
+      if (!entry.isFile()) continue;
+      const ext = extension(relative);
+      if (!['md', 'markdown', 'base'].includes(ext) && !mimeTypes[ext]) continue;
+      const bytes = (await safeRead(absolute, vaultRoot))!;
+      if (ext === 'md' || ext === 'markdown') {
+        const content = bytes.toString('utf8');
+        const { properties } = splitFrontmatter(content);
+        if (properties.publish === false || properties.private === true) continue;
+        files.push({ path: relative, content, kind: 'note' });
+      } else if (ext === 'base') files.push({ path: relative, content: bytes.toString('utf8'), kind: 'base' });
+      else {
+        assetBytes.set(relative, bytes);
+        files.push({ path: relative, content: ext === 'svg' ? bytes.toString('utf8') : '', kind: 'asset', mime: mimeTypes[ext], data: `data:${mimeTypes[ext]};base64,${bytes.toString('base64')}` });
+      }
+    }
+  };
+  const emitAsset = (bytes: Uint8Array, source: string, theme = false): string => {
+    const ext = extension(source) || 'bin';
+    const cleanName = path.basename(source).replace(/[^a-zA-Z0-9._-]/g, '-');
+    const key = theme ? `_theme/${hash(bytes)}-${cleanName}` : `_assets/${source.split('/').slice(0, -1).map(segment => segment.replace(/[^\p{L}\p{N}._-]/gu, '-')).filter(Boolean).join('/')}${source.includes('/') ? '/' : ''}${hash(bytes)}.${ext}`;
+    assets.set(key, new Uint8Array(bytes));
+    return config.base + encodePath(key);
+  };
+  try {
+    await scan(vaultRoot);
+    const notes = buildNotes(files);
+    if (!notes.length) throw new Error('There are no published Markdown notes in the configured vault.');
+    const settings = { ...config.settings, navigation: [...config.settings.navigation], hiddenPaths: [...config.settings.hiddenPaths] };
+    const home = settings.home ? resolveNote(settings.home, notes) : notes[0];
+    if (!home) throw new Error(`Configured home note is missing or private: ${settings.home}`);
+    settings.home = home.path;
+    const urls = new Map(notes.map(note => [note.path, note.path === home.path ? config.base : config.base + encodePath(note.slug)]));
+    const assetSources = new Map(files.filter(file => file.kind === 'asset').map(file => [file.data!, file.path]));
+    for (const file of files) if (file.mime === 'image/svg+xml') {
+      assetSources.set(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitizers.sanitizeSvg(file.content))}`, file.path);
+    }
+    const assetByName = (source: string, currentPath: string): string | undefined => {
+      const clean = decodeTarget(source.split(/[?#]/)[0]).replace(/\\/g, '/');
+      if (clean.includes('\0')) return undefined;
+      const local = path.posix.normalize(path.posix.join(path.posix.dirname(currentPath), clean));
+      const root = path.posix.normalize(clean.replace(/^\//, ''));
+      const candidates = clean.startsWith('/') ? [root] : /^\.\.?\//.test(clean) ? [local] : [local, root];
+      return candidates.find(candidate => !candidate.startsWith('../') && assetBytes.has(candidate));
+    };
+    const markup = (html: string, note: Note): string => {
+      const document = new dom.window.DOMParser().parseFromString(html, 'text/html');
