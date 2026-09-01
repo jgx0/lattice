@@ -121,3 +121,64 @@ export async function compileVault(config: BuildConfig): Promise<CompileResult> 
     };
     const markup = (html: string, note: Note): string => {
       const document = new dom.window.DOMParser().parseFromString(html, 'text/html');
+      document.querySelectorAll('a').forEach(link => {
+        const target = link.getAttribute('data-note');
+        const href = link.getAttribute('href') || '';
+        const embeddedNote = link.closest('.note-embed-content')?.parentElement?.getAttribute('data-note');
+        const local = !target && href && !href.startsWith('#') && !/^(?:[a-z][\w+.-]*:|\/\/)/i.test(href)
+          ? resolveLink(href, notes, embeddedNote || note.path) : undefined;
+        const targetNote = target ? notes.find(candidate => candidate.path === target) : local?.note;
+        if (!targetNote) return;
+        const anchor = link.getAttribute('data-anchor') || local?.anchor || '';
+        link.setAttribute('data-note', targetNote.path);
+        link.setAttribute('data-anchor', anchor);
+        link.setAttribute('href', urls.get(targetNote.path)! + (anchor ? `#${encodeURIComponent(anchor)}` : ''));
+      });
+      document.querySelectorAll('[src],[poster],a[href]').forEach(element => {
+        for (const attr of element.tagName === 'A' ? ['href'] : ['src', 'poster']) {
+          const source = element.getAttribute(attr);
+          if (!source || source.startsWith('#') || /^(?:https?:|mailto:|tel:|\/\/)/i.test(source) || (attr === 'href' && element.classList.contains('internal-link'))) continue;
+          const embeddedNote = element.closest('.note-embed-content')?.parentElement?.getAttribute('data-note');
+          const currentPath = embeddedNote || note.path;
+          const original = assetSources.get(source);
+          const data = decodeData(source);
+          if (data) {
+            const ext = Object.entries(mimeTypes).find(([, mime]) => mime === data.mime)?.[0];
+            if (!ext) { element.removeAttribute(attr); continue; }
+            element.setAttribute(attr, emitAsset(data.bytes, original || `inline.${ext}`));
+          } else {
+            const relative = assetByName(source, currentPath);
+            if (!relative) { if (attr !== 'href') element.removeAttribute(attr); continue; }
+            let bytes = assetBytes.get(relative)!;
+            if (extension(relative) === 'svg') bytes = Buffer.from(sanitizers.sanitizeSvg(Buffer.from(bytes).toString('utf8')));
+            const suffix = /[?#].*$/.exec(source)?.[0] || '';
+            element.setAttribute(attr, emitAsset(bytes, relative) + suffix);
+          }
+        }
+      });
+      return document.body.innerHTML;
+    };
+    const published: PublishedNote[] = notes.map(note => ({
+      ...note, url: urls.get(note.path)!,
+      html: markup(renderMarkdown(note, notes, files, sanitizers), note),
+      previewHtml: markup(renderPreview(note, notes, files, sanitizers), note),
+      outgoing: [...new Set(note.links.map(link => resolveNote(link, notes, note.path)?.path).filter((value): value is string => !!value))],
+      backlinks: getBacklinks(note, notes).map(candidate => candidate.path),
+    }));
+    const obsidianRoot = path.join(vaultRoot, '.obsidian');
+    const appearancePath = path.join(obsidianRoot, 'appearance.json');
+    const appearanceBytes = await safeRead(appearancePath, vaultRoot, true);
+    let appearance: Record<string, unknown> = {};
+    if (appearanceBytes) {
+      try { appearance = JSON.parse(appearanceBytes.toString('utf8')); }
+      catch { throw new Error(`Invalid Obsidian appearance JSON: ${appearancePath}`); }
+      if (!appearance || typeof appearance !== 'object' || Array.isArray(appearance)) throw new Error(`Invalid Obsidian appearance object: ${appearancePath}`);
+    }
+    if (!settings.accent && typeof appearance.accentColor === 'string' && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(appearance.accentColor)) settings.accent = appearance.accentColor;
+    const cssParts: string[] = [];
+    const rewriteCss = async (css: string, file: string, boundary: string, ancestors: ReadonlySet<string> = new Set()): Promise<string> => {
+      const canonical = await realpath(file).catch(() => file);
+      if (ancestors.has(canonical)) throw new Error(`Circular CSS import: ${file}`);
+      const stack = new Set([...ancestors, canonical]);
+      // Preserve comments/string literals and remote imports. Local imports become emitted,
+      // recursively rewritten stylesheets, retaining their media/supports/layer suffix.
