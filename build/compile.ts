@@ -182,3 +182,65 @@ export async function compileVault(config: BuildConfig): Promise<CompileResult> 
       const stack = new Set([...ancestors, canonical]);
       // Preserve comments/string literals and remote imports. Local imports become emitted,
       // recursively rewritten stylesheets, retaining their media/supports/layer suffix.
+      const expression = /\/\*[\s\S]*?(?:\*\/|$)|(?<importPrefix>@import\s+)(?<importSource>url\(\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?:\\.|[^)\\])*?)\s*\)|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')(?<importSuffix>[^;]*;)|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\burl\(\s*(?:"(?<doubleUrl>(?:\\.|[^"\\])*)"|'(?<singleUrl>(?:\\.|[^'\\])*)'|(?<bareUrl>(?:\\.|[^)\\])*?))\s*\)/gi;
+      let rewritten = '', end = 0;
+      for (const match of css.matchAll(expression)) {
+        rewritten += css.slice(end, match.index);
+        const isImport = !!match.groups?.importPrefix;
+        const importSource = match.groups?.importSource?.trim() || '';
+        const source = isImport
+          ? (/^url\(/i.test(importSource) ? importSource.slice(4, -1).trim() : importSource).replace(/^(["'])([\s\S]*)\1$/, '$2')
+          : (match.groups?.doubleUrl ?? match.groups?.singleUrl ?? match.groups?.bareUrl ?? '').trim();
+        if ((!isImport && !/^url\(/i.test(match[0])) || !source || /^(?:[a-z][\w+.-]*:|\/\/|#)/i.test(source)) rewritten += match[0];
+        else {
+          const [target] = source.split(/[?#]/);
+          const decoded = decodeTarget(target).replace(/\\([ ()'"\\])/g, '$1');
+          const absolute = path.resolve(path.dirname(file), decoded);
+          if (isImport ? extension(absolute) !== 'css' : !mimeTypes[extension(absolute)]) throw new Error(`Unsupported CSS ${isImport ? 'import' : 'asset'}: ${source} in ${file}`);
+          if (inside(vaultRoot, absolute) && !inside(obsidianRoot, absolute) && hidden(slash(path.relative(vaultRoot, absolute)), config)) throw new Error(`CSS references a hidden vault asset: ${source}`);
+          const asset = (await safeRead(absolute, boundary))!;
+          let safeAsset: Uint8Array = asset;
+          if (isImport) safeAsset = Buffer.from(await rewriteCss(asset.toString('utf8'), absolute, boundary, stack));
+          else if (extension(absolute) === 'svg') safeAsset = Buffer.from(sanitizers.sanitizeSvg(asset.toString('utf8')));
+          const suffix = /[?#].*$/.exec(source)?.[0] || '';
+          const emittedUrl = JSON.stringify(emitAsset(safeAsset, path.basename(absolute), true) + suffix);
+          rewritten += isImport ? `${match.groups!.importPrefix}url(${emittedUrl})${match.groups!.importSuffix}` : `url(${emittedUrl})`;
+        }
+        end = match.index! + match[0].length;
+      }
+      return rewritten + css.slice(end);
+    };
+    const loadCss = async (file: string, boundary: string, optional = false): Promise<void> => {
+      const bytes = await safeRead(file, boundary, optional);
+      if (bytes) cssParts.push(await rewriteCss(bytes.toString('utf8'), file, boundary));
+    };
+    const theme = config.theme ?? (typeof appearance.cssTheme === 'string' && appearance.cssTheme ? appearance.cssTheme : settings.communityTheme !== 'default' ? settings.communityTheme : undefined);
+    if (theme && theme !== 'default') {
+      const themePath = path.isAbsolute(theme) ? theme : path.join(obsidianRoot, 'themes', theme, 'theme.css');
+      if (!path.isAbsolute(theme) && (theme.includes('/') || theme.includes('\\') || theme === '..')) throw new Error(`Invalid Obsidian theme name: ${theme}`);
+      try { await loadCss(themePath, path.isAbsolute(theme) ? path.dirname(themePath) : path.join(obsidianRoot, 'themes', theme)); }
+      catch (error) { throw new Error(`Unsupported or unavailable theme "${theme}": ${error instanceof Error ? error.message : error}`); }
+      settings.communityTheme = path.isAbsolute(theme) ? path.basename(path.dirname(theme)) : theme;
+    }
+    const snippetNames = config.snippets ?? (Array.isArray(appearance.enabledCssSnippets) ? appearance.enabledCssSnippets.filter((item): item is string => typeof item === 'string') : []);
+    for (const snippet of snippetNames) {
+      if (!path.isAbsolute(snippet) && (snippet.includes('/') || snippet.includes('\\') || snippet === '..')) throw new Error(`Invalid Obsidian snippet name: ${snippet}`);
+      const snippetPath = path.isAbsolute(snippet) ? snippet : path.join(obsidianRoot, 'snippets', `${snippet.replace(/\.css$/i, '')}.css`);
+      await loadCss(snippetPath, path.dirname(snippetPath));
+    }
+    await loadCss(path.join(vaultRoot, 'publish.css'), vaultRoot, true);
+    for (const file of config.css) await loadCss(file, path.dirname(file));
+    const variables: string[] = [];
+    if (settings.accent) variables.push(`--accent:${settings.accent};--interactive-accent:${settings.accent};--text-accent:${settings.accent}`);
+    if (typeof appearance.baseFontSize === 'number' && appearance.baseFontSize >= 8 && appearance.baseFontSize <= 72) variables.push(`--font-text-size:${appearance.baseFontSize}px`);
+    for (const [property, variable] of [['textFontFamily', '--font-text'], ['monospaceFontFamily', '--font-monospace']] as const) {
+      if (typeof appearance[property] === 'string' && appearance[property]) variables.push(`${variable}:${appearance[property].split(',').map(family => JSON.stringify(family.trim().replace(/^['"]|['"]$/g, ''))).join(',')}`);
+    }
+    if (variables.length) cssParts.push(`body{${variables.join(';')}}`);
+    if (settings.customCss) cssParts.push(await rewriteCss(settings.customCss, path.join(vaultRoot, 'publish.css'), vaultRoot));
+    const classes = new Set(config.bodyClasses);
+    const homeClasses = home.properties.cssclasses;
+    for (const value of Array.isArray(homeClasses) ? homeClasses : typeof homeClasses === 'string' ? homeClasses.split(/[\s,]+/) : []) if (typeof value === 'string' && value && !/\s/.test(value)) classes.add(value);
+    return { site: { version: 1, name: settings.title || path.basename(vaultRoot), settings, notes: published, themeCss: cssParts.join('\n'), bodyClasses: [...classes] }, assets, dependencies: [...dependencies].sort() };
+  } finally { dom.window.close(); }
+}
