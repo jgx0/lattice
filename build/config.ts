@@ -56,3 +56,32 @@ export async function loadConfig(root = process.cwd()): Promise<BuildConfig> {
   for (const key of Object.keys(raw)) if (!allowed.has(key)) throw new Error(`Unknown publish config field: ${key}`);
   const configRoot = path.dirname(configPath);
   const vault = process.env.OBSIDIAN_VAULT || (raw.vault === undefined ? './vault' : string(raw.vault, 'vault'));
+  if (!vault.trim()) throw new Error('vault must not be empty.');
+  const vaultPath = await realpath(path.resolve(process.env.OBSIDIAN_VAULT ? root : configRoot, vault));
+  if (!(await stat(vaultPath)).isDirectory()) throw new Error(`Vault is not a directory: ${vaultPath}`);
+  const site = raw.site === undefined ? {} : object(raw.site, 'site');
+  const settings: SiteSettings = { ...defaults, navigation: [], hiddenPaths: [] };
+  for (const key of Object.keys(site)) if (!(key in defaults) && key !== 'navigationFolders') throw new Error(`Unknown site setting: ${key}`);
+  for (const key of stringSettings) if (site[key] !== undefined) settings[key] = string(site[key], `site.${key}`);
+  for (const key of booleanSettings) if (site[key] !== undefined) {
+    if (typeof site[key] !== 'boolean') throw new Error(`site.${key} must be a boolean.`);
+    settings[key] = site[key];
+  }
+  if (site.theme !== undefined) {
+    if (!['light', 'dark', 'system'].includes(string(site.theme, 'site.theme'))) throw new Error('site.theme must be light, dark, or system. Use top-level theme for a community theme name or CSS path.');
+    settings.theme = site.theme as SiteSettings['theme'];
+  }
+  for (const key of ['navigation', 'hiddenPaths'] as const) if (site[key] !== undefined) settings[key] = strings(site[key], `site.${key}`).map(item => vaultRelative(item, `site.${key}`));
+  if (site.navigationFolders !== undefined) settings.navigationFolders = Object.fromEntries(Object.entries(object(site.navigationFolders, 'site.navigationFolders')).map(([key, value]) => [vaultRelative(key, 'navigationFolders key'), string(value, `navigationFolders.${key}`)]));
+  if (settings.accent && !/^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(settings.accent)) throw new Error('site.accent must be empty or a #RGB/#RRGGBB color.');
+  const base = raw.base === undefined ? '/' : string(raw.base, 'base');
+  let decodedBase: string;
+  try { decodedBase = decodeURIComponent(base); } catch { throw new Error('base contains invalid URL encoding.'); }
+  if (!base.startsWith('/') || base.startsWith('//') || /[?#\\\s]/.test(base) || /[?#\\]/.test(decodedBase) || decodedBase.split('/').some(part => part === '..' || part === '.')) throw new Error('base must be a rooted URL pathname without query, fragment, or traversal (for example /notes/).');
+  const theme = raw.theme === undefined ? undefined : cssReference(string(raw.theme, 'theme'), configRoot);
+  const snippets = raw.snippets === undefined ? undefined : strings(raw.snippets, 'snippets').map(value => cssReference(value, configRoot));
+  const css = raw.css === undefined ? [] : strings(raw.css, 'css').map(value => path.resolve(configRoot, value));
+  const bodyClasses = raw.bodyClasses === undefined ? [] : strings(raw.bodyClasses, 'bodyClasses');
+  if (bodyClasses.some(value => !value || /\s/.test(value))) throw new Error('bodyClasses must contain non-empty individual class names.');
+  return { root, vaultPath, configPath, base: base.replace(/\/+$/, '') + '/', settings, theme, snippets, css, bodyClasses };
+}
