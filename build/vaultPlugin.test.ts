@@ -109,3 +109,59 @@ describe("semantic published pages", () => {
     expect(document.body.classList.contains("custom-theme")).toBe(true);
     expect(document.body.classList.contains("existing")).toBe(true);
     expect(document.body.classList.contains("theme-dark")).toBe(true);
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.querySelectorAll(".note-meta,.powered,.brand-symbol")).toHaveLength(0);
+    expect(document.querySelector("script[type=module]")?.getAttribute("src")).toBe("/main.js");
+  });
+
+  it("replaces prior page metadata and content safely without duplicating styles", async () => {
+    const { root } = await fixture();
+    const { site } = await fakeCompile(await loadConfig(root));
+    site.themeCss = 'a::after { content: "$& </STYLE><script>bad()</script>"; }';
+    const target = site.notes[0];
+    target.title = '<Title> "$&"';
+    target.properties.description = 'Quoted "description" <test>';
+    const first = renderPublishedPage(await readFile(path.join(root, "index.html"), "utf8"), site, site.notes[1]);
+    const document = new JSDOM(renderPublishedPage(first, site, target)).window.document;
+    expect(document.title).toBe('<Title> "$&" · Fixture site');
+    expect(document.querySelector('meta[name="description"]')?.getAttribute("content")).toBe('Quoted "description" <test>');
+    expect(document.querySelectorAll("#static-content")).toHaveLength(1);
+    expect(document.querySelectorAll("#published-theme")).toHaveLength(1);
+    expect(document.querySelector("#published-theme")?.textContent).toContain('$& <\\/style>');
+    expect(document.querySelectorAll("script")).toHaveLength(1);
+    expect(document.querySelector(".page-header-title")?.textContent).toBe(target.title);
+  });
+
+  it("matches only actual routes and maps safe clean URLs under a deployment base", async () => {
+    const { root } = await fixture("/project/");
+    const { site } = await fakeCompile(await loadConfig(root));
+    expect(findPublishedNote(site, "/project/field-notes/digital-gardens/")?.title).toBe("Digital Gardens");
+    expect(findPublishedNote(site, "/project/field-notes/digital-gardens/index.html")?.title).toBe("Digital Gardens");
+    expect(findPublishedNote(site, "/project/Field%20Notes/Digital%20Gardens.md")).toBeUndefined();
+    expect(findPublishedNote(site, "/project/%2e%2e/Home.md")).toBeUndefined();
+    expect(publishedPageFile("/project/field-notes/digital-gardens", "/project/")).toBe("field-notes/digital-gardens/index.html");
+    expect(publishedPageFile("/project/", "/project/")).toBe("index.html");
+    expect(publishedPageFile("/project/caf%C3%A9", "/project/")).toBe("café/index.html");
+    expect(() => publishedPageFile("/project/%2e%2e/secret", "/project/")).toThrow("Unsafe");
+    expect(() => publishedPageFile("/other/path", "/project/")).toThrow("outside");
+    expect(absoluteShellReferences('<script src="./assets/app.js?v=1"></script><link href="assets/app.css"><a href="#details">', "/project/")).toBe('<script src="/project/assets/app.js?v=1"></script><link href="/project/assets/app.css"><a href="#details">');
+  });
+});
+
+describe("Vite vault integration", () => {
+  it("emits semantic clean-route pages with actual bundled JS/CSS and binary assets, including preview", async () => {
+    const { root, vault, configPath } = await fixture("/project/");
+    await build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: "silent", build: { minify: false } });
+    const dist = path.join(root, "dist");
+    const homeHtml = await readFile(path.join(dist, "index.html"), "utf8");
+    const gardenHtml = await readFile(path.join(dist, "field-notes", "digital-gardens", "index.html"), "utf8");
+    const garden = new JSDOM(gardenHtml).window.document;
+    expect(homeHtml).toContain("Original home");
+    expect(garden.querySelector(".page-header-title")?.textContent).toBe("Digital Gardens");
+    expect(garden.querySelector(".markdown-body p")?.textContent).toContain("A real garden");
+    expect(garden.querySelector('img')?.getAttribute("src")).toBe("/project/_assets/image.png");
+    for (const element of garden.querySelectorAll("script[src],link[rel=stylesheet]")) {
+      const url = element.getAttribute("src") ?? element.getAttribute("href")!;
+      expect(url).toMatch(/^\/project\/assets\//);
+      expect((await readFile(path.join(dist, url.slice("/project/".length)))).length).toBeGreaterThan(0);
+    }
