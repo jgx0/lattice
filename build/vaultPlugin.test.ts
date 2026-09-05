@@ -53,3 +53,59 @@ async function fixture(base = "/") {
   const root = path.join(container, "project"), vault = path.join(container, "external-vault");
   await mkdir(root);
   await mkdir(path.join(vault, "Field Notes"), { recursive: true });
+  await mkdir(path.join(vault, ".obsidian", "snippets"), { recursive: true });
+  await writeFile(path.join(vault, "Home.md"), "Original home");
+  await writeFile(path.join(vault, "Field Notes", "Digital Gardens.md"), 'A real garden <img src="' + base + '_assets/image.png" alt="Garden">');
+  await writeFile(path.join(vault, "image.png"), new Uint8Array([1, 2, 3]));
+  await writeFile(path.join(vault, ".obsidian", "snippets", "custom.css"), "body { --fixture: original; }");
+  const configPath = path.join(root, "publish.config.json");
+  const raw = { vault, base, bodyClasses: ["publish", "custom-theme"], site: { title: "Fixture site", description: "Garden description", home: "Home.md", theme: "dark" } };
+  await writeFile(configPath, JSON.stringify(raw));
+  await writeFile(path.join(root, "index.html"), '<!doctype html><html lang="en"><head><meta name="description" content="Old"><title>Old</title></head><body class="existing"><div id="root"></div><script type="module" src="/main.js"></script></body></html>');
+  await writeFile(path.join(root, "main.js"), 'import site from "virtual:published-site"; import "./styles.css"; globalThis.publishedSite = site;');
+  await writeFile(path.join(root, "styles.css"), ".note-page { color: #333; }");
+  return { root, vault, configPath, raw };
+}
+
+async function start(root: string) {
+  const server = await createServer({
+    configFile: false, root, plugins: [vaultPlugin({ debounceMs: 35 })], logLevel: "silent",
+    optimizeDeps: { noDiscovery: true, entries: [] },
+    server: { host: "127.0.0.1", port: 0, watch: { usePolling: true, interval: 20 } },
+  });
+  servers.push(server);
+  await server.listen();
+  const address = server.httpServer!.address();
+  if (!address || typeof address === "string") throw new Error("Missing server address");
+  return { server, origin: `http://127.0.0.1:${address.port}` };
+}
+
+beforeEach(() => {
+  vi.stubEnv("PUBLISH_CONFIG", "");
+  vi.stubEnv("OBSIDIAN_VAULT", "");
+  compiler.mockReset();
+  compiler.mockImplementation(fakeCompile);
+});
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map(server => server.close()));
+  await Promise.all(previews.splice(0).map(server => new Promise<void>((resolve, reject) => server.httpServer.close(error => error ? reject(error) : resolve()))));
+  await Promise.all(temporary.splice(0).map(directory => rm(directory, { recursive: true, force: true })));
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
+
+describe("semantic published pages", () => {
+  it("renders real note HTML, nested navigation, TOC, backlinks and theme without branding", async () => {
+    const { root } = await fixture();
+    const compiled = await fakeCompile(await loadConfig(root));
+    const template = await readFile(path.join(root, "index.html"), "utf8");
+    const document = new JSDOM(renderPublishedPage(template, compiled.site)).window.document;
+    expect(document.title).toBe("Home · Fixture site");
+    expect(document.querySelector('meta[name="description"]')?.getAttribute("content")).toBe("Garden description");
+    expect(document.querySelector("#root #static-content .note-page p")?.textContent).toBe("Original home");
+    expect(document.querySelector('.nav-folder .note-nav[href="/field-notes/digital-gardens"]')).not.toBeNull();
+    expect(document.querySelector('.toc a[href="#details"]')?.textContent).toBe("Details");
+    expect(document.querySelector('.backlinks a[href="/field-notes/digital-gardens"]')).not.toBeNull();
+    expect(document.body.classList.contains("custom-theme")).toBe(true);
+    expect(document.body.classList.contains("existing")).toBe(true);
+    expect(document.body.classList.contains("theme-dark")).toBe(true);
