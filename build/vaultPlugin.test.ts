@@ -165,3 +165,59 @@ describe("Vite vault integration", () => {
       expect(url).toMatch(/^\/project\/assets\//);
       expect((await readFile(path.join(dist, url.slice("/project/".length)))).length).toBeGreaterThan(0);
     }
+    expect(garden.querySelectorAll("script[src]").length).toBeGreaterThan(0);
+    expect(garden.querySelectorAll("link[rel=stylesheet]").length).toBeGreaterThan(0);
+    expect([...await readFile(path.join(dist, "_assets", "image.png"))]).toEqual([1, 2, 3]);
+    const output = (await readdir(path.join(dist, "assets"))).find(file => file.endsWith(".js"))!;
+    expect(await readFile(path.join(dist, "assets", output), "utf8")).toContain("Original home");
+    await rm(vault, { recursive: true });
+    await rm(configPath);
+    const compileCount = compiler.mock.calls.length;
+    const server = await preview({ configFile: false, root, plugins: [vaultPlugin()], logLevel: "silent", preview: { host: "127.0.0.1", port: 0 } });
+    expect(compiler.mock.calls.length).toBe(compileCount);
+    previews.push(server);
+    const address = server.httpServer.address();
+    if (!address || typeof address === "string") throw new Error("Missing preview address");
+    const cleanPage = await fetch(`http://127.0.0.1:${address.port}/project/field-notes/digital-gardens`);
+    expect(cleanPage.status).toBe(200);
+    expect(await cleanPage.text()).toContain("Digital Gardens · Fixture site");
+  }, 15000);
+
+  it("watches an external vault, serves matched dev pages/assets and atomically recovers from failed edits", async () => {
+    const { root, vault, configPath, raw } = await fixture("/project/");
+    const { server, origin } = await start(root);
+    const send = vi.spyOn(server.ws, "send");
+    const get = async (url: string) => (await fetch(origin + url)).text();
+    const virtual = async () => (await server.ssrLoadModule("virtual:published-site")).default as CompiledSite;
+    const initial = await get("/project/field-notes/digital-gardens");
+    expect(initial).toContain("Digital Gardens · Fixture site");
+    expect(initial).toContain("/project/@vite/client");
+    await writeFile(path.join(vault, "Private.md"), "PRIVATE SOURCE SECRET");
+    const sourceResponse = await fetch(origin + "/project/@fs" + vault + "/Private.md");
+    expect(sourceResponse.status).toBe(403);
+    expect(await sourceResponse.text()).not.toContain("PRIVATE SOURCE SECRET");
+    expect(server.config.server.fs.allow).not.toContain(vault);
+    expect([...new Uint8Array(await (await fetch(origin + "/project/_assets/image.png")).arrayBuffer())]).toEqual([1, 2, 3]);
+    expect((await virtual()).notes.find(candidate => candidate.path === "Home.md")?.body).toBe("Original home");
+
+    await writeFile(path.join(vault, "Home.md"), "Updated home");
+    await vi.waitFor(async () => expect(await get("/project/")).toContain("Updated home"), { timeout: 6000 });
+    expect(send.mock.calls.some(([message]) => messageType(message) === "full-reload")).toBe(true);
+    expect((await virtual()).notes.find(candidate => candidate.path === "Home.md")?.body).toBe("Updated home");
+
+    await writeFile(path.join(vault, "New.md"), "Added note");
+    await vi.waitFor(async () => expect((await virtual()).notes.some(candidate => candidate.path === "New.md")).toBe(true), { timeout: 6000 });
+    expect(await get("/project/new")).toContain("Added note");
+    await rm(path.join(vault, "New.md"));
+    await vi.waitFor(async () => expect((await virtual()).notes.some(candidate => candidate.path === "New.md")).toBe(false), { timeout: 6000 });
+
+    await writeFile(path.join(vault, "image.png"), new Uint8Array([4, 5]));
+    await writeFile(path.join(vault, ".obsidian", "snippets", "custom.css"), "body { --fixture: changed; }");
+    await vi.waitFor(async () => expect(await get("/project/")).toContain("--fixture: changed"), { timeout: 6000 });
+    expect([...new Uint8Array(await (await fetch(origin + "/project/_assets/image.png")).arrayBuffer())]).toEqual([4, 5]);
+    await writeFile(configPath, JSON.stringify({ ...raw, site: { ...raw.site, title: "Renamed site" } }));
+    await vi.waitFor(async () => expect(await get("/project/")).toContain("Home · Renamed site"), { timeout: 6000 });
+
+    send.mockClear();
+    await writeFile(path.join(vault, "Home.md"), "BROKEN");
+    await vi.waitFor(() => expect(send.mock.calls.some(([message]) => messageType(message) === "error")).toBe(true), { timeout: 6000 });
