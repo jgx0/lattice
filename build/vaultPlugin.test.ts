@@ -221,3 +221,59 @@ describe("Vite vault integration", () => {
     send.mockClear();
     await writeFile(path.join(vault, "Home.md"), "BROKEN");
     await vi.waitFor(() => expect(send.mock.calls.some(([message]) => messageType(message) === "error")).toBe(true), { timeout: 6000 });
+    expect(send.mock.calls.some(([message]) => messageType(message) === "full-reload")).toBe(false);
+    expect(await get("/project/")).toContain("Updated home");
+    expect((await virtual()).notes.find(candidate => candidate.path === "Home.md")?.body).toBe("Updated home");
+    await writeFile(path.join(vault, "Home.md"), "Recovered home");
+    await vi.waitFor(async () => expect(await get("/project/")).toContain("Recovered home"), { timeout: 6000 });
+    expect(await get("/project/_assets/%2e%2e/%2e%2e/publish.config.json")).not.toContain('"vault"');
+  }, 30000);
+
+  it("blocks raw vault paths even when the vault is inside the Vite project root", async () => {
+    const { root, vault, configPath, raw } = await fixture();
+    const nestedVault = path.join(root, "vault");
+    const { cp } = await import("node:fs/promises");
+    await cp(vault, nestedVault, { recursive: true });
+    await writeFile(configPath, JSON.stringify({ ...raw, vault: "./vault" }));
+    const { origin } = await start(root);
+    for (const url of ["/vault/Home.md", "/vault/.obsidian/snippets/custom.css", "/@fs" + nestedVault + "/Home.md?raw"]) {
+      const response = await fetch(origin + url);
+      expect(response.status).toBe(403);
+      expect(await response.text()).not.toContain("Original home");
+    }
+    expect(await (await fetch(origin + "/")).text()).toContain("Original home");
+  });
+
+  it("discards an in-flight stale compilation when a newer edit arrives", async () => {
+    const { root, vault } = await fixture();
+    const { server, origin } = await start(root);
+    await fetch(origin + "/");
+    let captured = false;
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    compiler.mockImplementation(async config => {
+      const result = await fakeCompile(config);
+      if (!captured && result.site.notes.find(candidate => candidate.path === "Home.md")?.body === "Intermediate") {
+        captured = true;
+        await gate;
+      }
+      return result;
+    });
+    await writeFile(path.join(vault, "Home.md"), "Intermediate");
+    server.watcher.emit("change", path.join(vault, "Home.md"));
+    await vi.waitFor(() => expect(captured).toBe(true), { timeout: 6000 });
+    expect(await (await fetch(origin + "/")).text()).toContain("Original home");
+    await writeFile(path.join(vault, "Home.md"), "Final latest snapshot");
+    server.watcher.emit("change", path.join(vault, "Home.md"));
+    release();
+    await vi.waitFor(async () => expect(await (await fetch(origin + "/")).text()).toContain("Final latest snapshot"), { timeout: 6000 });
+    const site = (await server.ssrLoadModule("virtual:published-site")).default as CompiledSite;
+    expect(site.notes.find(candidate => candidate.path === "Home.md")?.body).toBe("Final latest snapshot");
+  });
+
+  it("rejects unsafe compiler asset outputs before publishing any bundle", async () => {
+    const { root } = await fixture();
+    compiler.mockImplementation(async config => ({ ...(await fakeCompile(config)), assets: new Map([["../secret", new Uint8Array([1])]]) }));
+    await expect(build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: "silent" })).rejects.toThrow("Unsafe published asset path");
+  });
+});
