@@ -52,3 +52,57 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
   let compiling: Promise<void> | undefined;
   let revision = 0;
   let publishedRevision = -1;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+  let cleanup: (() => void) | undefined;
+  const watched = new Set<string>();
+  const debounceMs = Math.max(0, options.debounceMs ?? 80);
+
+  function registerDependencies(config: BuildConfig, dependencies: string[]) {
+    const optionalCss = [config.theme, ...(config.snippets ?? []), ...config.css].filter((file): file is string => !!file && path.isAbsolute(file));
+    const files = [config.vaultPath, path.join(config.vaultPath, ".obsidian"), config.configPath, ...optionalCss, ...dependencies];
+    for (const file of files) {
+      const absolute = path.resolve(file);
+      if (!watched.has(absolute)) {
+        watched.add(absolute);
+        server?.watcher.add(absolute);
+      }
+    }
+  }
+
+  async function compileSnapshot(): Promise<void> {
+    if (compiling) return compiling;
+    compiling = (async () => {
+      while (!disposed && publishedRevision !== revision) {
+        const started = revision;
+        const config = await loadConfig(projectRoot);
+        // Watch roots even when compilation fails, so the next edit can recover.
+        registerDependencies(config, []);
+        const candidate = await compileVault(config);
+        if (disposed) return;
+        for (const key of candidate.assets.keys()) assetFile(key);
+        for (const note of candidate.site.notes) publishedPageFile(note.url, config.base);
+        registerDependencies(config, candidate.dependencies);
+        if (started !== revision) continue;
+        configuration = config;
+        snapshot = candidate;
+        publishedRevision = started;
+      }
+    })().finally(() => { compiling = undefined; });
+    return compiling;
+  }
+
+  async function currentSnapshot(): Promise<Snapshot> {
+    if (!snapshot) await compileSnapshot();
+    if (!snapshot) throw new Error("No published vault snapshot is available.");
+    return snapshot;
+  }
+
+  function reportError(error: unknown) {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    resolved.logger.error(`[vault] ${failure.stack ?? failure.message}`);
+    server?.ws.send({ type: "error", err: { message: failure.message, stack: failure.stack ?? "", plugin: "published-vault" } });
+  }
+
+  async function refresh() {
+    try {
