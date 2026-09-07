@@ -106,3 +106,57 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
 
   async function refresh() {
     try {
+      await compileSnapshot();
+      if (disposed) return;
+      const module = server?.moduleGraph.getModuleById(RESOLVED_SITE_ID);
+      if (module) server!.moduleGraph.invalidateModule(module);
+      server?.ws.send({ type: "full-reload", path: "*" });
+    } catch (error) {
+      // Never invalidate or publish partially compiled data on a failed edit.
+      reportError(error);
+    }
+  }
+
+  function changed(file: string) {
+    const absolute = path.resolve(file);
+    const relevant = configuration && (within(absolute, configuration.vaultPath) || absolute === configuration.configPath ||
+      [...watched].some(dependency => dependency !== projectRoot && within(absolute, dependency)));
+    if (disposed || !relevant) return;
+    revision++;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { timer = undefined; void refresh(); }, debounceMs);
+  }
+
+  return {
+    name: "published-vault",
+    enforce: "pre",
+    async config(config, environment) {
+      projectRoot = path.resolve(options.root ?? config.root ?? process.cwd());
+      if (environment.isPreview) {
+        // Only the deployment base is needed to serve an already-built site.
+        const outDir = path.resolve(projectRoot, config.build?.outDir ?? "dist");
+        try {
+          const manifest = JSON.parse(await readFile(path.join(outDir, BASE_MANIFEST), "utf8"));
+          if (typeof manifest.base === "string" && manifest.base.startsWith("/") && !manifest.base.startsWith("//") && !/[\\\0?#]/.test(manifest.base)) {
+            return { base: manifest.base };
+          }
+        } catch { /* Older outputs can still use an explicitly supplied Vite base. */ }
+        return;
+      }
+      configuration = await loadConfig(projectRoot);
+      // All note URLs and bundle references use the same absolute deployment base.
+      return { base: configuration.base };
+    },
+    configResolved(config) { resolved = config; },
+    async buildStart() {
+      if (!server) { revision++; snapshot = undefined; }
+      await compileSnapshot();
+      for (const dependency of watched) this.addWatchFile(dependency);
+    },
+    resolveId(id) { if (id === PUBLISHED_SITE_ID) return RESOLVED_SITE_ID; },
+    async load(id) {
+      if (id !== RESOLVED_SITE_ID) return;
+      const current = await currentSnapshot();
+      return `export default ${JSON.stringify(current.site).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029")};`;
+    },
+    transformIndexHtml: {
