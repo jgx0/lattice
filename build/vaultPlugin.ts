@@ -214,3 +214,57 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
           const note = findPublishedNote(current.site, (request.url ?? "/").split("?")[0]);
           if (!note) return next();
           const template = await readFile(path.join(projectRoot, "index.html"), "utf8");
+          const transformed = await server!.transformIndexHtml(request.url ?? "/", template);
+          const html = renderPublishedPage(transformed, current.site, note);
+          response.statusCode = 200;
+          response.setHeader("Content-Type", "text/html; charset=utf-8");
+          response.setHeader("Cache-Control", "no-cache");
+          response.end(request.method === "HEAD" ? undefined : html);
+        } catch (error) { next(error); }
+      });
+    },
+    configurePreviewServer(previewServer) {
+      // Vite's SPA preview otherwise falls back to the home page for directory routes.
+      previewServer.middlewares.use(async (request, response, next) => {
+        if (request.method !== "GET" && request.method !== "HEAD") return next();
+        const pathname = (request.url ?? "/").split("?")[0];
+        const base = resolved.base;
+        if (!pathname.startsWith(base)) return next();
+        let fileName: string;
+        try { fileName = publishedPageFile(pathname.replace(/\/index\.html$/, "/"), base); }
+        catch { return next(); }
+        try {
+          const html = await readFile(path.resolve(resolved.root, resolved.build.outDir, fileName), "utf8");
+          response.statusCode = 200;
+          response.setHeader("Content-Type", "text/html; charset=utf-8");
+          response.end(request.method === "HEAD" ? undefined : html);
+        } catch { next(); }
+      });
+    },
+    generateBundle: {
+      order: "post",
+      async handler(_options, bundle) {
+        const current = await currentSnapshot();
+        const index = bundle["index.html"];
+        if (!index || index.type !== "asset") this.error("The published build requires Vite's emitted index.html shell.");
+        const shell = absoluteShellReferences(typeof index.source === "string" ? index.source : Buffer.from(index.source).toString("utf8"), configuration.base);
+        index.source = renderPublishedPage(shell, current.site, homeNote(current.site));
+        this.emitFile({ type: "asset", fileName: BASE_MANIFEST, source: JSON.stringify({ version: 1, base: configuration.base }) });
+        for (const [key, source] of current.assets) {
+          const fileName = assetFile(key);
+          if (bundle[fileName]) this.error(`Published asset collides with a build output: ${fileName}`);
+          this.emitFile({ type: "asset", fileName, source });
+        }
+        for (const note of current.site.notes) {
+          const fileName = publishedPageFile(note.url, configuration.base);
+          if (fileName === "index.html") continue;
+          if (bundle[fileName]) this.error(`Published page collides with a build output: ${fileName}`);
+          this.emitFile({ type: "asset", fileName, source: renderPublishedPage(shell, current.site, note) });
+        }
+      },
+    },
+    closeBundle() { if (server) cleanup?.(); },
+  };
+}
+
+export default vaultPlugin;
