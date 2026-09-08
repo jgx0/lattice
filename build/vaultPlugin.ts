@@ -160,3 +160,57 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
       return `export default ${JSON.stringify(current.site).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029")};`;
     },
     transformIndexHtml: {
+      order: "post",
+      async handler(html, context) {
+        const current = await currentSnapshot();
+        const requested = (context.originalUrl ?? context.path).split("?")[0];
+        const note = findPublishedNote(current.site, requested) ?? homeNote(current.site);
+        return renderPublishedPage(html, current.site, note);
+      },
+    },
+    configureServer(devServer) {
+      server = devServer;
+      // buildStart may happen before or after server setup (including middleware mode).
+      registerDependencies(configuration, [...watched]);
+      server.watcher.on("add", changed).on("change", changed).on("unlink", changed).on("addDir", changed).on("unlinkDir", changed);
+      cleanup = () => {
+        disposed = true;
+        if (timer) clearTimeout(timer);
+        server?.watcher.off("add", changed).off("change", changed).off("unlink", changed).off("addDir", changed).off("unlinkDir", changed);
+      };
+      server.httpServer?.once("close", cleanup);
+      server.middlewares.use(async (request, response, next) => {
+        if (request.method !== "GET" && request.method !== "HEAD") return next();
+        let pathname = (request.url ?? "/").split("?")[0];
+        try { pathname = decodeURIComponent(pathname); }
+        catch { response.statusCode = 400; response.end("Invalid URL."); return; }
+        if (pathname.includes("\\") || pathname.includes("\0") || pathname.split("/").some(part => part === "." || part === "..")) {
+          response.statusCode = 403;
+          response.end("Unsafe request path.");
+          return;
+        }
+        try {
+          const current = await currentSnapshot();
+          const base = configuration.base;
+          const unbased = base !== "/" && pathname.startsWith(base) ? "/" + pathname.slice(base.length) : pathname;
+          const diskPath = unbased.startsWith("/@fs/") ? path.resolve(unbased.slice("/@fs".length)) : path.resolve(projectRoot, "." + unbased);
+          if (within(diskPath, configuration.vaultPath)) {
+            response.statusCode = 403;
+            response.end("Vault source files are not served. Use published note and asset URLs.");
+            return;
+          }
+          if (pathname.startsWith(base)) {
+            const asset = current.assets.get(pathname.slice(base.length));
+            if (asset) {
+              response.statusCode = 200;
+              response.setHeader("Content-Type", MIME[path.extname(pathname).toLowerCase()] ?? "application/octet-stream");
+              response.setHeader("Content-Length", asset.byteLength);
+              response.setHeader("Cache-Control", "no-cache");
+              response.setHeader("X-Content-Type-Options", "nosniff");
+              response.end(request.method === "HEAD" ? undefined : Buffer.from(asset));
+              return;
+            }
+          }
+          const note = findPublishedNote(current.site, (request.url ?? "/").split("?")[0]);
+          if (!note) return next();
+          const template = await readFile(path.join(projectRoot, "index.html"), "utf8");
