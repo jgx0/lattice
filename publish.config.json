@@ -1,0 +1,12 @@
+{
+  "vault": "./vault",
+  "base": "/",
+  "site": {
+    "title": "Notes",
+    "home": "Welcome.md",
+    "theme": "system",
+    "readable": true,
+    "showProperties": false,
+    "showToc": true,
+    "showGraph": true,
+    "showBacklinks": true,
