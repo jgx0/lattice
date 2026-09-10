@@ -10,3 +10,15 @@
     "showToc": true,
     "showGraph": true,
     "showBacklinks": true,
+    "stacked": false,
+    "navigation": [
+      "Field Notes",
+      "Essays",
+      "Library",
+      "Projects",
+      "Atlas",
+      "About"
+    ],
+    "hiddenPaths": ["Templates"]
+  }
+}
