@@ -75,3 +75,80 @@ async function click(element: Element) {
 async function key(target: EventTarget, value: string, options: KeyboardEventInit = {}) {
   await act(async () => { target.dispatchEvent(new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true, ...options })); });
   await advance(100);
+}
+async function input(element: HTMLInputElement | HTMLSelectElement, value: string) {
+  // Bypass React's value tracker to simulate a native user edit.
+  const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(element, value);
+  await act(async () => { element.dispatchEvent(new Event(element instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })); });
+}
+async function mount(inputSite = site) { await act(async () => { root.render(createElement(App, { site: inputSite })); }); }
+async function remount(inputSite = site, url = '/garden/') {
+  await act(async () => { root.unmount(); });
+  vi.clearAllTimers();
+  window.history.replaceState(null, '', url);
+  root = createRoot(container);
+  await mount(inputSite);
+  await advance(100);
+}
+
+beforeEach(async () => {
+  vi.useFakeTimers();
+  systemDark = false;
+  mediaListeners.clear();
+  const values = new Map<string, string>();
+  const storage: Storage = {
+    get length() { return values.size; }, clear: () => values.clear(),
+    getItem: key => values.get(String(key)) ?? null, key: index => [...values.keys()][index] ?? null,
+    removeItem: key => { values.delete(String(key)); }, setItem: (key, value) => { values.set(String(key), String(value)); },
+  };
+  vi.stubGlobal('localStorage', storage);
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.stubGlobal('innerWidth', 1280);
+  vi.stubGlobal('innerHeight', 900);
+  // These tests only need escaping for quoted attribute selectors.
+  vi.stubGlobal('CSS', { ...globalThis.CSS, escape: (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, character => `\\${character.codePointAt(0)!.toString(16)} `) });
+  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+    get matches() { return systemDark; }, media: query, onchange: null,
+    addEventListener: vi.fn((_event: string, listener: () => void) => { mediaListeners.add(listener); }),
+    removeEventListener: vi.fn((_event: string, listener: () => void) => { mediaListeners.delete(listener); }),
+    addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+  })));
+  vi.stubGlobal('IntersectionObserver', class {
+    observe = vi.fn(); unobserve = vi.fn(); disconnect = vi.fn(); takeRecords = () => [];
+  });
+  shims.forEach(([target, name]) => Object.defineProperty(target, name, {
+    configurable: true, writable: true, value: vi.fn(name === 'createObjectURL' ? () => 'blob:test' : () => undefined),
+  }));
+  window.history.replaceState(null, '', '/garden/');
+  container = document.createElement('div');
+  document.body.appendChild(container);
+  root = createRoot(container);
+  await mount();
+});
+afterEach(async () => {
+  await act(async () => { root.unmount(); });
+  container.remove();
+  vi.clearAllTimers();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  shims.forEach(([target, name], index) => {
+    if (descriptors[index]) Object.defineProperty(target, name, descriptors[index]!);
+    else Reflect.deleteProperty(target, name);
+  });
+  document.title = originalTitle;
+  document.body.className = originalBodyClass;
+  if (originalTheme === null) document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', originalTheme);
+});
+
+describe('compiled-site reader', () => {
+  it('renders plain demo content without authoring scaffolding and preserves compiled sanitization', async () => {
+    expect(titles()).toEqual(['A place for connected ideas']);
+    expect(one('.note-header').textContent).toBe('A place for connected ideas');
+    expect(one('.markdown-body').innerHTML).toBe(compiled('Welcome.md').html);
+    expect(one('[data-callout="tip"]').textContent).toContain('There is no correct route');
+    expect(one('.site-header').textContent).toBe('Notes');
+    expect(container.querySelector('.note-meta, .note-eyebrow, .garden-paths, .note-footer, .site-brand, footer, input[type="file"]')).toBeNull();
+    expect(nav('Digital gardens').querySelector('svg, .tree-item-icon')).toBeNull();
+    expect(prefs()).toEqual({});
