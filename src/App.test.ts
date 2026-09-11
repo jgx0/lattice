@@ -152,3 +152,80 @@ describe('compiled-site reader', () => {
     expect(container.querySelector('.note-meta, .note-eyebrow, .garden-paths, .note-footer, .site-brand, footer, input[type="file"]')).toBeNull();
     expect(nav('Digital gardens').querySelector('svg, .tree-item-icon')).toBeNull();
     expect(prefs()).toEqual({});
+    // Lattice/author text in authored Markdown is fine; App must not inject it.
+    await remount(safeSite);
+    expect(titles()).toEqual(['Safe note']);
+    const body = one('.markdown-body');
+    expect(one('strong', body).textContent).toBe('Readable content');
+    expect(body.querySelector('script, iframe, [onerror], [onclick], [srcdoc]')).toBeNull();
+    expect(body.innerHTML).not.toMatch(/javascript:|data:text\/html/);
+    await click(one('a[data-note="Other.md"]', body));
+    expect(titles()).toEqual(['Other']);
+    expect(window.location.pathname).toBe('/garden/other');
+  });
+
+  it('follows actual sidebar/internal URLs, scrolls anchors and restores a pathname on popstate', async () => {
+    expect(nav('Digital gardens').getAttribute('href')).toBe('/garden/field-notes/digital-gardens');
+    await click(nav('Digital gardens'));
+    expect(titles()).toEqual(['Digital gardens']);
+    expect(nav('Digital gardens').getAttribute('aria-current')).toBe('page');
+    expect(window.location.pathname).toBe('/garden/field-notes/digital-gardens');
+    expect(history.state).toEqual({ note: 'Field Notes/Digital gardens.md' });
+    const link = one<HTMLAnchorElement>('a.internal-link[data-note="Field Notes/Attention is a material.md"]', one('.markdown-body'));
+    expect(link.pathname).toBe('/garden/field-notes/attention-is-a-material');
+    await click(link);
+    expect(titles()).toEqual(['Attention is a material']);
+    expect(document.title).toBe('Attention is a material - Notes');
+    expect(window.location.pathname).toBe(link.pathname);
+    await act(async () => {
+      history.replaceState({ note: 'Field Notes/Digital gardens.md' }, '', '/garden/field-notes/digital-gardens');
+      window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+    });
+    await advance(100);
+    expect(titles()).toEqual(['Digital gardens']);
+    expect(nav('Digital gardens').getAttribute('aria-current')).toBe('page');
+    await remount(site, '/garden/field-notes/digital-gardens');
+    expect(titles()).toEqual(['Digital gardens']);
+    await click(one('.site-name'));
+    await click(one('a[data-note="Field Notes/Digital gardens.md"][data-anchor="a-link-should-carry-a-thought"]', one('.markdown-body')));
+    expect(window.location.pathname).toBe('/garden/field-notes/digital-gardens');
+    expect(window.location.hash).toBe('#a-link-should-carry-a-thought');
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    expect(one('.toc-link.current').textContent).toBe('A link should carry a thought');
+  });
+
+  it('builds stacked panes and closes the active pane without reopening it or leaving a stale URL', async () => {
+    await click(label('Toggle stacked pages'));
+    await click(nav('Digital gardens'));
+    expect(container.querySelectorAll('.stack-pane')).toHaveLength(2);
+    await click(nav('Walking as research'));
+    expect(titles()).toEqual(['A place for connected ideas', 'Digital gardens', 'Walking as research']);
+    expect(container.querySelectorAll('.stack-pane')).toHaveLength(3);
+    await click(label('Close pane Walking as research'));
+    expect(titles()).toEqual(['A place for connected ideas', 'Digital gardens']);
+    expect(container.querySelectorAll('.stack-pane')).toHaveLength(2);
+    expect(nav('Digital gardens').getAttribute('aria-current')).toBe('page');
+    expect(window.location.pathname).toBe('/garden/field-notes/digital-gardens');
+    expect(window.location.hash).toBe('');
+    expect(history.state).toEqual({ note: 'Field Notes/Digital gardens.md' });
+    await advance(1000);
+    expect(container.querySelector('[aria-label="Close pane Walking as research"]')).toBeNull();
+    await click(label('Close pane Digital gardens'));
+    expect(titles()).toEqual(['A place for connected ideas']);
+    expect(container.querySelectorAll('.stack-pane')).toHaveLength(0);
+    expect(window.location.pathname).toBe('/garden/');
+    await click(nav('Digital gardens'));
+    await click(label('Close pane A place for connected ideas'));
+    expect(titles()).toEqual(['Digital gardens']);
+    expect(window.location.pathname).toBe('/garden/field-notes/digital-gardens');
+    await click(label('Toggle stacked pages'));
+    expect(titles()).toEqual(['Digital gardens']);
+  });
+
+  it('saves reader-only preferences, applies theme CSS/body classes and follows system color changes', async () => {
+    expect(one('style[data-publish-theme]').textContent).toBe(site.themeCss);
+    expect(document.body.classList.contains('garden-reader')).toBe(true);
+    expect(document.body.classList.contains('publish')).toBe(true);
+    expect(getComputedStyle(document.body).getPropertyValue('--background-primary')).toBe('#faf8f4');
+    await click(label('Toggle color theme'));
+    expect(document.body.classList.contains('theme-dark')).toBe(true);
