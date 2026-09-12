@@ -306,3 +306,80 @@ describe('compiled-site reader', () => {
     await input(search, 'file:"Digital gardens.md"');
     expect(one<HTMLAnchorElement>('.search-result-file-title').pathname).toBe('/garden/field-notes/digital-gardens');
     await key(search, 'Enter');
+    expect(search.value).toBe('');
+    expect(titles()).toEqual(['Digital gardens']);
+    expect(nav('Digital gardens').getAttribute('aria-current')).toBe('page');
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('renders this.file-scoped Bases and sorts book rows alphabetically and numerically', async () => {
+    await click(nav('Digital gardens'));
+    const nearby = one<HTMLTableElement>('table.base-table');
+    expect([...nearby.tBodies[0].rows].map(row => row.cells[0].textContent)).toEqual(expect.arrayContaining(['Attention is a material', 'Small bets & long horizons', 'Walking as research', 'The useful edge']));
+    expect(nearby.tBodies[0].rows).toHaveLength(4);
+    expect(nearby.querySelector('a[data-note="Field Notes/Digital gardens.md"]')).toBeNull();
+    await click(nav('The reading room'));
+    const table = one<HTMLTableElement>('table.base-table');
+    const cells = (column: number) => [...table.tBodies[0].rows].map(row => row.cells[column].textContent!.trim());
+    expect(table.tBodies[0].rows).toHaveLength(5);
+    const books = ['A Pattern Language', 'Braiding Sweetgrass', 'How to Do Nothing', 'The Art of Noticing', 'The Practice of Everyday Life'];
+    await click(label('Sort by Book', table));
+    expect(cells(0)).toEqual(books);
+    expect(table.tHead!.rows[0].cells[0].getAttribute('aria-sort')).toBe('ascending');
+    await click(label('Sort by Book', table));
+    expect(cells(0)).toEqual([...books].reverse());
+    expect(table.tHead!.rows[0].cells[0].getAttribute('aria-sort')).toBe('descending');
+    await click(label('Sort by Published', table));
+    expect(cells(4).map(Number)).toEqual([1977, 1984, 2013, 2019, 2019]);
+    expect(table.tHead!.rows[0].cells[0].hasAttribute('aria-sort')).toBe(false);
+    await click(label('Sort by Published', table));
+    expect(cells(4).map(Number)).toEqual([2019, 2019, 2013, 1984, 1977]);
+  });
+
+  it('delays tooltip previews, cancels dismissal while hovered and opens a compiled preview link', async () => {
+    const link = one('a[data-note="Field Notes/Digital gardens.md"]', one('.markdown-body'));
+    await act(async () => { link.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); });
+    await advance(399);
+    expect(container.querySelector('[role="tooltip"]')).toBeNull();
+    await advance(1);
+    const tooltip = one('[role="tooltip"]');
+    expect(one('.preview-title', tooltip).textContent).toBe('Digital gardens');
+    expect(one('.preview-body', tooltip).innerHTML).toBe(compiled('Field Notes/Digital gardens.md').previewHtml);
+    expect(titles()).toEqual(['A place for connected ideas']);
+    await act(async () => { link.dispatchEvent(new MouseEvent('mouseout', { bubbles: true })); });
+    await advance(179);
+    expect(container.querySelector('[role="tooltip"]')).not.toBeNull();
+    await advance(1);
+    expect(container.querySelector('[role="tooltip"]')).toBeNull();
+    await act(async () => { link.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); });
+    await advance(400);
+    await act(async () => {
+      const preview = one('[role="tooltip"]');
+      link.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: preview }));
+      preview.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: link }));
+    });
+    await advance(180);
+    expect(container.querySelector('[role="tooltip"]')).not.toBeNull();
+    await click(one('.preview-title a', one('[role="tooltip"]')));
+    expect(titles()).toEqual(['Digital gardens']);
+    expect(window.location.pathname).toBe('/garden/field-notes/digital-gardens');
+    expect(container.querySelector('[role="tooltip"]')).toBeNull();
+  });
+
+  it('starts with navigation hidden at mobile width and closes it after following a link', async () => {
+    vi.stubGlobal('innerWidth', 375);
+    await remount();
+    expect(one('.app-shell').classList.contains('sidebar-hidden')).toBe(true);
+    expect(container.querySelector('.mobile-scrim')).toBeNull();
+    await click(label('Open sidebar'));
+    expect(one('.app-shell').classList.contains('sidebar-hidden')).toBe(false);
+    await click(nav('Digital gardens'));
+    expect(titles()).toEqual(['Digital gardens']);
+    expect(window.location.pathname).toBe('/garden/field-notes/digital-gardens');
+    expect(one('.app-shell').classList.contains('sidebar-hidden')).toBe(true);
+    expect(container.querySelector('.mobile-scrim')).toBeNull();
+    await click(label('Open navigation'));
+    await click(label('Dismiss navigation'));
+    expect(one('.app-shell').classList.contains('sidebar-hidden')).toBe(true);
+  });
+});
