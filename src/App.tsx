@@ -206,3 +206,107 @@ export default function App({ site }: { site: CompiledSite }) {
       if (note) {
         setPath(note.path);
         setPanes([note.path]);
+        setView("note");
+        let anchor = location.hash.slice(1);
+        try {
+          anchor = decodeURIComponent(anchor);
+        } catch {}
+        scrollTo(note, anchor);
+      }
+    };
+    window.addEventListener("popstate", sync);
+    window.addEventListener("hashchange", sync);
+    if (location.hash)
+      scrollTo(initialNote(site), decodeURIComponent(location.hash.slice(1)));
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("hashchange", sync);
+    };
+  }, [site, scrollTo]);
+  useEffect(() => {
+    if (!reader.current || view !== "note") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries)
+          if (entry.isIntersecting) setActiveHeading(entry.target.id);
+      },
+      { root: reader.current, rootMargin: "-10% 0px -75% 0px" },
+    );
+    reader.current
+      .querySelectorAll("h1[id],h2[id],h3[id]")
+      .forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [current, view, panes]);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  function contentClick(e: React.MouseEvent) {
+    const a = (e.target as HTMLElement).closest<HTMLAnchorElement>("a");
+    if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    if (a.dataset.note) {
+      e.preventDefault();
+      navigate(
+        a.dataset.note,
+        a.dataset.anchor || decodeURIComponent(a.hash.slice(1)),
+      );
+    } else if (a.getAttribute("href")?.startsWith("#")) {
+      e.preventDefault();
+      const pane = a.closest<HTMLElement>("[data-note-path]");
+      pane
+        ?.querySelector<HTMLElement>(
+          `[id="${CSS.escape(decodeURIComponent(a.hash.slice(1)))}"]`,
+        )
+        ?.scrollIntoView({ behavior: "smooth" });
+      setActiveHeading(decodeURIComponent(a.hash.slice(1)));
+    }
+  }
+  function hoverLink(e: React.MouseEvent) {
+    const a = (e.target as HTMLElement).closest<HTMLAnchorElement>(
+      "a[data-note]",
+    );
+    if (!a) return;
+    const note = notes.find((n) => n.path === a.dataset.note);
+    if (!note) return;
+    if (timer.current) clearTimeout(timer.current);
+    const box = a.getBoundingClientRect();
+    timer.current = setTimeout(
+      () =>
+        setHover({
+          note,
+          x: Math.max(12, Math.min(innerWidth - 370, box.left)),
+          y: Math.max(12, Math.min(innerHeight - 330, box.bottom + 8)),
+        }),
+      400,
+    );
+  }
+  function leaveHover() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setHover(null), 180);
+  }
+  function change<K extends keyof SiteSettings>(
+    key: K,
+    value: SiteSettings[K],
+  ) {
+    setPreferences((old) => ({ ...old, [key]: value }));
+    if (key === "stacked") setPanes(current ? [current.path] : []);
+  }
+  function closePane(p: string) {
+    const next = panes.filter((n) => n !== p);
+    if (!next.length) return;
+    setPanes(next);
+    if (path === p) {
+      const note = notes.find((n) => n.path === next[next.length - 1]);
+      if (note) {
+        setPath(note.path);
+        history.replaceState({ note: note.path }, "", note.url);
+      }
+    }
+  }
+  function showGraph() {
+    setView("graph");
+    setHover(null);
+    if (innerWidth <= 760) setSidebar(false);
+  }
