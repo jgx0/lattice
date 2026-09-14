@@ -310,3 +310,107 @@ export default function App({ site }: { site: CompiledSite }) {
     setHover(null);
     if (innerWidth <= 760) setSidebar(false);
   }
+  if (!current)
+    return (
+      <main>
+        <h1>No published notes</h1>
+      </main>
+    );
+  const backlinks = current.backlinks
+    .map((p) => notes.find((n) => n.path === p))
+    .filter((n): n is PublishedNote => !!n);
+  const headingItems = current.headings.filter((h) => h.level < 5);
+  function notePage(note: PublishedNote) {
+    const classes = note.properties.cssclasses;
+    const cssclasses = (
+      Array.isArray(classes)
+        ? classes
+        : typeof classes === "string"
+          ? classes.split(/\s+/)
+          : []
+    )
+      .filter((c) => typeof c === "string")
+      .join(" ");
+    return (
+      <article
+        className={`note-page markdown-preview-view markdown-rendered ${settings.readable ? "is-readable-line-width readable-line-width" : ""} ${cssclasses}`}
+        data-note-path={note.path}
+        data-type="markdown"
+      >
+        <div className="markdown-preview-sizer markdown-preview-section">
+          <header className="page-header note-header">
+            <h1 className="page-header-title inline-title">{note.title}</h1>
+          </header>
+          {settings.showProperties &&
+            Object.keys(note.properties).some(
+              (k) => !["title", "cssclasses", "aliases"].includes(k),
+            ) && (
+              <details className="metadata-container properties">
+                <summary>Properties</summary>
+                <div className="metadata-content">
+                  {Object.entries(note.properties)
+                    .filter(
+                      ([k]) => !["title", "cssclasses", "aliases"].includes(k),
+                    )
+                    .map(([k, v]) => (
+                      <div className="metadata-property" key={k}>
+                        <span className="metadata-property-key">{k}</span>
+                        <span className="metadata-property-value">
+                          {Array.isArray(v) ? v.join(", ") : String(v ?? "")}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </details>
+            )}
+          <MarkdownContent
+            html={note.html}
+            onClick={contentClick}
+            onMouseOver={hoverLink}
+            onMouseOut={leaveHover}
+          />
+        </div>
+      </article>
+    );
+  }
+  return (
+    <div
+      className={`published-container publish-container workspace app-shell ${sidebar ? "" : "sidebar-hidden"} ${settings.stacked ? "stack-mode" : ""}`}
+    >
+      <style data-publish-theme>{site.themeCss}</style>
+      {sidebar && (
+        <div
+          className="mobile-scrim"
+          aria-label="Dismiss navigation"
+          onClick={() => setSidebar(false)}
+        />
+      )}
+      <aside
+        className="site-body-left-column sidebar workspace-split mod-left-split"
+        aria-label="Site navigation"
+      >
+        <div className="workspace-leaf">
+          <div className="workspace-leaf-content" data-type="file-explorer">
+            <header className="site-header">
+              <a
+                className="site-name"
+                href={
+                  notes.find((n) => n.path === settings.home)?.url ||
+                  notes[0].url
+                }
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(settings.home);
+                }}
+              >
+                {settings.title}
+              </a>
+              <button
+                className="clickable-icon sidebar-collapse"
+                aria-label="Close sidebar"
+                onClick={() => setSidebar(false)}
+              >
+                <PanelLeftClose size={18} />
+              </button>
+            </header>
+            <div className="search-view-container">
