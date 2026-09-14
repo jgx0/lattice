@@ -414,3 +414,107 @@ export default function App({ site }: { site: CompiledSite }) {
               </button>
             </header>
             <div className="search-view-container">
+              <div className="search-input-container">
+                <Search size={16} />
+                <input
+                  ref={searchInput}
+                  className="search-bar"
+                  type="search"
+                  placeholder="Search page or heading..."
+                  aria-label="Search page or heading..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && searchResults[0])
+                      navigate(searchResults[0].path);
+                  }}
+                />
+                {query && (
+                  <button
+                    className="clickable-icon"
+                    aria-label="Clear search"
+                    onClick={() => setQuery("")}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+            <nav className="vault-navigation" aria-label="Files">
+              {query ? (
+                <div className="search-results search-result-container">
+                  {searchResults.map((n) => (
+                    <a
+                      className="search-result-file-title"
+                      key={n.path}
+                      href={(n as PublishedNote).url}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey) return;
+                        e.preventDefault();
+                        navigate(n.path);
+                      }}
+                    >
+                      <span>{n.title}</span>
+                      <small>{n.folder}</small>
+                    </a>
+                  ))}
+                  {!searchResults.length && (
+                    <p className="empty-hint">No results found.</p>
+                  )}
+                </div>
+              ) : (
+                <SidebarTree
+                  notes={notes}
+                  settings={settings}
+                  current={current.path}
+                  collapsed={collapsed}
+                  onToggle={(folder) =>
+                    setCollapsed((old) => {
+                      const next = new Set(old);
+                      next.has(folder) ? next.delete(folder) : next.add(folder);
+                      return next;
+                    })
+                  }
+                  onNavigate={navigate}
+                />
+              )}
+            </nav>
+            <div className="nav-buttons-container reader-controls">
+              <button
+                className="clickable-icon"
+                aria-label="Graph view"
+                title="Graph view"
+                onClick={showGraph}
+              >
+                <GitBranch size={18} />
+              </button>
+              <button
+                className={`clickable-icon ${settings.stacked ? "is-active" : ""}`}
+                aria-label="Toggle stacked pages"
+                title="Stacked pages"
+                onClick={() => change("stacked", !settings.stacked)}
+              >
+                <Layers2 size={18} />
+              </button>
+              <button
+                className="clickable-icon"
+                aria-label="Toggle color theme"
+                title="Color theme"
+                onClick={() =>
+                  change(
+                    "theme",
+                    document.body.classList.contains("theme-dark")
+                      ? "light"
+                      : "dark",
+                  )
+                }
+              >
+                {settings.theme === "dark" ? (
+                  <Sun size={18} />
+                ) : (
+                  <Moon size={18} />
+                )}
+              </button>
+              <button
+                className="clickable-icon"
+                aria-label="Reader settings"
