@@ -622,3 +622,107 @@ export default function App({ site }: { site: CompiledSite }) {
                 >
                   {rightSections.graph ? (
                     <ChevronDown size={14} />
+                  ) : (
+                    <ChevronRight size={14} />
+                  )}
+                  Interactive graph
+                </button>
+                <button
+                  className="clickable-icon"
+                  aria-label="Expand graph"
+                  onClick={showGraph}
+                >
+                  <Maximize2 size={14} />
+                </button>
+              </div>
+              {rightSections.graph && (
+                <>
+                  <GraphView
+                    notes={notes}
+                    current={current.path}
+                    compact
+                    onNavigate={navigate}
+                  />
+                  <button className="global-graph-button" onClick={showGraph}>
+                    Global Graph
+                  </button>
+                </>
+              )}
+            </section>
+          )}
+          {settings.showToc && (
+            <section className="outline-view-container toc">
+              <div className="aside-heading">
+                <button
+                  className="section-toggle"
+                  onClick={() =>
+                    setRightSections((s) => ({ ...s, outline: !s.outline }))
+                  }
+                  aria-expanded={rightSections.outline}
+                >
+                  {rightSections.outline ? (
+                    <ChevronDown size={14} />
+                  ) : (
+                    <ChevronRight size={14} />
+                  )}
+                  On this page
+                </button>
+              </div>
+              {rightSections.outline && (
+                <nav className="outline" aria-label="Table of contents">
+                  {headingItems.map((h, i) => (
+                    <a
+                      className={`tree-item-self outline-item toc-link level-${h.level} ${activeHeading === h.id ? "is-active current" : ""}`}
+                      key={`${h.id}-${i}`}
+                      href={`#${encodeURIComponent(h.id)}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        scrollTo(current, h.id);
+                      }}
+                    >
+                      <span className="tree-item-inner">{h.text}</span>
+                    </a>
+                  ))}
+                </nav>
+              )}
+            </section>
+          )}
+          {settings.showBacklinks && backlinks.length > 0 && (
+            <section className="backlinks backlinks-pane">
+              <div className="aside-heading">
+                <button
+                  className="section-toggle"
+                  onClick={() =>
+                    setRightSections((s) => ({ ...s, backlinks: !s.backlinks }))
+                  }
+                  aria-expanded={rightSections.backlinks}
+                >
+                  {rightSections.backlinks ? (
+                    <ChevronDown size={14} />
+                  ) : (
+                    <ChevronRight size={14} />
+                  )}
+                  Linked mentions{" "}
+                  <span className="backlink-count">{backlinks.length}</span>
+                </button>
+              </div>
+              {rightSections.backlinks &&
+                backlinks.map((n) => (
+                  <a
+                    className="backlink tree-item-self"
+                    key={n.path}
+                    href={n.url}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey) return;
+                      e.preventDefault();
+                      navigate(n.path);
+                    }}
+                  >
+                    {n.title}
+                  </a>
+                ))}
+            </section>
+          )}
+        </aside>
+      )}
+      {hover && (
