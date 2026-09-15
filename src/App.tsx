@@ -518,3 +518,107 @@ export default function App({ site }: { site: CompiledSite }) {
               <button
                 className="clickable-icon"
                 aria-label="Reader settings"
+                title="Reader settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings2 size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <div className="site-body-center-column main-shell">
+        <div className="view-header topbar">
+          <div className="view-header-title-container">
+            <button
+              className="clickable-icon mobile-menu"
+              aria-label="Open navigation"
+              onClick={() => setSidebar(!sidebar)}
+            >
+              <Menu size={20} />
+            </button>
+            {!sidebar && (
+              <button
+                className="clickable-icon desktop-menu"
+                aria-label="Open sidebar"
+                onClick={() => setSidebar(true)}
+              >
+                <PanelLeftOpen size={18} />
+              </button>
+            )}
+            <div className="view-header-title">
+              {view === "graph" ? "Graph view" : current.title}
+            </div>
+          </div>
+          <div className="view-actions">
+            <button
+              className="clickable-icon"
+              aria-label="Close page"
+              onClick={() => {
+                if (panes.length > 1) closePane(current.path);
+                else navigate(settings.home);
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+        <main
+          className={`reader ${settings.stacked ? "stacked-reader" : ""}`}
+          ref={reader}
+          id="main-content"
+        >
+          {view === "graph" ? (
+            <section className="graph-page">
+              <h1>Graph view</h1>
+              <GraphView
+                notes={notes}
+                current={current.path}
+                onNavigate={navigate}
+              />
+            </section>
+          ) : settings.stacked && panes.length > 1 ? (
+            <div className="page-stack">
+              {panes.map((p) => {
+                const n = notes.find((note) => note.path === p);
+                return (
+                  n && (
+                    <div className="stack-pane workspace-leaf" key={p}>
+                      <div className="stack-pane-bar view-header">
+                        <span className="view-header-title">{n.title}</span>
+                        <button
+                          className="clickable-icon"
+                          aria-label={`Close pane ${n.title}`}
+                          onClick={() => closePane(p)}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      {notePage(n)}
+                    </div>
+                  )
+                );
+              })}
+            </div>
+          ) : (
+            notePage(current)
+          )}
+        </main>
+      </div>
+      {view === "note" && !(settings.stacked && panes.length > 1) && (
+        <aside
+          className="site-body-right-column right-sidebar workspace-split mod-right-split"
+          aria-label="Page information"
+        >
+          {settings.showGraph && (
+            <section className="graph-view-container local-graph">
+              <div className="aside-heading">
+                <button
+                  className="section-toggle"
+                  onClick={() =>
+                    setRightSections((s) => ({ ...s, graph: !s.graph }))
+                  }
+                  aria-expanded={rightSections.graph}
+                >
+                  {rightSections.graph ? (
+                    <ChevronDown size={14} />
