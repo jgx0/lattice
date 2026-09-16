@@ -726,3 +726,107 @@ export default function App({ site }: { site: CompiledSite }) {
         </aside>
       )}
       {hover && (
+        <div
+          className="popover hover-popover hover-preview"
+          role="tooltip"
+          style={{ left: hover.x, top: hover.y }}
+          onMouseEnter={() => {
+            if (timer.current) clearTimeout(timer.current);
+          }}
+          onMouseLeave={leaveHover}
+        >
+          <div className="markdown-embed is-loaded">
+            <div className="markdown-embed-content">
+              <div className="markdown-preview-view markdown-rendered">
+                <h1 className="preview-title">
+                  <a
+                    href={hover.note.url}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(hover.note.path);
+                    }}
+                  >
+                    {hover.note.title}
+                  </a>
+                </h1>
+                <div
+                  className="markdown-body preview-body"
+                  dangerouslySetInnerHTML={{ __html: hover.note.previewHtml }}
+                  onClick={contentClick}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {settingsOpen && (
+        <div
+          className="modal-container modal-overlay"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setSettingsOpen(false);
+          }}
+        >
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Reader settings"
+          >
+            <div className="modal-header">
+              <h2>Reader settings</h2>
+              <button
+                className="clickable-icon"
+                aria-label="Close settings"
+                onClick={() => setSettingsOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-content settings-content">
+              <div className="setting-row">
+                <label htmlFor="color-mode">Color scheme</label>
+                <select
+                  id="color-mode"
+                  value={settings.theme}
+                  onChange={(e) =>
+                    change("theme", e.target.value as SiteSettings["theme"])
+                  }
+                >
+                  <option value="system">Adapt to system</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </div>
+              {[
+                { key: "readable", label: "Readable line length" },
+                { key: "showProperties", label: "Properties" },
+                { key: "showToc", label: "Table of contents" },
+                { key: "showGraph", label: "Interactive graph" },
+                { key: "showBacklinks", label: "Backlinks" },
+                { key: "stacked", label: "Stacked pages" },
+              ].map((item) => (
+                <div className="setting-row" key={item.key}>
+                  <span>{item.label}</span>
+                  <button
+                    className={`checkbox-container toggle ${settings[item.key as keyof SiteSettings] ? "is-enabled on" : ""}`}
+                    role="switch"
+                    aria-checked={!!settings[item.key as keyof SiteSettings]}
+                    aria-label={item.label}
+                    onClick={() =>
+                      change(
+                        item.key as keyof SiteSettings,
+                        !settings[item.key as keyof SiteSettings],
+                      )
+                    }
+                  >
+                    <span />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
