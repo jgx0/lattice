@@ -10,3 +10,16 @@ export default class ErrorBoundary extends Component<
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Reader error", error, info.componentStack);
+  }
+  render() {
+    return this.state.error ? (
+      <main className="empty-vault">
+        <h1>Unable to display this page.</h1>
+        <p>{this.state.error}</p>
+        <button onClick={() => location.reload()}>Reload the reader</button>
+      </main>
+    ) : (
+      this.props.children
+    );
+  }
+}
