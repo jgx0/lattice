@@ -71,3 +71,76 @@ export default function GraphView({
           ? 300
           : 300 + Math.cos(i * 2.39996) * (60 + Math.sqrt(i) * 29),
       y:
+        n.path === current
+          ? 220
+          : 220 + Math.sin(i * 2.39996) * (60 + Math.sqrt(i) * 25),
+    }));
+    const indexes = new Map(nodes.map((n, i) => [n.path, i]));
+    const activeEdges = edges.flatMap((e) => {
+      const i = indexes.get(e.from),
+        j = indexes.get(e.to);
+      return i === undefined || j === undefined ? [] : [{ i, j }];
+    });
+    for (
+      let iteration = 0;
+      iteration < (nodes.length > 100 ? 65 : 160);
+      iteration++
+    ) {
+      const force = nodes.map((n) => ({
+        x: (300 - n.x) * 0.003,
+        y: (220 - n.y) * 0.003,
+      }));
+      nodes.forEach((a, i) =>
+        nodes.forEach((b, j) => {
+          if (i === j) return;
+          const dx = a.x - b.x,
+            dy = a.y - b.y,
+            d = Math.max(15, Math.hypot(dx, dy));
+          force[i].x += ((dx / d) * 17000) / (d * d);
+          force[i].y += ((dy / d) * 17000) / (d * d);
+        }),
+      );
+      activeEdges.forEach(({ i, j }) => {
+        const dx = nodes[j].x - nodes[i].x,
+          dy = nodes[j].y - nodes[i].y,
+          d = Math.max(1, Math.hypot(dx, dy)),
+          strength = (d - 105) * 0.014;
+        force[i].x += (dx / d) * strength;
+        force[i].y += (dy / d) * strength;
+        force[j].x -= (dx / d) * strength;
+        force[j].y -= (dy / d) * strength;
+      });
+      nodes.forEach((n, i) => {
+        n.x += Math.max(-8, Math.min(8, force[i].x));
+        n.y += Math.max(-8, Math.min(8, force[i].y));
+      });
+    }
+    setPositions(
+      Object.fromEntries(nodes.map((n) => [n.path, { x: n.x, y: n.y }])),
+    );
+  }, [visible, edges, current]);
+  function move(e: React.PointerEvent) {
+    if (!drag.current) return;
+    const rect = svg.current!.getBoundingClientRect();
+    const dx = ((e.clientX - drag.current.x) * 600) / rect.width / zoom;
+    const dy = ((e.clientY - drag.current.y) * 440) / rect.height / zoom;
+    if (Math.abs(dx) + Math.abs(dy) > 1) drag.current.moved = true;
+    if (drag.current.path) {
+      const p = drag.current.path;
+      setPositions((old) => ({
+        ...old,
+        [p]: { x: old[p].x + dx, y: old[p].y + dy },
+      }));
+    } else setOffset((old) => ({ x: old.x + dx * zoom, y: old.y + dy * zoom }));
+    drag.current.x = e.clientX;
+    drag.current.y = e.clientY;
+  }
+  const colors = ["#8b73d6", "#66a89d", "#d8ae6a", "#83a1cc", "#be8ba3"];
+  const folders = [...new Set(notes.map((n) => n.folder))];
+  return (
+    <div className={`graph-view ${compact ? "compact" : ""}`}>
+      {!compact && (
+        <div className="graph-toolbar">
+          <div className="graph-search">
+            <Search size={16} />
+            <input
