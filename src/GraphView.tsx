@@ -217,3 +217,76 @@ export default function GraphView({
           style={{ pointerEvents: "none" }}
         />
         <g
+          transform={`translate(${300 + offset.x},${220 + offset.y}) scale(${zoom}) translate(-300,-220)`}
+        >
+          {edges
+            .filter((e) => positions[e.from] && positions[e.to])
+            .map((e) => (
+              <line
+                key={e.from + e.to}
+                x1={positions[e.from].x}
+                y1={positions[e.from].y}
+                x2={positions[e.to].x}
+                y2={positions[e.to].y}
+                stroke="currentColor"
+                strokeWidth={hover === e.from || hover === e.to ? 1.7 : 0.8}
+                opacity={
+                  hover && hover !== e.from && hover !== e.to ? 0.07 : 0.23
+                }
+              />
+            ))}
+          {visible.map((n) => {
+            const p = positions[n.path];
+            if (!p) return null;
+            const active = n.path === current;
+            const color = active
+              ? "var(--accent)"
+              : colors[folders.indexOf(n.folder) % colors.length];
+            return (
+              <g
+                key={n.path}
+                transform={`translate(${p.x},${p.y})`}
+                className="graph-node"
+                role="link"
+                tabIndex={0}
+                aria-label={`Open ${n.title}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onNavigate(n.path);
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  drag.current = {
+                    path: n.path,
+                    x: e.clientX,
+                    y: e.clientY,
+                    moved: false,
+                  };
+                  svg.current!.setPointerCapture(e.pointerId);
+                }}
+                onMouseEnter={() => setHover(n.path)}
+                onMouseLeave={() => setHover(null)}
+              >
+                {active && <circle r="17" fill={color} opacity=".1" />}
+                <circle
+                  r={
+                    active
+                      ? 7
+                      : Math.min(
+                          6,
+                          3 +
+                            edges.filter(
+                              (e) => e.from === n.path || e.to === n.path,
+                            ).length *
+                              0.3,
+                        )
+                  }
+                  fill={color}
+                  stroke="var(--surface)"
+                  strokeWidth="2"
+                />
+                <text
+                  y="19"
+                  textAnchor="middle"
+                  fill="currentColor"
+                  fontSize={compact ? 12 : 10}
+                  opacity={hover && hover !== n.path ? 0.35 : 0.75}
