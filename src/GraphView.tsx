@@ -144,3 +144,76 @@ export default function GraphView({
           <div className="graph-search">
             <Search size={16} />
             <input
+              aria-label="Filter graph"
+              placeholder="Find a note in the graph…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
+              <button
+                aria-label="Clear graph search"
+                onClick={() => setQuery("")}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <label className="graph-local">
+            <input
+              type="checkbox"
+              checked={local}
+              onChange={(e) => setLocal(e.target.checked)}
+            />{" "}
+            Current page only
+          </label>
+        </div>
+      )}
+      <svg
+        ref={svg}
+        viewBox="0 0 600 440"
+        role="img"
+        aria-label={
+          compact
+            ? "Local connections graph"
+            : "Interactive graph of connected notes"
+        }
+        onPointerMove={move}
+        onPointerUp={(e) => {
+          const d = drag.current;
+          drag.current = null;
+          if (d?.path && !d.moved) onNavigate(d.path);
+          e.currentTarget.hasPointerCapture(e.pointerId) &&
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+        }}
+        onPointerDown={(e) => {
+          if (e.target === e.currentTarget) {
+            drag.current = { x: e.clientX, y: e.clientY, moved: false };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }
+        }}
+        onWheel={(e) =>
+          setZoom((z) =>
+            Math.max(0.4, Math.min(3, z * (e.deltaY > 0 ? 0.92 : 1.08))),
+          )
+        }
+      >
+        <defs>
+          <pattern
+            id={compact ? "mini-grid" : "full-grid"}
+            width="24"
+            height="24"
+            patternUnits="userSpaceOnUse"
+          >
+            <circle cx="1" cy="1" r=".7" fill="currentColor" opacity=".09" />
+          </pattern>
+        </defs>
+        <rect
+          width="600"
+          height="440"
+          fill={`url(#${compact ? "mini-grid" : "full-grid"})`}
+          style={{ pointerEvents: "none" }}
+        />
+        <g
