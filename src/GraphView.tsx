@@ -290,3 +290,76 @@ export default function GraphView({
                   fill="currentColor"
                   fontSize={compact ? 12 : 10}
                   opacity={hover && hover !== n.path ? 0.35 : 0.75}
+                >
+                  {n.title.length > (compact ? 23 : 30)
+                    ? n.title.slice(0, compact ? 21 : 28) + "…"
+                    : n.title}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+      {compact ? (
+        onExpand ? (
+          <button
+            className="graph-expand"
+            onClick={onExpand}
+            aria-label="Expand graph"
+          >
+            <Maximize2 size={13} />
+          </button>
+        ) : null
+      ) : (
+        <>
+          <div className="graph-controls">
+            <button
+              aria-label="Zoom out"
+              onClick={() => setZoom((z) => Math.max(0.4, z - 0.2))}
+            >
+              <Minus size={16} />
+            </button>
+            <span>{Math.round(zoom * 100)}%</span>
+            <button
+              aria-label="Zoom in"
+              onClick={() => setZoom((z) => Math.min(3, z + 0.2))}
+            >
+              <Plus size={16} />
+            </button>
+            <button
+              aria-label="Reset graph"
+              onClick={() => {
+                setZoom(1);
+                setOffset({ x: 0, y: 0 });
+              }}
+            >
+              <RotateCcw size={15} />
+            </button>
+          </div>
+          <div className="graph-legend">
+            {folders.map((f, i) => (
+              <span key={f}>
+                <i style={{ background: colors[i % colors.length] }} />
+                {f || "Home"}
+              </span>
+            ))}
+          </div>
+          <p className="graph-hint">
+            Drag to explore · Scroll to zoom · Select a note to open
+          </p>
+        </>
+      )}
+      {!compact && notes.length > 250 && (
+        <p className="graph-limit">
+          Showing the first 250 matching notes. Use the filter to explore the
+          rest.
+        </p>
+      )}
+      {!visible.length && (
+        <p className="graph-empty">
+          No matching notes. Try a different search.
+        </p>
+      )}
+    </div>
+  );
+}
