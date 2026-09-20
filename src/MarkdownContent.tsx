@@ -44,3 +44,27 @@ export default function MarkdownContent({
               table
                 .querySelectorAll("th")
                 .forEach((cell) => cell.removeAttribute("aria-sort"));
+              th.setAttribute(
+                "aria-sort",
+                ascending ? "ascending" : "descending",
+              );
+              button.textContent =
+                th.textContent?.replace(/[↕↑↓]/g, "").trim() +
+                (ascending ? " ↑" : " ↓");
+            });
+            th.textContent = "";
+            th.appendChild(button);
+          });
+      });
+  }, [html]);
+  return (
+    <div
+      ref={ref}
+      className="markdown-body markdown-preview-view markdown-rendered"
+      onClick={onClick}
+      onMouseOver={onMouseOver}
+      onMouseOut={onMouseOut}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
