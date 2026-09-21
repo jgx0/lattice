@@ -72,3 +72,40 @@ export default function SidebarTree({
               onClick={() => onToggle(folder.path)}
             >
               <span className="tree-item-icon collapse-icon">
+                <ChevronRight size={16} />
+              </span>
+              <span className="tree-item-inner nav-folder-title-content">
+                {folder.name}
+              </span>
+            </button>
+            {!collapsed.has(folder.path) && (
+              <div className="tree-item-children nav-folder-children">
+                {children(folder)}
+              </div>
+            )}
+          </div>
+        ))}
+        {branch.notes.map((note) => (
+          <div className="tree-item nav-file" key={note.path}>
+            <a
+              className={`tree-item-self nav-file-title ${note.path === current ? "is-active selected" : ""}`}
+              href={"url" in note ? String(note.url) : `#/${note.slug}`}
+              data-path={note.path}
+              aria-current={note.path === current ? "page" : undefined}
+              onClick={(e) => {
+                if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                onNavigate(note.path);
+              }}
+            >
+              <span className="tree-item-inner nav-file-title-content">
+                {note.title}
+              </span>
+            </a>
+          </div>
+        ))}
+      </>
+    );
+  }
+  return <div className="nav-files-container">{children(tree)}</div>;
+}
