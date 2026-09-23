@@ -261,3 +261,135 @@ At the library, a table facing a wall makes reading easier. At home, leaving my 
 3. Is quietness a real default, or an option buried behind stimulation?
 
 These tests guide [[Projects/Lattice]]. A readable page, a restrained violet accent, and links that explain their destination are not cosmetic preferences. They are ways to reduce the work of deciding where to look.
+
+## What the metaphor misses
+
+Calling attention a material could make it sound like something a designer owns and molds. It is not. A person arrives with needs and intentions I cannot infer from a click. The appropriate design ambition is to make room, not to capture.
+
+[[Essays/A quieter internet]] follows this boundary into publishing. [[Field Notes/Walking as research]] follows it out the door. Both ask whether I can notice something without immediately turning it into an input.
+`,
+    },
+    {
+      path: 'Field Notes/Walking as research.md',
+      kind: 'note',
+      content: `---
+title: Walking as research
+aliases: [The place gets a vote]
+author: Alex Morgan
+status: growing
+category: field-note
+date: 2026-11-08
+tags: [walking, place, attention]
+---
+
+A walk is useful research when it can correct the question I brought outside. If I only collect examples of an argument already written, the neighborhood becomes an illustration instead of a participant.
+
+## The second lap
+
+On the first lap I write almost nothing. On the second, I record places where my pace changes: a narrow pavement, a tree with low branches, an unexpected bench. On the third visit, I ask which of those details still matters and which belonged to that day's mood.
+
+This repeatable route is the first method for [[Projects/A neighborhood atlas]]. It keeps the project close enough to the ground that a beautiful diagram cannot hide a missing crossing.
+
+> [!question] What did the map leave out?
+> Routes are easy to draw. Shade, hesitation, welcome, and the possibility of resting take more careful description.
+
+## What I carry
+
+A pencil, one folded sheet, and a phone kept away unless a photograph has a clear purpose. I sketch arrangements rather than identifiable people. A private doorstep is not public research material merely because it is visible from the pavement.
+
+## A detail to return to
+
+The bench outside the repair shop faces sideways to the street. Sitting there, you can watch without feeling on display. That small orientation belongs beside [[Library/Books/A Pattern Language]] and [[Atlas/Patterns and places]]: a spatial choice changes a social possibility.
+
+My reminder is simple: the place gets a vote. ^place-vote
+
+See [[Field Notes/Small bets & long horizons]] for the rhythm that keeps this practice bounded, and [[Field Notes/Attention is a material]] for why changing pace can be a form of thinking.
+`,
+    },
+    {
+      path: 'Field Notes/The useful edge.md',
+      kind: 'note',
+      content: `---
+title: The useful edge
+aliases: [Productive boundaries]
+author: Alex Morgan
+status: seedling
+category: field-note
+date: 2026-10-29
+tags: [boundaries, design, patterns]
+---
+
+An edge can divide two things or give them a place to meet. A windowsill separates indoors from outdoors but also supports a plant. A book margin separates the author's sentence from the reader's response, while making room for both.
+
+## Not every boundary is a wall
+
+In [[Library/Books/A Pattern Language]], I keep returning to spaces that let a person choose how much to participate: a porch, an alcove, a seat at the side of a room. The useful edge offers a gradient rather than a demand to be entirely in or out.
+
+A digital equivalent might be a preview. Hovering over a link in [[Welcome]] gives enough context to make a choice without replacing the page being read. The edge is useful because crossing it remains voluntary.
+
+## Where the analogy breaks
+
+A porch has weather, neighbors, and property rights. An interface has different constraints. I want the spatial analogy to generate questions, not answers. Does a preview clarify the destination? Can it be dismissed easily? Is the same information available without hovering?
+
+The last question matters for keyboards and touch screens. A lovely edge that only works for one kind of visitor is not hospitable.
+
+## Next observation
+
+For [[Projects/A neighborhood atlas]], sketch three thresholds where people actually pause. For [[Projects/Lattice]], test one reading route without a mouse. Compare the choices each environment permits, not their visual resemblance.
+`,
+    },
+    {
+      path: 'Essays/A quieter internet.md',
+      kind: 'note',
+      content: `---
+title: A quieter internet
+aliases: [Invitation, not interruption]
+author: Alex Morgan
+status: growing
+category: essay
+date: 2026-11-14
+tags: [slow-web, attention, publishing]
+---
+
+The internet I want is not silent. It has lively conversations, strange personal pages, arguments that take time, and people who care enough to explain something carefully. What it lacks is the assumption that every available moment should be filled on someone else's behalf.
+
+Quietness, in this sense, is the ability to choose an encounter. It is not an aesthetic of beige pages or a retreat from difficult subjects. A page can be visually spare and still be coercive. A bright, crowded site can be generous if it tells you where you are and lets you leave.
+
+## Invitation and interruption
+
+An invitation makes its terms visible. Here is a letter, a note, a question; you can decide when it fits. An interruption assigns urgency before the reader has had a chance to make that decision. The difference is not simply whether a notification exists. A requested reminder can be an invitation kept at the right time.
+
+The problem begins when urgency is borrowed from relationships that have not been earned. A red badge uses the language of obligation. A streak makes absence look like damage. A feed that rearranges itself while I read treats orientation as expendable.
+
+> [!warning] A quiet surface can still demand too much
+> Removing animation does not fix a design that measures success by how difficult it is to stop. Ask what behavior the system rewards, not just what colors it uses.
+
+[[Field Notes/Attention is a material]] gives me a practical test: does this arrangement support the reader's intention, or substitute a new intention for it? The answer can be uncomfortable even for a small personal site. Backlinks and graphs can help someone explore, but they can also make every note feel like an entrance to an endless maze.
+
+## A page should have an exit
+
+For [[Projects/Lattice]], I want a visitor to reach a useful stopping point. Headings should reveal the shape of a note. A link should explain what it adds. A page should not move unexpectedly. Optional panels should remain optional, and a reader should be able to enjoy the prose without understanding the machinery around it.
+
+A good exit is sometimes a single sentence worth taking away. It might also be a book to find at the library or a question to carry on a walk. None of those outcomes requires another page view. The site has done its job when the reader's next action can happen elsewhere.
+
+## A different rhythm of publishing
+
+[[Projects/The monthly letter]] is my experiment with this rhythm. One letter gathers a few things that survived a month of revisiting. It does not announce every edit, and it does not manufacture an insight to justify its schedule. If the month produces one useful question instead of three polished conclusions, the letter can say that.
+
+This is not a claim that slow is always better. Emergency information should be fast. Collaborative work can need rapid replies. The useful distinction is between the tempo a situation requires and the tempo a system imposes because it benefits from repeated checking.[^tempo]
+
+## Small places are still places
+
+A personal [[Field Notes/Digital gardens|digital garden]] cannot repair the whole internet. It can make a local agreement and keep it. No surprise sound. No unrelated recommendations disguised as continuation. No private conversation published as raw material. Enough context for a stranger, enough restraint to respect their time.
+
+These are not nostalgic gestures toward an earlier web. They are present-tense design choices. The more convincing version of a quieter internet is not an argument about quietness; it is a page that behaves well when someone arrives tired, curious, and free to leave.
+
+[^tempo]: This is a design distinction, not a clinical claim about attention or a measured comparison of platforms. My examples come from my own reading habits.
+`,
+    },
+    {
+      path: 'Essays/Against the finished thought.md',
+      kind: 'note',
+      content: `---
+title: Against the finished thought
+aliases: [An honest unfinishedness]
