@@ -393,3 +393,135 @@ These are not nostalgic gestures toward an earlier web. They are present-tense d
       content: `---
 title: Against the finished thought
 aliases: [An honest unfinishedness]
+author: Alex Morgan
+status: evergreen
+category: essay
+date: 2026-11-03
+tags: [writing, garden, uncertainty]
+---
+
+There is a familiar publishing trap: I wait until an idea can survive every imagined objection, and then mistake the resulting delay for rigor. Usually the thought is not becoming more accurate. It is becoming harder to encounter.
+
+The opposite trap is equally familiar. I publish the first version, call it “working in public,” and ask the reader to supply the context, structure, and cautions I did not bother to write. Neither perfection nor raw exposure is a good agreement.
+
+## What I owe a reader
+
+A public draft should say what question it is trying to answer. It should separate observation from inference. If another person's work made the thought possible, that source should be visible. The opening should not promise a certainty the rest of the note cannot deliver.
+
+These obligations do not require a finished argument. They require an edited encounter. A reader should be able to tell whether they are looking at a field observation, a proposal, or a claim supported by wider evidence. My frontmatter categories are modest signals toward that distinction, not substitutes for making it clear in the prose.
+
+> [!quote] A sentence from my notebook
+> “Leave the door open, but put a floor under the visitor.”
+>
+> — Alex Morgan, private notebook, October 2026
+
+## Revision without erasure
+
+When [[Field Notes/Digital gardens]] changed from a note about organization into a note about returning, I kept the original problem in its opening. The earlier question still explains why the later argument exists. Revising everything into apparent inevitability would make the page smoother and less truthful.
+
+I do not keep every sentence. A garden is not a museum of drafts. But when a correction changes the meaning of a note, I want the new version to acknowledge it. “I used to think…” is sometimes the most useful bridge a reader can cross.
+
+## Confidence is not a writing style
+
+Short declarative sentences sound confident even when their evidence is thin. Long qualifications can sound careful while hiding an empty claim. The task is not to choose one voice. It is to attach the right amount of confidence to the particular sentence.
+
+[[Field Notes/Small bets & long horizons]] is an example. Its equations clarify a decision model; they do not establish measured values. Naming that limit makes the model more useful, not less. The reader can decide whether the distinction helps without being asked to accept the numbers as science.
+
+## A place for the next version
+
+I want each note to contain a reachable next question. Not a theatrical cliffhanger, just a visible edge: what observation would change this? What does the metaphor leave out? Whose perspective is absent?
+
+[[Field Notes/The useful edge]] remains a seedling because the spatial analogy has not earned its conclusion. That is a useful state to publish if the questions are specific. The next walk or conversation can meet them.
+
+An unfinished thought is worth sharing when it offers something complete enough to use: a distinction, a method, a source trail, or a question with real stakes. That is the standard I want for [[Projects/Lattice]], and for this garden. The work can remain open without leaving the reader stranded.
+`,
+    },
+    {
+      path: 'Essays/Enough is a design constraint.md',
+      kind: 'note',
+      content: `---
+title: Enough is a design constraint
+aliases: [The shape of enough]
+author: Alex Morgan
+status: growing
+category: essay
+date: 2026-10-25
+tags: [design, limits, practice]
+---
+
+“Enough” sounds like a decision made after the work: enough features, enough research, enough polish. I am trying to move it to the beginning. A useful constraint names what a project needs to protect before it names what the project could accumulate.
+
+## What is the work for?
+
+For [[Projects/Lattice]], enough means a stranger can find a note, read it comfortably, understand a connection, and return to the place they started. A graph is welcome if it helps that journey. It is not required to justify the app's existence.
+
+For [[Projects/A neighborhood atlas]], enough means one route is described with care and can be corrected by the people who use it. A large map with unexamined captions would be more complete geographically and less complete ethically.
+
+> [!success] A useful stopping point
+> A person can do the thing they came to do, and nothing important has been hidden to make the experience feel simple.
+
+## Constraints as room
+
+A page budget makes me choose the sentence that actually carries the argument. A ninety-minute experiment leaves energy for a second attempt. A monthly letter means I do not need every day's reading to become an announcement.
+
+These are not universal ideals of smallness. Some work needs scale, redundancy, or painstaking detail. The point is to choose a size appropriate to the responsibility rather than inherit a preference for more.
+
+## The review question
+
+Instead of “What else could we add?”, I ask “What is still difficult for the intended reader?” The answer might require a feature. It might require removing a feature, improving a heading, or admitting that the note does not yet know what it means.
+
+[[Field Notes/Small bets & long horizons]] turns this into a rhythm: protect a long-lived question, bound the next attempt, and decide what evidence would justify another. Enough is not the enemy of ambition. It gives ambition somewhere to stand.
+`,
+    },
+    {
+      path: 'Library/The reading room.md',
+      kind: 'note',
+      content: `---
+title: The reading room
+aliases: [Reading room, Bookshelf]
+author: Alex Morgan
+status: evergreen
+category: library
+date: 2026-11-17
+tags: [reading, books, index]
+collection: books
+---
+
+A small shelf of books that have changed the questions I ask. This is not a ranking of the best books, nor a record of everything I've finished. I keep a book here when it has become a useful conversation partner.
+
+## On the shelf
+
+The table below is a live Base, scoped to this note's **collection** property. Book entries have their own author, reading status, rating, and related ideas. Ratings describe my wish to revisit a book, not its value to every reader.
+
+![[Data/Reading.base]]
+
+## Three ways in
+
+- **Attention and everyday life** — [[Library/Books/How to Do Nothing]] asks what deserves our attention; [[Library/Books/The Art of Noticing]] offers practical ways to begin looking.
+- **Places and patterns** — [[Library/Books/A Pattern Language]] and [[Library/Books/The Practice of Everyday Life]] disagree fruitfully about what a designed space can determine.
+- **Receiving and returning** — [[Library/Books/Braiding Sweetgrass]] slows my instinct to turn every useful idea into a tool.
+
+> [!info] How I take a reading note
+> Start with the book's question, write one claim in my own words, and connect it to an observation. Page references belong beside quotations. The notes here are paraphrases unless explicitly marked otherwise.
+
+## Reading into the garden
+
+A book note earns its place when it leaves the library. Alexander meets a sideways bench in [[Field Notes/Walking as research]]. Odell meets interface choices in [[Essays/A quieter internet]]. Kimmerer complicates my invitation to contribute to [[Projects/A neighborhood atlas]].
+
+I try not to ask a book to endorse a project its author never encountered. “This made me ask…” is often more accurate than “This proves…”.
+
+## Currently open
+
+I am rereading selected patterns rather than reading Alexander straight through. De Certeau is slower going; I am keeping the disagreements visible in [[Atlas/Patterns and places]]. A question that survives a difficult chapter is sometimes a better result than a tidy summary.
+`,
+    },
+    {
+      path: 'Library/Books/A Pattern Language.md',
+      kind: 'note',
+      content: `---
+title: A Pattern Language
+aliases: [Alexander on patterns]
+author: Christopher Alexander, Sara Ishikawa, and Murray Silverstein
+contributors: [Max Jacobson, Ingrid Fiksdahl-King, Shlomo Angel]
+curator: Alex Morgan
+status: rereading
