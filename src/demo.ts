@@ -657,3 +657,135 @@ The English edition of **The Practice of Everyday Life** gives me a vocabulary f
 ## The plan and the practice
 
 A map can show a street without showing what it is like to cross it with a heavy bag, avoid a windy corner, or take a detour to greet someone. These uses are not necessarily failures to follow the plan. They are part of what makes the place lived.
+
+This complicates [[Library/Books/A Pattern Language]]. I value design that makes generous possibilities available, but I should not confuse those possibilities with a complete script for life.
+
+## A mapping question
+
+For [[Projects/A neighborhood atlas]], what can I show without pretending to see from everywhere? A route caption can admit its standpoint: walked on a dry weekday morning, at my pace, with places to stop. That is less grand than a universal map and more useful to correct.
+
+## Still working through
+
+I am not yet confident enough to compress the distinction between strategies and tactics into a definition I would publish as settled. For now I am keeping examples beside the terms and checking them against the text.
+
+**Next connection:** [[Atlas/Patterns and places]]. **Next practice:** walk the same block at a different hour and record what the first account could not see.
+`,
+    },
+    {
+      path: 'Library/Books/The Art of Noticing.md',
+      kind: 'note',
+      content: `---
+title: The Art of Noticing
+aliases: [A practice of noticing]
+author: Rob Walker
+curator: Alex Morgan
+status: read
+category: book
+date: 2026-10-21
+tags: [reading, attention, practice]
+collection: books
+rating: 4
+year: 2019
+publisher: Knopf
+---
+
+**The Art of Noticing** collects small exercises that interrupt familiar ways of looking. Its usefulness for me is practical: I can try one prompt on an ordinary Tuesday without reorganizing my life around a new discipline.
+
+## Change the search image
+
+Looking for a particular kind of detail changes what comes forward. On one walk I looked only for improvised signs. I noticed handwritten opening hours, a repaired noticeboard, and a lost-glove message that had become a tiny public conversation.
+
+The exercise did not reveal the “real” neighborhood beneath a false one. It showed that my ordinary search image is selective. [[Field Notes/Walking as research]] turns that observation into a repeatable method: vary one condition and compare what becomes visible.
+
+## Avoid the trophy cabinet
+
+Noticing can become collecting clever observations for an audience. I try to keep one detail that does not make a good photograph or a witty sentence. The squeak of a gate is no less part of a place because it resists a social post.
+
+## A small experiment
+
+On the next atlas walk, record repairs rather than damage. Ask what the repairs reveal about care, constraints, and continued use. Do not infer the maker's motive from the object alone.
+
+**In conversation with:** [[Library/Books/How to Do Nothing]]. Walker helps me begin an exercise; Odell asks what the exercise is for. I need both questions.
+`,
+    },
+    {
+      path: 'Projects/Lattice.md',
+      kind: 'note',
+      content: `---
+title: Lattice
+aliases: [Why Lattice, The garden interface]
+author: Alex Morgan
+status: growing
+category: project
+date: 2026-11-18
+tags: [lattice, design, publishing]
+---
+
+**Lattice** is a place to publish connected notes without pretending they are all articles. The name describes a light structure that supports growth without dictating every branch.
+
+## The feeling
+
+An editorial knowledge garden: warm paper, clear ink, generous reading measure, and a restrained violet accent. The familiar vocabulary of linked notes stays close to Obsidian, but the public page should feel like a well-kept reading room rather than an exposed control panel.
+
+## The promise
+
+A visitor can start at [[Welcome]], hover for context, follow a connection, and understand where they have arrived. Headings, properties, backlinks, and a local graph offer different ways to orient. None should compete with the sentence being read.
+
+> [!todo] The next reading pass
+> Test a route from the home page to a book, then a field note, using only the keyboard. Check that the same route makes sense on a narrow screen.
+
+## What this garden demonstrates
+
+The [[Library/The reading room|reading room]] turns book properties into a useful collection. [[Field Notes/Digital gardens]] scopes related notes to its own category. [[Atlas/Maps of meaning]] uses one small diagram rather than a decorative hero image. [[Atlas/Media cabinet]] keeps media optional and offline.
+
+## What it refuses
+
+No autoplay, no tracking scripts, no requirement to read chronologically. A reader who finds a useful idea and leaves has completed a good visit. [[Essays/A quieter internet]] explains that boundary; [[Essays/Enough is a design constraint]] helps keep it practical.
+
+The design question is not “How much knowledge can a screen display?” It is “What helps this person make a meaningful next connection?”
+`,
+    },
+    {
+      path: 'Projects/A neighborhood atlas.md',
+      kind: 'note',
+      content: `---
+title: A neighborhood atlas
+aliases: [The neighborhood project]
+author: Alex Morgan
+status: growing
+category: project
+date: 2026-11-16
+tags: [place, walking, experiments]
+---
+
+A small atlas of places that make everyday life easier: a sheltered pause, a legible crossing, a bench where sitting does not feel like being on stage. The first edition will cover one walking route, not the entire neighborhood.
+
+## What the first walks taught me
+
+I began by drawing paths. The useful discoveries were stopping places. The sideways bench outside the repair shop, the sheltered corner beside the library, and a wide patch of pavement where two people can talk without blocking anyone all changed the character of the route.
+
+[[Field Notes/Walking as research]] is the method note. [[Library/Books/A Pattern Language]] helps me describe arrangements, while [[Library/Books/The Practice of Everyday Life]] warns against treating a plan as the whole experience.
+
+> [!failure] The first map was too certain
+> A clean line implied a continuous, easy route. It hid a difficult crossing and a stretch with nowhere to rest. The next version needs honest interruptions, not more polish.
+
+## Boundaries before detail
+
+- No identifiable people in sketches.
+- No private addresses presented as points of interest.
+- Contributions are invitations, not requests that need an explanation to decline.
+- A contributor can review or withdraw their detail before publication.
+- Captions distinguish what I observed from what someone told me.
+
+[[Library/Books/Braiding Sweetgrass]] is a reminder to ask what contributors receive, not just what the atlas receives.
+
+## First edition
+
+One folded route map, five short place notes, a date and weather line, and a clear invitation to correct an omission. Access observations will be specific, not an unsupported claim that a route works for everyone.
+
+The weekly experiments live in [[Projects/A season of small bets]]. The larger map of ideas lives in [[Atlas/Patterns and places]]. I will call this edition useful when it can help someone choose a pause and can admit what it has not seen.
+`,
+    },
+    {
+      path: 'Projects/The monthly letter.md',
+      kind: 'note',
