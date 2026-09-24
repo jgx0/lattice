@@ -525,3 +525,135 @@ author: Christopher Alexander, Sara Ishikawa, and Murray Silverstein
 contributors: [Max Jacobson, Ingrid Fiksdahl-King, Shlomo Angel]
 curator: Alex Morgan
 status: rereading
+category: book
+date: 2026-11-16
+tags: [reading, patterns, place]
+collection: books
+rating: 5
+year: 1977
+publisher: Oxford University Press
+---
+
+**A Pattern Language: Towns, Buildings, Construction** proposes a connected vocabulary of spatial problems and responses. What interests me is not the possibility of a universal catalog. It is the insistence that a detail should be understood through the life it helps make possible.
+
+## Patterns are relationships
+
+A window seat is not only a seat next to a window. It combines a view, light, a degree of enclosure, and permission to pause. If I copy the visible form without the conditions, I may reproduce the object and miss the pattern.
+
+This is the strongest bridge to [[Atlas/Patterns and places]]. A useful pattern names a recurring tension and the relationships that ease it. It should remain available to adaptation rather than become a rule that every site must obey.
+
+## The bench test
+
+The sideways bench in [[Field Notes/Walking as research]] offers a small test. Its orientation makes watching the street possible without placing the sitter directly on display. I can describe that relation without pretending that one bench proves a general theory.
+
+For [[Projects/A neighborhood atlas]], I want captions that say what a place permits: rest near activity, shelter without isolation, a view without exposure. This is more informative than a list of amenities alone.
+
+## A productive disagreement
+
+[[Library/Books/The Practice of Everyday Life]] reminds me that people make uses a designer did not foresee. A pattern language can reveal possibilities, but it should not claim to determine experience. The lived place has authors beyond the architect.
+
+**Return to:** [[Field Notes/The useful edge]], especially the question of choosing how much to participate. **Caution:** read these patterns as situated proposals; do not erase climate, access, culture, or ownership in pursuit of a pleasing form.
+`,
+    },
+    {
+      path: 'Library/Books/How to Do Nothing.md',
+      kind: 'note',
+      content: `---
+title: How to Do Nothing
+aliases: [Odell on attention]
+author: Jenny Odell
+curator: Alex Morgan
+status: read
+category: book
+date: 2026-11-10
+tags: [reading, attention, slow-web]
+collection: books
+rating: 5
+year: 2019
+publisher: Melville House
+---
+
+**How to Do Nothing: Resisting the Attention Economy** is not primarily an instruction to become less busy. I read it as an argument for recovering the ability to decide what matters, including things that cannot justify themselves through productivity.
+
+## Attention has neighbors
+
+The book helped me move from “How can I concentrate longer?” to “What am I learning to recognize?”. A repeated walk can reveal birds, maintenance work, informal gathering places, and histories that a route optimized for speed leaves invisible.
+
+That shift is the hinge of [[Field Notes/Attention is a material]]. The issue is not only who owns my time. It is which relationships become perceptible when time is no longer arranged exclusively around output.
+
+## Refusal is not disappearance
+
+I do not take the book as a case for leaving public life. A refusal can make room for a different participation. The question is whether an action answers to the actual situation or to a system that makes constant availability feel compulsory.
+
+[[Essays/A quieter internet]] applies this distinction to a personal website. The analogy is mine: a page can invite an encounter without converting the reader's curiosity into a demand to keep clicking.
+
+## A practice I kept
+
+Once a week I walk the same route without listening to anything. This is not a test of virtue. It is a way of letting the place interrupt my own internal feed. I record one thing I could not have noticed from my desk.
+
+**Connected project:** [[Projects/A neighborhood atlas]]. **Open question:** how do I protect quiet attention without treating the people who need fast, noisy channels as the problem?
+`,
+    },
+    {
+      path: 'Library/Books/Braiding Sweetgrass.md',
+      kind: 'note',
+      content: `---
+title: Braiding Sweetgrass
+aliases: [Kimmerer on reciprocity]
+author: Robin Wall Kimmerer
+curator: Alex Morgan
+status: read
+category: book
+date: 2026-10-30
+tags: [reading, reciprocity, ecology]
+collection: books
+rating: 5
+year: 2013
+publisher: Milkweed Editions
+---
+
+**Braiding Sweetgrass: Indigenous Wisdom, Scientific Knowledge, and the Teachings of Plants** brings botanical knowledge, Indigenous teachings, and personal narrative into conversation. These are not interchangeable styles of describing an inert world. They carry different relationships and responsibilities.
+
+## Receiving is an active relation
+
+The question I keep carrying away is not “How can nature make my work better?” but “What does receiving well ask of me?”. Gratitude can become decorative if it has no effect on what I take, how I take it, or what I return.
+
+I want to keep that question attached to the book's context. Reciprocity here is richer than a transaction in which I balance my own ledger. Reducing it to a clever sustainability principle would miss the relationships from which the teaching arises.
+
+## A limit on my own project
+
+In [[Projects/A neighborhood atlas]], a person who corrects a caption is offering time and local knowledge. A credit line does not automatically make that exchange fair. Can they see the result? Can they withdraw a detail? Does the atlas serve any purpose they recognize?
+
+These are my project questions, not a claim that the book supplies a complete ethics protocol. The note helps me resist treating a generous contribution as frictionless input.
+
+## Reading slowly
+
+I reread one chapter at a time and leave room before turning it into a note. Some passages deserve a response in action more than a shareable sentence.
+
+**Nearby:** [[Field Notes/Small bets & long horizons]], where reversibility meets responsibility; [[Atlas/People and influences]], where I keep sources visible. **Reminder:** a book can change my conduct without becoming evidence for every argument I want to make.
+`,
+    },
+    {
+      path: 'Library/Books/The Practice of Everyday Life.md',
+      kind: 'note',
+      content: `---
+title: The Practice of Everyday Life
+aliases: [De Certeau on everyday life]
+author: Michel de Certeau
+translator: Steven Rendall
+curator: Alex Morgan
+status: reading
+category: book
+date: 2026-11-07
+tags: [reading, place, everyday-life]
+collection: books
+rating: 4
+year: 1984
+publisher: University of California Press
+---
+
+The English edition of **The Practice of Everyday Life** gives me a vocabulary for the difference between an arranged system and the ways people move through it. I am reading slowly, especially the discussion of walking in the city.
+
+## The plan and the practice
+
+A map can show a street without showing what it is like to cross it with a heavy bag, avoid a windy corner, or take a detour to greet someone. These uses are not necessarily failures to follow the plan. They are part of what makes the place lived.
