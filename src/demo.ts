@@ -789,3 +789,135 @@ The weekly experiments live in [[Projects/A season of small bets]]. The larger m
     {
       path: 'Projects/The monthly letter.md',
       kind: 'note',
+      content: `---
+title: The monthly letter
+aliases: [Letters from the garden]
+author: Alex Morgan
+status: seedling
+category: project
+date: 2026-11-13
+tags: [writing, slow-web, correspondence]
+---
+
+A monthly letter is a slower front door to this garden. It gathers a few things that became more useful through revisiting, rather than announcing every new note.
+
+This demo describes the practice; there is no subscription form, mailing service, or hidden signup.
+
+## The shape of a letter
+
+One observation from a walk, one book in conversation with it, and one question that has not settled. Three links at most. Enough context that a person can enjoy the letter without opening the site.
+
+November's working thread is **places to pause**: the bench in [[Field Notes/Walking as research]], the conditions described in [[Library/Books/A Pattern Language]], and the question of voluntary participation in [[Field Notes/The useful edge]].
+
+## An editorial boundary
+
+A monthly date is an opportunity to review, not a demand to invent an insight. If all I have is a useful correction, that can be the letter. If someone else's story helped me think, their permission still matters even when the story would make a wonderful opening.
+
+## Draft opening
+
+This month I drew a route and discovered I had forgotten the places where a person could stop. The line was accurate as geometry and inaccurate as an invitation. I am trying again with the pauses marked first.
+
+That sentence belongs beside [[Essays/A quieter internet]]. Publishing can offer a place to arrive without demanding that arrival happen immediately.
+
+**Next step:** finish one honest letter before deciding whether this needs any infrastructure at all.
+`,
+    },
+    {
+      path: 'Projects/A season of small bets.md',
+      kind: 'note',
+      content: `---
+title: A season of small bets
+aliases: [The autumn experiments]
+author: Alex Morgan
+status: growing
+category: project
+date: 2026-11-12
+tags: [experiments, practice, atlas]
+season: autumn-2026
+---
+
+Twelve weeks with one question: what makes a neighborhood route hospitable to a person who is not in a hurry? [[Field Notes/Small bets & long horizons]] explains the two clocks. This page holds the work, not a score.
+
+## Checklist
+
+- [x] Walk the first route without taking photographs.
+- [x] Draw one block from memory and mark three omissions.
+- [x] Replace “nice bench” with a description of what its orientation permits.
+- [ ] Walk the route after rain and record shelter, puddles, and stopping places.
+- [ ] Invite two optional caption reviews; explain how to withdraw a contribution.
+- [ ] Make the first folded map with interruptions visible.
+- [ ] Write a one-page account of what changed my question.
+
+## Last review
+
+**What happened:** the map contained movement but almost no rest.
+
+**What changed my mind:** a short sit at the repair-shop bench made the street feel different. Orientation mattered as much as the presence of a seat.
+
+**Next bet:** map five stopping places before drawing the connecting route. Limit the first pass to ninety minutes.
+
+## Stop or change course
+
+Pause if the atlas needs personal details that have no clear public purpose. Reduce scope if accuracy depends on more observation time than I can actually give. Do not use an approaching deadline as permission to make a caption more confident.
+
+The result returns to [[Projects/A neighborhood atlas]]. The pattern question returns to [[Atlas/Patterns and places]]. A useful failed attempt is allowed to end here.
+`,
+    },
+    {
+      path: 'Atlas/Maps of meaning.md',
+      kind: 'note',
+      content: `---
+title: Maps of meaning
+aliases: [The garden map, Crossroads]
+author: Alex Morgan
+status: evergreen
+category: atlas
+date: 2026-11-15
+tags: [index, connections, garden]
+---
+
+A map is useful when it helps a person choose a next step. This one shows the practices that keep the garden alive, not a complete inventory of its contents.
+
+## The working loop
+
+![[Assets/Garden diagram.svg|A garden of connected ideas: observe, write, connect, try, and return]]
+
+Observation gives a note something to answer to. Reading introduces another voice. A connection names what can travel between them. A small experiment returns the idea to the world, where it can be corrected.
+
+The diagram is one responsive SVG with a descriptive title and text; it is a working illustration, not a photograph.
+
+## Attention → place → practice
+
+[[Field Notes/Attention is a material]] changes what I look for. [[Field Notes/Walking as research]] gives that looking a repeatable form. [[Projects/A neighborhood atlas]] asks whether the result can be useful to someone else.
+
+## Reading → patterns → design
+
+[[Library/The reading room]] is the source shelf. [[Atlas/Patterns and places]] holds a useful disagreement. [[Projects/Lattice]] turns some of the questions into an interface without claiming the books as endorsements.
+
+## Writing → revision → hospitality
+
+[[Field Notes/Digital gardens]] supplies the practice. [[Essays/Against the finished thought]] names the responsibility. [[Essays/A quieter internet]] asks whether the resulting place respects a reader's freedom to leave.
+
+## A paragraph worth carrying
+
+![[Field Notes/Digital gardens#^link-test]]
+
+The block above is embedded from the original note, so the reminder has one place to be tended. A good map should reduce duplication as well as confusion.
+
+For an account of the people behind these connections, see [[Atlas/People and influences]]. For the garden's keeper, see [[About/Alex Morgan]].
+`,
+    },
+    {
+      path: 'Atlas/Patterns and places.md',
+      kind: 'note',
+      content: `---
+title: Patterns and places
+aliases: [The lived place]
+author: Alex Morgan
+status: growing
+category: atlas
+date: 2026-11-09
+tags: [patterns, place, design]
+---
+
+This is a crossroads between a designed arrangement and a lived use. I want to keep both visible without pretending they settle into a simple formula.
