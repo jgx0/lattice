@@ -1053,3 +1053,135 @@ title: Alex Morgan
 aliases: [About Alex, The garden keeper]
 author: Alex Morgan
 status: evergreen
+category: about
+date: 2026-11-18
+tags: [about, garden, practice]
+---
+
+I'm Alex Morgan, a designer, reader, and habitual walker. I like work that gets clearer when it is placed beside something from another field: a page beside a porch, a map beside a lived route, a design decision beside a book that asks a harder question.
+
+## What I keep here
+
+Notes that I expect to return to. Not everything I know, not a daily record, and not a finished philosophy. [[Welcome]] is the front door; [[Atlas/Maps of meaning]] is a map of the current connections.
+
+I read with a pencil and often write the first draft after a walk. [[Library/The reading room]] gathers the books that keep turning up in those drafts. [[Field Notes/Digital gardens]] explains the tending practice.
+
+## What I am making
+
+A modest [[Projects/A neighborhood atlas|neighborhood atlas]], a possible [[Projects/The monthly letter|monthly letter]], and a clearer account of what a generous publishing interface should do in [[Projects/Lattice]]. The projects are small enough to meet the world before they harden into plans.
+
+## A note about this place
+
+This is a fictional but fully connected demonstration garden for **Lattice**. The books and authors are real; the personal observations and projects are written for the demo. There are no real contact details, participant records, or mailing-list integrations.
+
+The agreement I want to model is genuine: keep sources visible, make uncertainty legible, and respect a visitor's time. If one connection helps you ask a better question in your own work, the garden has done enough.
+`,
+    },
+    {
+      path: 'Data/Reading.base',
+      kind: 'base',
+      content: `filters:
+  and:
+    - 'file.ext == "md"'
+    - 'file.inFolder("Library/Books")'
+    - 'category == "book"'
+    - 'collection == this.file.properties.collection'
+properties:
+  file.name:
+    displayName: Book
+  note.author:
+    displayName: Author
+  note.status:
+    displayName: Reading status
+  note.rating:
+    displayName: Revisit / 5
+  note.year:
+    displayName: Published
+views:
+  - type: table
+    name: The annotated shelf
+    order:
+      - file.name
+      - note.author
+      - note.status
+      - note.rating
+      - note.year
+    sort:
+      - property: note.rating
+        direction: DESC
+      - property: file.name
+        direction: ASC
+`,
+    },
+    {
+      path: 'Data/Related.base',
+      kind: 'base',
+      content: `filters:
+  and:
+    - 'file.ext == "md"'
+    - 'file.inFolder("Field Notes")'
+    - 'category == this.file.properties["related-category"]'
+    - 'file.path != this.file.path'
+properties:
+  file.name:
+    displayName: Nearby note
+  note.status:
+    displayName: Growth
+  note.date:
+    displayName: Last tended
+  note.tags:
+    displayName: Threads
+views:
+  - type: table
+    name: Nearby field notes
+    order:
+      - file.name
+      - note.status
+      - note.date
+      - note.tags
+    sort:
+      - property: note.date
+        direction: DESC
+`,
+    },
+    {
+      path: 'Assets/Garden diagram.svg',
+      kind: 'asset',
+      mime: 'image/svg+xml',
+      content: gardenSvg,
+      data: gardenData,
+    },
+    {
+      path: 'Assets/Quiet chime.wav',
+      kind: 'asset',
+      mime: 'audio/wav',
+      content: '',
+      data: chimeData,
+    },
+    {
+      path: 'Assets/Landscape study.mp4',
+      kind: 'asset',
+      mime: 'video/mp4',
+      content: '',
+      data: landscapeData,
+    },
+  ],
+};
+
+export const defaultSettings: SiteSettings = {
+  home: 'Welcome.md',
+  title: 'Alex’s digital garden',
+  description: 'Notes, connections, and things worth keeping.',
+  accent: '#8065da',
+  theme: 'light',
+  communityTheme: 'default',
+  customCss: '',
+  readable: true,
+  showProperties: true,
+  showToc: true,
+  showBacklinks: true,
+  showGraph: true,
+  stacked: false,
+  navigation: ['Field Notes', 'Essays', 'Library', 'Projects', 'Atlas', 'About'],
+  hiddenPaths: ['Data', 'Templates'],
+};
