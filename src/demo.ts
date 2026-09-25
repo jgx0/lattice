@@ -921,3 +921,135 @@ tags: [patterns, place, design]
 ---
 
 This is a crossroads between a designed arrangement and a lived use. I want to keep both visible without pretending they settle into a simple formula.
+
+## Two books, one productive tension
+
+[[Library/Books/A Pattern Language]] asks what recurring spatial relations support life. [[Library/Books/The Practice of Everyday Life]] attends to what people do within and around arranged systems. One helps me describe an invitation; the other keeps the invitation from becoming a script.
+
+## From the street
+
+![[Field Notes/Walking as research#A detail to return to]]
+
+The bench is neither a neutral object nor an instruction its users must follow. Its orientation offers a possibility, and a person may use that possibility in a way I have not imagined.
+
+> [!bug] A category error to avoid
+> A drawn route is not an observed experience. More precise geometry cannot repair a claim that forgets its standpoint.
+
+## Questions that travel
+
+- What does this arrangement make easier, and for whom?
+- What can someone decline without being excluded entirely?
+- Which uses appear only when I return at another time?
+- Where does the description need a boundary or a correction?
+
+These questions belong in [[Projects/A neighborhood atlas]] as much as [[Projects/Lattice]]. A page has no weather, but it still offers and withholds possibilities. The analogy is useful when it sharpens a test; it is misleading when it claims the two environments are the same.
+
+**Next visit:** [[Field Notes/The useful edge]], where thresholds become a specific observation rather than an attractive metaphor.
+
+## A working note, kept in context
+
+The full note below is embedded from its own page. It keeps the questions, cautions, and next observation together rather than extracting only a memorable line.
+
+![[Field Notes/The useful edge]]
+`,
+    },
+    {
+      path: 'Atlas/People and influences.md',
+      kind: 'note',
+      content: `---
+title: People and influences
+aliases: [The source trail]
+author: Alex Morgan
+status: evergreen
+category: atlas
+date: 2026-11-06
+tags: [sources, reading, connections]
+---
+
+A garden of ideas has neighbors even when one name appears on the gate. This page keeps a few influences visible and names the questions I carry from them.
+
+## A small constellation
+
+| Voice | Question I carry | Reading note |
+| --- | --- | --- |
+| Jenny Odell | What becomes perceptible when attention is not organized only around output? | [[Library/Books/How to Do Nothing]] |
+| Christopher Alexander and collaborators | Which relationships make a place hospitable to ordinary life? | [[Library/Books/A Pattern Language]] |
+| Robin Wall Kimmerer | What does receiving well ask me to return? | [[Library/Books/Braiding Sweetgrass]] |
+| Michel de Certeau | What does lived use do that a plan cannot describe? | [[Library/Books/The Practice of Everyday Life]] |
+| Rob Walker | What changes when I deliberately vary what I look for? | [[Library/Books/The Art of Noticing]] |
+
+## Influence is not endorsement
+
+These authors did not review [[Projects/Lattice]] or [[Projects/A neighborhood atlas]]. The connections are mine, and the book notes should make the distance between the source and my application visible.
+
+## Ordinary teachers
+
+A repaired gate, a thoughtful caption correction, and a friend who asks a better question can all change the work. Their influence does not require publishing their identity. Attribution matters; so does permission.
+
+The reader-facing standard lives in [[Essays/Against the finished thought#What I owe a reader]]. The practical result should be a source trail someone can follow, not a list of impressive names.
+`,
+    },
+    {
+      path: 'Atlas/Media cabinet.md',
+      kind: 'note',
+      content: `---
+title: Media cabinet
+aliases: [A quiet media shelf]
+author: Alex Morgan
+status: evergreen
+category: atlas
+date: 2026-11-11
+tags: [media, accessibility, lattice]
+---
+
+A small set of original, offline media examples for **Lattice**. Nothing here needs a remote service, a permission prompt, or an autoplay exception. Press play only if you want to.
+
+## An image that keeps its shape
+
+![[Assets/Garden diagram.svg|An accessible diagram of the garden's working loop]]
+
+The same asset appears in [[Atlas/Maps of meaning]]. Keeping one source means its labels can improve without editing every host note.
+
+## Audio, by invitation
+
+<audio controls preload="none" aria-label="Play a short, quiet demonstration chime" src="${chimeData}"></audio>
+
+**Text equivalent:** a single soft A4 tone fades in and out over three tenths of a second. This is a generated sound, not a field recording or a speech transcript. The source also lives at [[Assets/Quiet chime.wav|Quiet chime.wav]].
+
+## A silent moving-image sample
+
+<video controls playsinline preload="none" width="320" height="180" aria-label="A one-second silent geometric landscape" src="${landscapeData}">A pale lavender sky, a small gold sun, and two violet bands of ground. The clip has no sound.</video>
+
+**Description:** a deliberately still, one-second landscape study built from colored shapes. This tests video controls without pretending to be documentary footage. [[Assets/Landscape study.mp4|Open the local video asset]].
+
+## An iframe, only when invited
+
+The optional example below is shown as code, not a live player. It makes **no network request**. Before using a remote frame, choose a trusted source, check the publisher's allowlist, and tell the reader what service they are about to contact.
+
+~~~html
+<iframe
+  title="Optional introduction to birdwatching"
+  src="https://www.youtube-nocookie.com/embed/"
+  loading="lazy"
+  referrerpolicy="no-referrer"
+  sandbox="allow-scripts allow-same-origin allow-presentation"
+  allow="fullscreen"
+></iframe>
+~~~
+
+This is a template, not a working video address: add a reviewed video identifier only if you intentionally want a remote player. A privacy-enhanced hostname does not mean a third party receives no data. For this garden, a plain link and a short description would usually be enough.
+
+> [!danger] Do not copy arbitrary embed code
+> These examples are original and self-contained. A remote player can introduce tracking, scripts, or unexpected sound. Inspect the source and make the choice visible to the reader.
+
+[[Essays/A quieter internet]] is the design reason for these defaults; [[Projects/Lattice]] is where they become a promise.
+`,
+    },
+    {
+      path: 'About/Alex Morgan.md',
+      kind: 'note',
+      content: `---
+title: Alex Morgan
+aliases: [About Alex, The garden keeper]
+author: Alex Morgan
+status: evergreen
