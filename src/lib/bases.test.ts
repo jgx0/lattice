@@ -21,3 +21,27 @@ describe('safe Base expressions', () => {
   });
   it('supports lists, whitelisted methods and formulas with precedence and short circuiting', () => {
     expect(evaluateExpression('labels.contains("two") || false', alpha)).toBe(true);
+    expect(evaluateExpression('list(1, 2, 3).map(value * 2).filter(value > 2).join("-")', alpha)).toBe('4-6');
+    expect(evaluateExpression('[1, 2, 2].unique().length', alpha)).toBe(2);
+    expect(evaluateExpression('true || unsupported()', alpha)).toBe(true);
+    expect(evaluateExpression('if(score > 1, "yes", unsupported())', alpha)).toBe('yes');
+    expect(evaluateExpression('formula.total == 7', alpha, host, { total: 'score * 2 + 1' })).toBe(true);
+    expect(evaluateExpression('false ? 1 : 2 + 3 * 4', alpha)).toBe(14);
+  });
+  it('supports nested YAML filters; not groups exclude every listed match', () => {
+    expect(matchesFilters({ and: ['status == "active"', { or: ['score > 5', 'labels.contains("one")'] }] }, alpha)).toBe(true);
+    expect(matchesFilters({ not: ['status == "archived"', 'score < 4'] }, alpha)).toBe(false);
+    expect(matchesFilters({ not: ['status == "archived"', 'score < 4'] }, notes[2])).toBe(true);
+  });
+  it('rejects code execution, prototype access, unsupported calls and circular formulas', () => {
+    expect(() => evaluateExpression('globalThis.alert(1)', alpha)).toThrow();
+    expect(() => evaluateExpression('file.constructor.constructor("return 1")()', alpha)).toThrow();
+    expect(evaluateExpression('note.__proto__', alpha)).toBeUndefined();
+    expect(() => evaluateExpression('status = "x"', alpha)).toThrow();
+    expect(() => evaluateExpression('formula.a', alpha, host, { a: 'formula.b', b: 'formula.a' })).toThrow(/Circular/);
+    expect(() => evaluateExpression('('.repeat(100) + '1' + ')'.repeat(100), alpha)).toThrow();
+  });
+});
+
+describe('Base views', () => {
+  it('applies global and view filters, formula sorting, order and limit', () => {
