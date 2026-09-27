@@ -45,3 +45,27 @@ describe('safe Base expressions', () => {
 
 describe('Base views', () => {
   it('applies global and view filters, formula sorting, order and limit', () => {
+    const html = renderBase(`filters:\n  and:\n    - 'file.inFolder("Projects")'\n    - 'project == this.file.name'\nformulas:\n  doubled: 'score * 2'\nproperties:\n  formula.doubled:\n    displayName: Doubled score\nviews:\n  - type: table\n    name: Active projects\n    filters: 'status == "active"'\n    order: [file.name, formula.doubled]\n    sort:\n      - property: formula.doubled\n        direction: DESC\n    limit: 1`, notes, host);
+    expect(html).toContain('data-base="Active projects"');
+    expect(html).toContain('Doubled score');
+    expect(html).toContain('data-note="Projects/Beta.md"');
+    expect(html).toContain('<td>16</td>');
+    expect(html).not.toContain('data-note="Projects/Alpha.md"');
+  });
+  it('renders list/cards with internal rows and escapes untrusted property values', () => {
+    const modified = { ...alpha, properties: { ...alpha.properties, status: '<img src=x onerror=alert(1)>' } };
+    for (const type of ['list', 'cards']) {
+      const html = renderBase(`views:\n  - type: ${type}\n    name: Test\n    order: [file.name, status]`, [modified], host);
+      expect(html).toContain(`class="base-${type}"`);
+      expect(html).toContain('class="internal-link"');
+      expect(html).toContain('&lt;img');
+      expect(html).not.toContain('<img');
+    }
+  });
+  it('fails visibly on bad YAML, unsupported view or expression without leaking executable HTML', () => {
+    expect(renderBase('views: [', notes, host)).toContain('base-error');
+    expect(renderBase('views: [{type: unknown}]', notes, host)).toContain('Unsupported view');
+    expect(renderBase('filters: "file.bad()"', notes, host)).toContain('Unsupported method');
+    expect(renderBase('filters: "false"', notes, host)).toContain('No matching notes.');
+  });
+});
