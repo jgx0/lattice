@@ -65,3 +65,71 @@ function parseExpression(source: string): Node {
       if (peek().value === '.') {
         take(); const property = take();
         if (property.type !== 'name') throw new Error('Expected a property');
+        node = { type: 'member', left: node, right: { type: 'literal', value: property.value } };
+      } else if (peek().value === '[') {
+        take(); const property = expression(); expect(']'); node = { type: 'member', left: node, right: property };
+      } else if (peek().value === '(') {
+        take(); const args: Node[] = [];
+        if (peek().value !== ')') do { args.push(expression()); if (peek().value !== ',') break; take(); } while (true);
+        expect(')'); node = { type: 'call', left: node, args };
+      } else break;
+    }
+    while (precedence[peek().value] !== undefined && precedence[peek().value] >= min) {
+      const operator = take().value;
+      node = { type: 'binary', value: operator, left: node, right: expression(precedence[operator] + 1) };
+    }
+    if (min === 0 && peek().value === '?') {
+      take(); const yes = expression(); expect(':'); node = { type: 'conditional', left: node, args: [yes, expression()] };
+    }
+    depth--; return node;
+  }
+  const result = expression();
+  if (peek().type !== 'end') throw new Error(`Unexpected token ${peek().value}`);
+  return result;
+}
+
+function fileInfo(note: Note): Record<string, Value> {
+  const name = basename(note.path).replace(/\.md$/i, '');
+  return { path: note.path, name, basename: name, fullname: basename(note.path), folder: note.folder,
+    ext: 'md', extension: 'md', tags: note.tags, links: note.links, properties: note.properties, size: note.content.length };
+}
+
+interface Context {
+  note: Note;
+  current: Note;
+  formulas: Record<string, string>;
+  cache: Map<string, Value>;
+  active: Set<string>;
+  variables?: Record<string, Value>;
+  budget: { remaining: number };
+}
+function own(object: Value, key: string): Value {
+  if (forbidden.has(key)) return undefined;
+  if (key === 'length' && (typeof object === 'string' || Array.isArray(object))) return object.length;
+  return object != null && typeof object === 'object' && Object.prototype.hasOwnProperty.call(object, key)
+    ? (object as Record<string, Value>)[key] : undefined;
+}
+function equals(a: Value, b: Value): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((value, i) => equals(value, b[i]));
+  return a === b;
+}
+function compare(a: Value, b: Value): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
+}
+function formulaValue(name: string, context: Context): Value {
+  if (forbidden.has(name)) return undefined;
+  if (context.cache.has(name)) return context.cache.get(name);
+  if (!Object.prototype.hasOwnProperty.call(context.formulas, name)) return undefined;
+  if (context.active.has(name)) throw new Error(`Circular formula: ${name}`);
+  context.active.add(name);
+  try {
+    const value = evaluate(parseExpression(context.formulas[name]), context);
+    context.cache.set(name, value); return value;
+  } finally { context.active.delete(name); }
+}
+function evaluate(node: Node, context: Context): Value {
+  if (--context.budget.remaining < 0) throw new Error('Expression operation limit exceeded');
