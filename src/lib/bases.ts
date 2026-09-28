@@ -133,3 +133,71 @@ function formulaValue(name: string, context: Context): Value {
 }
 function evaluate(node: Node, context: Context): Value {
   if (--context.budget.remaining < 0) throw new Error('Expression operation limit exceeded');
+  const run = (child: Node) => evaluate(child, context);
+  switch (node.type) {
+    case 'literal': return node.value;
+    case 'list': return node.args!.map(run);
+    case 'name': {
+      const name = node.value as string;
+      if (name === 'true') return true;
+      if (name === 'false') return false;
+      if (name === 'null' || name === 'undefined') return null;
+      if (name === 'file') return fileInfo(context.note);
+      if (name === 'note') return context.note.properties;
+      if (name === 'this') return { ...context.current.properties, file: fileInfo(context.current), note: context.current.properties };
+      if (name === 'formula') return null; // Resolved specially below, never a JS getter.
+      if (context.variables && Object.prototype.hasOwnProperty.call(context.variables, name)) return own(context.variables, name);
+      return own(context.note.properties, name);
+    }
+    case 'member': {
+      const key = String(run(node.right!));
+      if (node.left?.type === 'name' && node.left.value === 'formula') return formulaValue(key, context);
+      return own(run(node.left!), key);
+    }
+    case 'unary': {
+      const value = run(node.left!);
+      return node.value === '!' || node.value === 'not' ? !value : node.value === '-' ? -Number(value) : Number(value);
+    }
+    case 'conditional': return run(node.left!) ? run(node.args![0]) : run(node.args![1]);
+    case 'binary': {
+      const left = run(node.left!);
+      if (node.value === 'and' || node.value === '&&') return Boolean(left) && Boolean(run(node.right!));
+      if (node.value === 'or' || node.value === '||') return Boolean(left) || Boolean(run(node.right!));
+      const right = run(node.right!);
+      switch (node.value) {
+        case '==': case '===': return equals(left, right);
+        case '!=': case '!==': return !equals(left, right);
+        case '>': return left != null && right != null && compare(left, right) > 0;
+        case '<': return left != null && right != null && compare(left, right) < 0;
+        case '>=': return left != null && right != null && compare(left, right) >= 0;
+        case '<=': return left != null && right != null && compare(left, right) <= 0;
+        case '+': return typeof left === 'string' || typeof right === 'string' ? String(left ?? '') + String(right ?? '') : Number(left) + Number(right);
+        case '-': return Number(left) - Number(right);
+        case '*': return Number(left) * Number(right);
+        case '/': return Number(left) / Number(right);
+        case '%': return Number(left) % Number(right);
+      }
+      return undefined;
+    }
+    case 'call': {
+      const callee = node.left!;
+      const args = node.args ?? [];
+      if (callee.type === 'name') {
+        if (callee.value === 'if') return run(args[0]) ? args[1] && run(args[1]) : args[2] && run(args[2]);
+        const values = args.map(run);
+        switch (callee.value) {
+          case 'list': return values;
+          case 'length': return typeof values[0] === 'string' || Array.isArray(values[0]) ? values[0].length : 0;
+          case 'contains': return contains(values[0], values[1]);
+          case 'any': return values.flat().some(Boolean);
+          case 'all': return values.flat().every(Boolean);
+          case 'number': return Number(values[0]);
+          case 'string': return String(values[0] ?? '');
+          case 'date': { const time = Date.parse(String(values[0])); return Number.isFinite(time) ? time : null; }
+          case 'min': return Math.min(...values.flat().map(Number));
+          case 'max': return Math.max(...values.flat().map(Number));
+          case 'sum': return values.flat().reduce<number>((sum, item) => sum + Number(item), 0);
+          case 'round': return Math.round(Number(values[0]));
+          case 'abs': return Math.abs(Number(values[0]));
+          case 'isEmpty': return values[0] == null || values[0] === '' || Array.isArray(values[0]) && values[0].length === 0;
+          default: throw new Error(`Unsupported function: ${callee.value}`);
