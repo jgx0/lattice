@@ -269,3 +269,71 @@ function filterMatches(filter: unknown, context: Context): boolean {
     switch (operator) {
       case 'and': return items.every(item => filterMatches(item, context));
       case 'or': return items.some(item => filterMatches(item, context));
+      case 'not': return !items.some(item => filterMatches(item, context));
+      default: throw new Error(`Unsupported filter group: ${operator}`);
+    }
+  });
+}
+export function matchesFilters(filters: unknown, note: Note, currentNote: Note = note): boolean {
+  return filterMatches(filters, makeContext(note, currentNote));
+}
+function fieldValue(field: string, context: Context): Value {
+  if (field.startsWith('formula.')) return formulaValue(field.slice(8), context);
+  if (field.startsWith('file.')) return own(fileInfo(context.note), field.slice(5));
+  return own(context.note.properties, field.replace(/^note\./, ''));
+}
+function display(value: Value): string {
+  if (value == null) return '';
+  if (Array.isArray(value)) return value.map(display).join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+export function renderBase(baseContent: string, notes: Note[], currentNote: Note): string {
+  try {
+    const parsed = parseYaml(baseContent);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Base must be a YAML mapping');
+    const base = parsed as Record<string, any>;
+    const formulas = Object.fromEntries(Object.entries(base.formulas ?? {}).filter(([key, value]) => !forbidden.has(key) && typeof value === 'string')) as Record<string, string>;
+    const views = Array.isArray(base.views) && base.views.length ? base.views : [{ type: 'table', name: 'Table' }];
+    const result = views.map((view: Record<string, any>) => {
+      if (!view || typeof view !== 'object') throw new Error('Invalid view');
+      const type = view.type ?? 'table';
+      if (!['table', 'list', 'cards'].includes(type)) throw new Error(`Unsupported view: ${type}`);
+      const name = String(view.name ?? type);
+      let rows = notes.map(note => ({ note, context: makeContext(note, currentNote, formulas) }))
+        .filter(row => filterMatches(base.filters, row.context) && filterMatches(view.filters, row.context));
+      const sort = Array.isArray(view.sort) ? view.sort : view.sort ? [view.sort] : [];
+      if (sort.length) rows.sort((a, b) => {
+        for (const entry of sort) {
+          const field = typeof entry === 'string' ? entry : entry.property ?? entry.field;
+          if (typeof field !== 'string') continue;
+          const direction = typeof entry === 'object' ? entry.direction ?? entry.order ?? 'ASC' : 'ASC';
+          const comparison = compare(fieldValue(field, a.context), fieldValue(field, b.context));
+          if (comparison) return /^(?:desc|descending)$/i.test(String(direction)) ? -comparison : comparison;
+        }
+        return a.note.path.localeCompare(b.note.path);
+      });
+      if (view.limit != null && Number.isFinite(Number(view.limit))) rows = rows.slice(0, Math.max(0, Math.floor(Number(view.limit))));
+      const order = Array.isArray(view.order) ? view.order.filter((item: unknown) => typeof item === 'string') : ['file.name'];
+      const fields: string[] = order.length ? order : ['file.name'];
+      const label = (field: string) => String(base.properties?.[field]?.displayName ?? field.replace(/^(note|file|formula)\./, ''));
+      const cell = (field: string, row: typeof rows[number]) => field === 'file.name' || field === 'file.path' || field === 'file.basename'
+        ? internalLink(row.note.path, row.note.slug, field === 'file.path' ? row.note.path : fieldValue(field, row.context))
+        : escapeHtml(display(fieldValue(field, row.context)));
+      const heading = `<h3 class="base-view-title">${escapeHtml(name)}</h3>`;
+      let html: string;
+      if (type === 'table') {
+        html = `<div class="base-table-wrapper"><table class="base-table"><thead><tr>${fields.map(field => `<th scope="col">${escapeHtml(label(field))}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${fields.map(field => `<td>${cell(field, row)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      } else if (type === 'list') {
+        html = `<ul class="base-list">${rows.map(row => `<li>${internalLink(row.note.path, row.note.slug, row.note.title)}${fields.filter(field => !['file.name', 'file.basename'].includes(field)).map(field => `<span class="base-list-property" data-property="${escapeHtml(field)}">${escapeHtml(label(field))}: ${cell(field, row)}</span>`).join('')}</li>`).join('')}</ul>`;
+      } else {
+        html = `<div class="base-cards">${rows.map(row => `<article class="base-card"><h4>${internalLink(row.note.path, row.note.slug, row.note.title)}</h4><dl>${fields.filter(field => !['file.name', 'file.basename'].includes(field)).map(field => `<dt>${escapeHtml(label(field))}</dt><dd>${cell(field, row)}</dd>`).join('')}</dl></article>`).join('')}</div>`;
+      }
+      return `<section class="base-view base-view-${type}" data-base="${escapeHtml(name)}">${heading}${html}${!rows.length ? '<p class="base-empty">No matching notes.</p>' : ''}</section>`;
+    });
+    return result.join('\n');
+  } catch (error) {
+    return `<div class="base-error" role="status">Unable to render Base: ${escapeHtml(error instanceof Error ? error.message : 'Invalid configuration')}</div>`;
+  }
+}
