@@ -201,3 +201,71 @@ function evaluate(node: Node, context: Context): Value {
           case 'abs': return Math.abs(Number(values[0]));
           case 'isEmpty': return values[0] == null || values[0] === '' || Array.isArray(values[0]) && values[0].length === 0;
           default: throw new Error(`Unsupported function: ${callee.value}`);
+        }
+      }
+      if (callee.type !== 'member') throw new Error('Only named functions and supported methods can be called');
+      const method = String(run(callee.right!));
+      if (forbidden.has(method)) throw new Error('Unsafe method');
+      const object = run(callee.left!);
+      if ((method === 'map' || method === 'filter') && Array.isArray(object)) {
+        if (object.length > 1000) throw new Error('List is too long');
+        const operation = (value: Value, index: number) => evaluate(args[0], { ...context, variables: { ...context.variables, value, index } });
+        return method === 'map' ? object.map(operation) : object.filter(operation);
+      }
+      const values = args.map(run);
+      if (method === 'inFolder') {
+        // Must be the actual file metadata expression, not user-provided data.
+        const target = callee.left!;
+        const isFile = target.type === 'name' && target.value === 'file'
+          || target.type === 'member' && target.left?.type === 'name' && target.left.value === 'this' && run(target.right!) === 'file';
+        if (!isFile) throw new Error('inFolder requires file or this.file');
+        const folder = normalizePath(String(values[0] ?? ''));
+        const path = String(own(object, 'path'));
+        return !folder || path.startsWith(`${folder}/`);
+      }
+      switch (method) {
+        case 'contains': return contains(object, values[0]);
+        case 'containsAny': return values.flat().some(value => contains(object, value));
+        case 'containsAll': return values.flat().every(value => contains(object, value));
+        case 'startsWith': return typeof object === 'string' && object.startsWith(String(values[0]));
+        case 'endsWith': return typeof object === 'string' && object.endsWith(String(values[0]));
+        case 'lower': case 'toLowerCase': return typeof object === 'string' ? object.toLowerCase() : undefined;
+        case 'upper': case 'toUpperCase': return typeof object === 'string' ? object.toUpperCase() : undefined;
+        case 'trim': return typeof object === 'string' ? object.trim() : undefined;
+        case 'split': return typeof object === 'string' ? object.split(String(values[0] ?? ',')).slice(0, 1000) : [];
+        case 'join': return Array.isArray(object) ? object.map(value => String(value ?? '')).join(String(values[0] ?? ', ')) : undefined;
+        case 'unique': return Array.isArray(object) ? object.filter((value, index) => object.findIndex(item => equals(item, value)) === index) : [];
+        case 'reverse': return Array.isArray(object) ? [...object].reverse() : undefined;
+        case 'sort': return Array.isArray(object) ? [...object].sort(compare) : undefined;
+        case 'slice': return typeof object === 'string' || Array.isArray(object) ? object.slice(Number(values[0] ?? 0), values[1] == null ? undefined : Number(values[1])) : undefined;
+        case 'isEmpty': return object == null || object === '' || Array.isArray(object) && !object.length;
+        default: throw new Error(`Unsupported method: ${method}`);
+      }
+    }
+    default: throw new Error('Invalid expression');
+  }
+}
+function contains(container: Value, item: Value): boolean {
+  return typeof container === 'string' ? container.includes(String(item)) : Array.isArray(container) && container.some(value => equals(value, item));
+}
+function makeContext(note: Note, current: Note, formulas: Record<string, string> = {}): Context {
+  return { note, current, formulas, cache: new Map(), active: new Set(), budget: { remaining: 20_000 } };
+}
+
+/** Extra public helpers are useful for validating a Base without rendering it. Errors are explicit. */
+export function evaluateExpression(expression: string, note: Note, currentNote: Note = note, formulas: Record<string, string> = {}): Value {
+  return evaluate(parseExpression(expression), makeContext(note, currentNote, formulas));
+}
+function filterMatches(filter: unknown, context: Context): boolean {
+  if (filter == null) return true;
+  if (typeof filter === 'boolean') return filter;
+  if (typeof filter === 'string') return Boolean(evaluate(parseExpression(filter), context));
+  if (Array.isArray(filter)) return filter.every(item => filterMatches(item, context));
+  if (typeof filter !== 'object') throw new Error('Invalid Base filter');
+  const entries = Object.entries(filter);
+  if (!entries.length) return true;
+  return entries.every(([operator, value]) => {
+    const items = Array.isArray(value) ? value : [value];
+    switch (operator) {
+      case 'and': return items.every(item => filterMatches(item, context));
+      case 'or': return items.some(item => filterMatches(item, context));
