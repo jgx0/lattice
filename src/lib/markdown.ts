@@ -27,3 +27,33 @@ export function createMarkdown(): MarkdownIt {
     }
   });
   md.block.ruler.before('fence', 'obsidian_math_block', (state, start, end, silent) => {
+    if (state.sCount[start] - state.blkIndent >= 4) return false;
+    const first = state.src.slice(state.bMarks[start] + state.tShift[start], state.eMarks[start]).trim();
+    const delimiter = first.startsWith('$$') ? '$$' : first.startsWith('\\[') ? '\\[' : '';
+    if (!delimiter) return false;
+    const close = delimiter === '$$' ? '$$' : '\\]';
+    let content = first.slice(2); let line = start;
+    if (content.endsWith(close)) content = content.slice(0, -2);
+    else {
+      const parts = [content]; let found = false;
+      while (++line < end) {
+        const text = state.src.slice(state.bMarks[line] + state.tShift[line], state.eMarks[line]);
+        if (text.trimEnd().endsWith(close)) { parts.push(text.trimEnd().slice(0, -2)); found = true; break; }
+        parts.push(text);
+      }
+      if (!found) return false;
+      content = parts.join('\n');
+    }
+    if (!silent) { const token = state.push('obsidian_math_block', '', 0); token.content = content; token.map = [start, line + 1]; }
+    state.line = line + 1; return true;
+  }, { alt: ['paragraph', 'reference', 'blockquote', 'list'] });
+  return md;
+}
+
+export function parseYaml(source: string): unknown {
+  const document = parseDocument(source, { uniqueKeys: true });
+  if (document.errors.length) throw new Error(document.errors[0].message);
+  return document.toJS({ maxAliasCount: 50 });
+}
+
+export function splitFrontmatter(content: string): { body: string; properties: Record<string, any> } {
