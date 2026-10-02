@@ -57,3 +57,33 @@ export function parseYaml(source: string): unknown {
 }
 
 export function splitFrontmatter(content: string): { body: string; properties: Record<string, any> } {
+  const normalized = content.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const match = /^---[ \t]*\n([\s\S]*?)\n(?:---|\.\.\.)[ \t]*(?:\n|$)/.exec(normalized);
+  if (!match) return { body: normalized, properties: {} };
+  try {
+    const value = parseYaml(match[1]);
+    const properties = value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value).filter(([key]) => !['__proto__', 'constructor', 'prototype'].includes(key)))
+      : {};
+    return { body: normalized.slice(match[0].length), properties };
+  } catch {
+    // Invalid metadata remains visible rather than silently losing note content.
+    return { body: normalized, properties: {} };
+  }
+}
+
+/** Obsidian comments are ignored outside literal code spans/fences. */
+export function stripComments(source: string): string {
+  return source.replace(/(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\1[^\n]*|(`+)[\s\S]*?\2|%%[\s\S]*?%%/g,
+    match => match.startsWith('%%') ? match.replace(/[^\n]/g, '') : match);
+}
+
+export function plainInline(source: string): string {
+  return source.replace(/!?\[\[([^\]]+)\]\]/g, (_, target: string) => {
+    const [path, alias] = target.split('|');
+    return alias ?? path.replace(/^.*\//, '').replace(/\.md(?=#|$)/i, '');
+  }).replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>]*>/g, '').replace(/[*_~`]/g, '').replace(/\\([\\`*{}\[\]()#+\-.!_>])/g, '$1')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+}
