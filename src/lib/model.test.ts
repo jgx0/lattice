@@ -23,3 +23,28 @@ describe('note model', () => {
     expect(welcome.tags).toEqual(['inline/tag', 'garden', 'topic/deep']);
     expect(welcome.words).toBeGreaterThan(5);
   });
+  it('does not count Markdown-looking lines inside display math as headings', () => {
+    const [note] = buildNotes([noteFile('math.md', '$$\n# not a heading\n$$\n\n## Actual')]);
+    expect(note.headings.map(heading => heading.text)).toEqual(['Actual']);
+  });
+  it('keeps invalid frontmatter visible', () => {
+    const [note] = buildNotes([noteFile('bad.md', '---\na: [\n---\nContent')]);
+    expect(note.properties).toEqual({});
+    expect(note.body).toContain('a: [');
+  });
+  it('resolves absolute, local, relative, aliases, encoded names and self links', () => {
+    expect(resolveNote('Alpha', notes, 'Projects/Beta.md')?.path).toBe('Projects/Alpha.md');
+    expect(resolveNote('../Welcome.md', notes, 'Projects/Alpha.md')?.title).toBe('Garden');
+    expect(resolveNote('Start', notes)?.path).toBe('Welcome.md');
+    expect(resolveNote('/Archive/Alpha.md', notes)?.path).toBe('Archive/Alpha.md');
+    expect(resolveNote('#Plan', notes, 'Projects/Alpha.md')?.path).toBe('Projects/Alpha.md');
+    expect(resolveNote('https://example.com', notes)).toBeUndefined();
+    expect(resolveNote('missing', notes)).toBeUndefined();
+  });
+  it('uses shared precise heading and block anchors and Note[] backlinks', () => {
+    expect(resolveLink('Welcome#Same heading', notes)).toMatchObject({ anchor: 'same-heading', href: '#/welcome?anchor=same-heading' });
+    expect(resolveLink('Welcome#same-heading-1', notes).anchor).toBe('same-heading-1');
+    expect(resolveLink('Welcome#^intro', notes).anchor).toBe('intro');
+    expect(getBacklinks(notes[1], notes).map(note => note.path)).toEqual(['Welcome.md', 'Projects/Beta.md']);
+  });
+  it('normalizes Unicode and makes duplicate note slugs unique', () => {
