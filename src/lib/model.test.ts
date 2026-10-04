@@ -48,3 +48,28 @@ describe('note model', () => {
     expect(getBacklinks(notes[1], notes).map(note => note.path)).toEqual(['Welcome.md', 'Projects/Beta.md']);
   });
   it('normalizes Unicode and makes duplicate note slugs unique', () => {
+    expect(slugify('  Héllo, 世界!  ')).toBe('héllo-世界');
+    const result = buildNotes([noteFile('A!.md', ''), noteFile('A.md', ''), noteFile('A-1.md', '')]);
+    expect(new Set(result.map(note => note.slug)).size).toBe(3);
+  });
+});
+
+describe('search', () => {
+  const paths = (query: string) => searchNotes(query, notes).map(note => note.path);
+  it('supports implicit AND, negation, quoted phrases, fields and nested OR', () => {
+    expect(paths('path:Projects -file:Beta')).toEqual(['Projects/Alpha.md']);
+    expect(paths('tag:topic')).toEqual(['Welcome.md']);
+    expect(paths('tag:#garden')).toEqual(['Welcome.md', 'Projects/Beta.md']);
+    expect(paths('heading:"Same heading"')).toEqual(['Welcome.md']);
+    expect(paths('(file:Welcome OR file:Beta) content:"hello world"')).toEqual(['Welcome.md', 'Projects/Beta.md']);
+    expect(paths('NOT path:Projects AND archived')).toEqual(['Archive/Alpha.md']);
+  });
+  it('supports case controls and conventional regexes without throwing on bad patterns', () => {
+    expect(paths('match-case:true content:"Hello World"')).toEqual(['Welcome.md']);
+    expect(paths('match-case:false content:"Hello World"')).toHaveLength(3);
+    expect(paths('heading:/same\\s+heading/i')).toEqual(['Welcome.md']);
+    expect(paths('content:/[broken/')).toEqual([]);
+    expect(paths('content:/(a+)+$/')).toEqual([]);
+    expect(paths('')).toHaveLength(4);
+  });
+});
