@@ -35,3 +35,40 @@ export function buildNotes(files: VaultFile[]): Note[] {
           if (href && !/^(?:[a-z][\w+.-]*:|\/\/)/i.test(href)) links.add(decodeTarget(href));
         }
         if (child.type === 'text') {
+          const text = child.content;
+          for (const match of text.matchAll(/!?\[\[([^\]\n]+)\]\]/g)) links.add(match[1].split('|')[0].trim());
+          for (const match of text.matchAll(/(?:^|[\s(])#([\p{L}\p{N}_/-]+)/gu)) {
+            if (/[\p{L}_/-]/u.test(match[1])) tags.add(match[1]);
+          }
+          prose.push(plainInline(text));
+        } else if (child.type === 'code_inline') prose.push(child.content);
+      }
+    }
+    const propertyTags = properties.tags ?? properties.tag;
+    for (const tag of Array.isArray(propertyTags) ? propertyTags : typeof propertyTags === 'string' ? propertyTags.split(/[,\s]+/) : []) {
+      if (typeof tag === 'string' && tag.trim()) tags.add(tag.trim().replace(/^#/, ''));
+    }
+    const baseSlug = stripExtension(path).split('/').map(slugify).join('/');
+    let slug = baseSlug;
+    let suffix = 1;
+    while (usedSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
+    usedSlugs.add(slug);
+    return {
+      path, title: typeof properties.title === 'string' && properties.title.trim() ? properties.title : stripExtension(basename(path)),
+      slug, folder: dirname(path), content: file.content, body, properties, headings,
+      links: [...links], tags: [...tags], words: prose.join(' ').match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu)?.length ?? 0,
+    };
+  });
+}
+
+export function resolveNote(target: string, notes: Note[], currentPath?: string): Note | undefined {
+  let path = decodeTarget(target.trim().replace(/^!?\[\[|\]\]$/g, '').split('|')[0].split('#')[0]);
+  if (!path) return currentPath ? notes.find(note => normalizePath(note.path) === normalizePath(currentPath)) : undefined;
+  if (/^(?:[a-z][\w+.-]*:|\/\/)/i.test(path)) return undefined;
+  const relative = /^\.\.?\//.test(path);
+  const rooted = path.startsWith('/');
+  path = normalizePath(path);
+  // Resolve explicit relative paths before normalizing away their parent segments.
+  const original = decodeTarget(target.trim().replace(/^!?\[\[|\]\]$/g, '').split('|')[0].split('#')[0]);
+  const localPath = normalizePath(`${currentPath ? dirname(currentPath) : ''}/${original}`);
+  const key = (value: string) => stripExtension(normalizePath(value)).toLocaleLowerCase();
