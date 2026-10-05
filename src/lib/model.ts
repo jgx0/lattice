@@ -72,3 +72,40 @@ export function resolveNote(target: string, notes: Note[], currentPath?: string)
   const original = decodeTarget(target.trim().replace(/^!?\[\[|\]\]$/g, '').split('|')[0].split('#')[0]);
   const localPath = normalizePath(`${currentPath ? dirname(currentPath) : ''}/${original}`);
   const key = (value: string) => stripExtension(normalizePath(value)).toLocaleLowerCase();
+  const find = (value: string) => notes.find(note => key(note.path) === key(value));
+  if (relative) return find(localPath);
+  if (rooted) return find(path);
+  const exact = find(path);
+  if (exact) return exact;
+  if (currentPath) {
+    const local = find(localPath);
+    if (local) return local;
+  }
+  const name = stripExtension(basename(path)).toLocaleLowerCase();
+  const candidates = notes.filter(note => stripExtension(basename(note.path)).toLocaleLowerCase() === name
+    || note.slug === path || aliases(note).some(alias => alias.toLocaleLowerCase() === path.toLocaleLowerCase()));
+  const folder = currentPath ? dirname(currentPath).split('/') : [];
+  const proximity = (note: Note) => {
+    const parts = note.folder.split('/');
+    let count = 0;
+    while (count < folder.length && parts[count] === folder[count]) count++;
+    return count;
+  };
+  return candidates.sort((a, b) => proximity(b) - proximity(a) || a.path.localeCompare(b.path))[0];
+}
+
+export function resolveLink(target: string, notes: Note[], currentPath?: string): { note?: Note; anchor: string; href: string } {
+  const clean = target.trim().replace(/^!?\[\[|\]\]$/g, '').split('|')[0];
+  const hash = clean.indexOf('#');
+  const note = resolveNote(clean, notes, currentPath);
+  const fragment = hash < 0 ? '' : clean.slice(hash + 1);
+  const anchor = headingAnchor(fragment, note?.headings ?? []);
+  return { note, anchor, href: note ? noteHref(note.slug, anchor) : '#' };
+}
+
+export function getBacklinks(note: Note, notes: Note[]): Note[] {
+  return notes.filter(candidate => candidate.path !== note.path
+    && candidate.links.some(link => resolveNote(link, notes, candidate.path)?.path === note.path));
+}
+
+export { searchNotes } from './search';
