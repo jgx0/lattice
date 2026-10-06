@@ -37,3 +37,43 @@ describe('Obsidian rendering', () => {
     expect(document.querySelectorAll('.katex-display')).toHaveLength(2);
   });
   it('resolves wiki/Markdown links and heading/block transclusions, limits cycles', () => {
+    const extra: VaultFile[] = [{ path: 'Other.md', kind: 'note', content: '# Other\n## Part\nFirst ^block\n\n## Other part\nNot included\n\n![[Host]]' }];
+    const { document, html } = render('[[Other#Part|go]] [go too](Other.md#Part)\n\n![[Other#Part]]\n\n![[Other#^block]]\n\n![[Host]]', extra);
+    expect(document.querySelectorAll('a[data-note="Other.md"][data-anchor="part"]')).toHaveLength(3);
+    expect(document.querySelector('a')?.getAttribute('href')).toBe('#/other?anchor=part');
+    expect(document.querySelector('.note-embed-content')?.textContent).toContain('First');
+    expect(document.querySelector('.note-embed-content')?.textContent).not.toContain('Not included');
+    expect(document.querySelector('[data-anchor="block"] #block')).not.toBeNull();
+    expect(html).toContain('embed recursion limit');
+  });
+  it('anchors and transcludes standalone list/table/blockquote block references precisely', () => {
+    const other = '- One\n- Two\n\n^list\n\n> Quote\n> Second\n\n^quote\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n^table';
+    const { document } = render('![[Other#^list]]\n\n![[Other#^quote]]\n\n![[Other#^table]]', [{ path: 'Other.md', kind: 'note', content: other }]);
+    expect(document.querySelector('ul#list')?.querySelectorAll('li')).toHaveLength(2);
+    expect(document.querySelector('blockquote#quote')?.textContent).toContain('Second');
+    expect(document.querySelector('table#table')?.textContent).toContain('2');
+  });
+  it('renders Base embeds with host this.file context and all asset media types', () => {
+    const extra: VaultFile[] = [
+      { path: 'View.base', kind: 'base', content: 'filters: \'project == this.file.name\'\nviews: [{type: table, name: Projects}]' },
+      { path: 'Child.md', kind: 'note', content: '---\nproject: Host\n---\n# Child' },
+      { path: 'pic.png', kind: 'asset', content: '', mime: 'image/png', data: 'data:image/png;base64,AAAA' },
+      { path: 'sound.mp3', kind: 'asset', content: '', mime: 'audio/mpeg', data: 'AAAA' },
+      { path: 'movie.mp4', kind: 'asset', content: '', mime: 'video/mp4', data: 'AAAA' },
+      { path: 'doc.pdf', kind: 'asset', content: '', mime: 'application/pdf', data: 'JVBERi0xLjc=' },
+    ];
+    const { document, html } = render('![[View.base]]\n\n![[pic.png|120x80]]\n\n![[sound.mp3]]\n\n![[movie.mp4]]\n\n![[doc.pdf]]', extra);
+    expect(document.querySelector('.base-embed [data-note="Child.md"]')).not.toBeNull();
+    expect(document.querySelector('img')?.getAttribute('width')).toBe('120');
+    expect(document.querySelector('audio[controls]')?.getAttribute('src')).toContain('data:audio/mpeg');
+    expect(document.querySelector('video[controls]')).not.toBeNull();
+    expect(document.querySelector('iframe.pdf-embed')?.getAttribute('src')).toContain('data:application/pdf;base64,');
+    expect(document.querySelector('iframe.pdf-embed')?.getAttribute('sandbox')).toBe('');
+    expect(document.querySelector('.pdf-embed-link[download]')).not.toBeNull();
+    expect(html).not.toContain('data-pdf-capability');
+  });
+  it('keeps block IDs on fenced code transclusions without parsing literal reference text', () => {
+    const { document } = render('![[Other#^code]]', [{ path: 'Other.md', kind: 'note', content: '```js\nconst x = "^not-a-block";\n```\n\n^code' }]);
+    expect(document.querySelector('pre#code')?.textContent).toContain('^not-a-block');
+  });
+  it('keeps aliased wikilinks inside table cells and collects their targets', () => {
