@@ -77,3 +77,43 @@ describe('Obsidian rendering', () => {
     expect(document.querySelector('pre#code')?.textContent).toContain('^not-a-block');
   });
   it('keeps aliased wikilinks inside table cells and collects their targets', () => {
+    const { document, notes } = render('| Note | Value |\n| --- | --- |\n| [[Other|Friendly name]] | 42 |', [{ path: 'Other.md', kind: 'note', content: '# Other' }]);
+    expect(document.querySelector('tbody tr')?.querySelectorAll('td')).toHaveLength(2);
+    expect(document.querySelector('td a')?.textContent).toBe('Friendly name');
+    expect(notes[0].links).toContain('Other');
+  });
+  it('sanitizes SVG assets before granting generated image-only data URL access', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><title>Safe</title><script>alert(1)</script><foreignObject>bad</foreignObject><image href="https://tracker.test/a"/><rect width="10" height="10" onload="alert(1)"/></svg>';
+    const { document, html } = render('![[image.svg]]', [{ path: 'image.svg', kind: 'asset', content: svg, mime: 'image/svg+xml', data: `data:image/svg+xml,${encodeURIComponent(svg)}` }]);
+    const source = document.querySelector('img')?.getAttribute('src') ?? '';
+    expect(source).toContain('data:image/svg+xml');
+    const safeSvg = decodeURIComponent(source.split(',')[1]);
+    expect(safeSvg).not.toMatch(/<script|foreignObject|onload|tracker/);
+    expect(html).not.toContain('data-svg-capability');
+  });
+  it('renders safe bounded previews', () => {
+    const { notes, files } = render('Intro\n\n![[Other]]\n\n' + 'Long text '.repeat(100), [{ path: 'Other.md', kind: 'note', content: 'Embeddable' }]);
+    const html = renderPreview(notes[0], notes, files);
+    expect(html).toContain('Intro');
+    expect(html).not.toContain('note-embed-content');
+  });
+});
+
+describe('HTML security', () => {
+  it('removes event handlers, unsafe links, script/style, srcdoc and raw data iframes', () => {
+    const { document, html } = render('<img src="x" onerror="alert(1)"><script>alert(1)</script>\n<a href="javascript:alert(1)" onclick="alert(1)">bad</a>\n<iframe src="data:text/html;base64,AAAA" srcdoc="bad"></iframe>\n<iframe class="pdf-embed" src="data:application/pdf;base64,JVBERg=="></iframe>\n<iframe src="https://example.com" srcdoc="<script>bad</script>"></iframe>\n<a target="_blank" href="https://example.com">safe</a>');
+    expect(html).not.toMatch(/onerror|onclick|javascript:|srcdoc|<script|data:text\/html/);
+    expect(document.querySelectorAll('iframe')).toHaveLength(1);
+    expect(document.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin allow-presentation');
+    expect(document.querySelector('a[target="_blank"]')?.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+  it('forces media controls and rejects SVG/HTML data URLs and unsafe KaTeX trusted HTML', () => {
+    const { document, html } = render('<audio src="https://example.com/a.mp3" autoplay></audio><video src="https://example.com/a.mp4"></video>\n<img src="data:image/svg+xml;base64,AAAA">\n<a href="data:text/html;base64,AAAA">no</a>\n$\\href{javascript:alert(1)}{bad}$');
+    expect(document.querySelector('audio[controls]')).not.toBeNull();
+    expect(document.querySelector('video[controls]')).not.toBeNull();
+    expect(html).not.toMatch(/autoplay|data:image\/svg|data:text\/html/);
+    for (const element of document.querySelectorAll('[href],[src]')) {
+      expect(`${element.getAttribute('href') ?? ''}${element.getAttribute('src') ?? ''}`).not.toContain('javascript:');
+    }
+  });
+});
