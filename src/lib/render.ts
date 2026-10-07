@@ -70,3 +70,76 @@ function assetHtml(file: VaultFile, alias: string, target: string, context: Rend
   if (mime === 'application/pdf' && /^data:application\/pdf;base64,[a-z0-9+/=]+$/i.test(source)) {
     const capability = crypto.randomUUID();
     context.pdfEmbeds.set(capability, source);
+    const page = /#page=(\d+)/i.exec(target)?.[1];
+    // Keep an exact URL allowlist: PDF fragment navigation is handled by the viewer itself.
+    const iframe = `<iframe class="pdf-embed" src="${escapeHtml(source)}" data-pdf-capability="${capability}" title="${escapeHtml(label)}" width="100%" height="600"${page ? ` data-page="${page}"` : ''}></iframe>`;
+    return `<div class="pdf-embed-wrapper">${iframe}<a class="asset-embed pdf-embed-link" href="${escapeHtml(source)}" download="${escapeHtml(basename(file.path))}">Download ${escapeHtml(label)}</a></div>`;
+  }
+  return `<span class="embed-unsupported">Unsupported asset: ${escapeHtml(target)}</span>`;
+}
+function mathHtml(source: string, displayMode: boolean): string {
+  try { return katex.renderToString(source, { displayMode, throwOnError: false, trust: false, strict: 'ignore', maxExpand: 1000, output: 'htmlAndMathml' }); }
+  catch { return `<span class="math-error">${escapeHtml(source)}</span>`; }
+}
+function missingLink(target: string, label: string): string {
+  return `<a class="internal-link is-unresolved" data-note="${escapeHtml(target.split('#')[0])}" data-anchor="" href="#" aria-disabled="true">${escapeHtml(label)}</a>`;
+}
+function wikiHtml(content: string, embed: boolean, context: RenderContext): string {
+  const pipe = content.indexOf('|');
+  const target = (pipe < 0 ? content : content.slice(0, pipe)).trim();
+  const alias = pipe < 0 ? '' : content.slice(pipe + 1).trim();
+  const label = alias || target.replace(/\.md(?=#|$)/i, '').replace(/^.*\//, '') || context.note.title;
+  const file = resolveFile(target, context);
+  if (embed && file?.kind === 'base') {
+    return `<div class="base-embed" data-base="${escapeHtml(file.path)}">${renderBase(file.content, context.notes, context.note)}</div>`;
+  }
+  const link = resolveLink(target, context.notes, context.note.path);
+  if (file?.kind === 'asset') {
+    if (embed) return assetHtml(file, alias, target, context);
+    const source = assetSource(file);
+    if (!/^data:(?:image\/(?:png|jpeg|jpg|gif|webp|avif|bmp)|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+|application\/pdf);base64,[a-z0-9+/=]+$/i.test(source)) {
+      return `<span class="asset-link">${escapeHtml(label)}</span>`;
+    }
+    return `<a class="asset-link" href="${escapeHtml(source)}" download="${escapeHtml(basename(file.path))}">${escapeHtml(label)}</a>`;
+  }
+  if (!link.note) return embed ? `<span class="embed-missing">Missing embed: ${escapeHtml(target)}</span>` : missingLink(target, label);
+  if (!embed) return internalLink(link.note.path, link.note.slug, label, link.anchor);
+  const key = `${link.note.path}#${link.anchor}`;
+  if (context.depth >= MAX_EMBED_DEPTH || context.stack.includes(key)) {
+    return `<span class="embed-limit">${internalLink(link.note.path, link.note.slug, label, link.anchor)} (embed recursion limit)</span>`;
+  }
+  const markdown = transclusionBody(link.note, target);
+  if (markdown === undefined) return `<span class="embed-missing">Missing section: ${escapeHtml(target)}</span>`;
+  const nested: RenderContext = { ...context, note: link.note, depth: context.depth + 1, stack: [...context.stack, key] };
+  const rendered = renderBody(markdown, nested, headingOffset(link.note, markdown));
+  return `<div class="note-embed" data-note="${escapeHtml(link.note.path)}" data-anchor="${escapeHtml(link.anchor)}"><div class="note-embed-title">${internalLink(link.note.path, link.note.slug, alias || link.note.title, link.anchor)}</div><div class="note-embed-content">${rendered}</div></div>`;
+}
+
+function transclusionBody(note: Note, target: string): string | undefined {
+  const fragment = decodeTarget(target.slice(target.indexOf('#') + 1));
+  if (!target.includes('#') || !fragment.trim()) return note.body;
+  const tokens = createMarkdown().parse(stripComments(note.body), {});
+  const lines = note.body.replace(/\r\n?/g, '\n').split('\n');
+  if (fragment.startsWith('^')) {
+    const range = findBlockRange(tokens, fragment.slice(1));
+    return range ? lines.slice(...range).join('\n') : undefined;
+  }
+  const link = resolveLink(`#${fragment}`, [note], note.path);
+  const headingIndex = note.headings.findIndex(heading => heading.id === link.anchor);
+  if (headingIndex < 0) return undefined;
+  const headings = tokens.filter(token => token.type === 'heading_open' && token.map);
+  const heading = headings[headingIndex];
+  if (!heading?.map) return undefined;
+  const level = Number(heading.tag.slice(1));
+  const next = headings.slice(headingIndex + 1).find(token => Number(token.tag.slice(1)) <= level);
+  return lines.slice(heading.map[0], next?.map?.[0] ?? lines.length).join('\n');
+}
+function headingOffset(note: Note, body: string): number {
+  const offset = note.body.indexOf(body);
+  if (offset <= 0) return 0;
+  return createMarkdown().parse(stripComments(note.body.slice(0, offset)), {}).filter(token => token.type === 'heading_open').length;
+}
+
+function configureMarkdown(context: RenderContext): MarkdownIt {
+  const md = createMarkdown();
+  md.inline.ruler.before('link', 'obsidian_wikilink', (state, silent) => {
