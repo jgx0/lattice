@@ -289,3 +289,76 @@ function decorateTokens(tokens: Token[], md: MarkdownIt, context: RenderContext,
           if (tokens[opening].type === 'heading_open') tokens[opening].meta = { ...tokens[opening].meta, blockId: id };
           else tokens[opening].attrSet('id', id);
         }
+        token.content = token.content.slice(0, marker.index).trimEnd();
+        token.children = md.parseInline(token.content, {})[0].children;
+      }
+      const task = /^\[([ xX])\][ \t]+/.exec(token.content);
+      const parentListItem = [...ancestors].reverse().find(index => tokens[index].type === 'list_item_open');
+      if (task && parentListItem !== undefined && tokens[i - 1]?.type === 'paragraph_open'
+        && !tokens.slice(parentListItem + 1, i - 1).some(item => item.type === 'inline')) {
+        tokens[parentListItem].attrJoin('class', 'task-list-item');
+        const list = [...ancestors].reverse().find(index => ['bullet_list_open', 'ordered_list_open'].includes(tokens[index].type));
+        if (list !== undefined) tokens[list].attrJoin('class', 'contains-task-list');
+        token.content = token.content.slice(task[0].length);
+        token.children = md.parseInline(token.content, {})[0].children ?? [];
+        const checkbox = new Token('html_inline', '', 0);
+        checkbox.content = `<input class="task-list-item-checkbox" type="checkbox" disabled${task[1].toLowerCase() === 'x' ? ' checked' : ''} aria-label="${escapeHtml(plainInline(token.content) || 'Task')}"> `;
+        token.children.unshift(checkbox);
+      }
+    }
+    if (token.nesting === -1) ancestors.pop();
+  }
+  for (const type of ['fence', 'code_block']) {
+    const original = md.renderer.rules[type]!;
+    md.renderer.rules[type] = (items, index, options, env, renderer) => {
+      const html = original(items, index, options, env, renderer);
+      const id = items[index].attrGet('id');
+      return id ? html.replace('<pre', `<pre id="${escapeHtml(id)}"`) : html;
+    };
+  }
+  const open = md.renderer.rules.blockquote_open;
+  const close = md.renderer.rules.blockquote_close;
+  md.renderer.rules.blockquote_open = (items, index, options, env, renderer) => {
+    const token = items[index];
+    if (!token.meta?.callout) return open ? open(items, index, options, env, renderer) : renderer.renderToken(items, index, options);
+    const { type, title, fold } = token.meta;
+    const id = token.attrGet('id');
+    const attrs = ` class="callout" data-callout="${escapeHtml(type)}"${id ? ` id="${escapeHtml(id)}"` : ''}`;
+    return fold ? `<details${attrs}${fold === '+' ? ' open' : ''}><summary class="callout-title">${title}</summary><div class="callout-content">\n`
+      : `<aside${attrs}><div class="callout-title">${title}</div><div class="callout-content">\n`;
+  };
+  md.renderer.rules.blockquote_close = (items, index, options, env, renderer) => items[index].meta?.callout
+    ? `</div></${items[index].meta.fold ? 'details' : 'aside'}>\n`
+    : close ? close(items, index, options, env, renderer) : renderer.renderToken(items, index, options);
+  md.renderer.rules.heading_open = (items, index, options, _env, renderer) => {
+    const id = items[index].meta?.blockId;
+    return `${renderer.renderToken(items, index, options)}${id ? `<span id="${escapeHtml(id)}" class="block-anchor"></span>` : ''}`;
+  };
+}
+function renderBody(body: string, context: RenderContext, offset = 0): string {
+  const md = configureMarkdown(context);
+  const env = {};
+  const tokens = md.parse(stripComments(body), env);
+  decorateTokens(tokens, md, context, offset);
+  return md.renderer.render(tokens, md.options, env);
+}
+
+export function renderMarkdown(note: Note, notes: Note[], files: VaultFile[], sanitizers: Sanitizers = { sanitizeHtml, sanitizeSvg }): string {
+  const pdfEmbeds = new Map<string, string>();
+  const svgEmbeds = new Map<string, string>();
+  return sanitizers.sanitizeHtml(renderBody(note.body, { note, notes, files, sanitizers, depth: 0, stack: [`${note.path}#`], pdfEmbeds, svgEmbeds }), pdfEmbeds, svgEmbeds);
+}
+
+/** Lightweight, sanitized excerpt: omit recursive embeds and trim at complete block boundaries. */
+export function renderPreview(note: Note, notes: Note[], files: VaultFile[], sanitizers: Sanitizers = { sanitizeHtml, sanitizeSvg }): string {
+  const tokens = createMarkdown().parse(stripComments(note.body), {});
+  let end = 0;
+  for (const token of tokens) {
+    if (token.map) end = Math.max(end, token.map[1]);
+    if (end && note.body.split('\n').slice(0, end).join('\n').length >= 600 && token.level === 0) break;
+  }
+  const body = note.body.split('\n').slice(0, end || 12).join('\n');
+  const pdfEmbeds = new Map<string, string>();
+  const svgEmbeds = new Map<string, string>();
+  return sanitizers.sanitizeHtml(renderBody(body, { note, notes, files, sanitizers, depth: MAX_EMBED_DEPTH, stack: [], preview: true, pdfEmbeds, svgEmbeds }), pdfEmbeds, svgEmbeds);
+}
