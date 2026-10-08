@@ -216,3 +216,76 @@ function configureMarkdown(context: RenderContext): MarkdownIt {
           if (/^data:application\/pdf;/i.test(source)) { token.attrSet('class', 'pdf-embed-link'); token.attrSet('href', source); token.attrSet('download', basename(file.path)); }
           else token.attrSet('href', '#');
         } else if (!href.startsWith('#fn')) {
+          token.attrSet('class', 'internal-link is-unresolved'); token.attrSet('href', '#'); token.attrSet('aria-disabled', 'true');
+        }
+      }
+    }
+    return defaultLink(tokens, index, options, env, renderer);
+  };
+  const defaultImage = md.renderer.rules.image!;
+  md.renderer.rules.image = (tokens, index, options, env, renderer) => {
+    const token = tokens[index]; const source = token.attrGet('src') ?? '';
+    const file = resolveFile(source, context);
+    if (file?.kind === 'asset') return assetHtml(file, token.content, source, context);
+    token.attrSet('loading', 'lazy');
+    return defaultImage(tokens, index, options, env, renderer);
+  };
+  return md;
+}
+
+function decorateTokens(tokens: Token[], md: MarkdownIt, context: RenderContext, offset: number): void {
+  const seen = new Map<string, number>();
+  for (const heading of context.note.headings.slice(0, offset)) {
+    // IDs can contain numeric suffixes; derive counts from text, not ID spelling.
+    uniqueHeadingId(heading.text, seen);
+  }
+  const ancestors: number[] = [];
+  const callouts: number[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.type === 'heading_open') {
+      const inline = tokens[i + 1];
+      const text = plainInline(inline?.content ?? '').replace(/\s+\^[A-Za-z0-9-]+\s*$/, '');
+      token.attrSet('id', uniqueHeadingId(text, seen));
+    }
+    if (token.type === 'blockquote_open') {
+      callouts.push(i);
+      const inline = tokens[i + 2];
+      const match = inline?.type === 'inline' ? /^\[!([^\]\n]+)\]([+-]?)(?:[ \t]+([^\n]*))?(?:\n|$)/.exec(inline.content) : null;
+      if (match) {
+        const type = match[1].toLowerCase().replace(/[^a-z0-9-]/g, '') || 'note';
+        const title = match[3]?.trim() || type.replace(/-/g, ' ').replace(/^./, value => value.toUpperCase());
+        token.meta = { callout: true, type, title: md.renderInline(title), fold: match[2] };
+        inline.content = inline.content.slice(match[0].length);
+        inline.children = md.parseInline(inline.content, {})[0].children;
+        if (!inline.content) {
+          tokens[i + 1].hidden = true; inline.hidden = true; inline.children = []; tokens[i + 3].hidden = true;
+        }
+      }
+    }
+    if (token.type === 'blockquote_close') {
+      const opening = callouts.pop();
+      if (opening != null && tokens[opening].meta?.callout) token.meta = tokens[opening].meta;
+    }
+    if (token.nesting === 1) ancestors.push(i);
+    if (token.type === 'inline') {
+      const marker = /(?:^|\s)\^([A-Za-z0-9-]+)\s*$/.exec(token.content);
+      if (marker && token.children?.at(-1)?.type === 'text' && token.children.at(-1)!.content.endsWith(`^${marker[1]}`)) {
+        const id = marker[1];
+        let opening = ancestors.at(-1);
+        if (token.content.trim() === `^${id}`) {
+          const range = findBlockRange(tokens, id);
+          const previous = range ? tokens.findIndex(item => item.block && item.map?.[0] === range[0]
+            && item.map[1] <= token.map![0]) : -1;
+          if (previous >= 0) opening = previous;
+          if (ancestors.at(-1) !== undefined) tokens[ancestors.at(-1)!].hidden = true;
+          token.hidden = true; if (tokens[i + 1]?.type === 'paragraph_close') tokens[i + 1].hidden = true;
+        } else {
+          const container = ancestors.find(index => ['bullet_list_open', 'ordered_list_open', 'blockquote_open', 'table_open'].includes(tokens[index].type));
+          if (container !== undefined) opening = container;
+        }
+        if (opening != null) {
+          // A heading retains its heading ID; an empty span exposes its block ID separately.
+          if (tokens[opening].type === 'heading_open') tokens[opening].meta = { ...tokens[opening].meta, blockId: id };
+          else tokens[opening].attrSet('id', id);
+        }
