@@ -143,3 +143,76 @@ function headingOffset(note: Note, body: string): number {
 function configureMarkdown(context: RenderContext): MarkdownIt {
   const md = createMarkdown();
   md.inline.ruler.before('link', 'obsidian_wikilink', (state, silent) => {
+    const start = state.pos;
+    const embed = state.src.startsWith('![[', start);
+    if (!embed && !state.src.startsWith('[[', start)) return false;
+    const end = state.src.indexOf(']]', start + (embed ? 3 : 2));
+    if (end < 0 || state.src.slice(start, end).includes('\n')) return false;
+    if (!silent) {
+      const token = state.push('obsidian_wiki', '', 0);
+      token.content = state.src.slice(start + (embed ? 3 : 2), end);
+      token.meta = { embed };
+    }
+    state.pos = end + 2; return true;
+  });
+  md.renderer.rules.obsidian_wiki = (tokens, index) => wikiHtml(tokens[index].content, tokens[index].meta.embed, context);
+  md.block.ruler.before('paragraph', 'obsidian_embed', (state, start, end, silent) => {
+    if (state.sCount[start] - state.blkIndent >= 4) return false;
+    const line = state.src.slice(state.bMarks[start] + state.tShift[start], state.eMarks[start]);
+    const match = /^!\[\[([^\]\n]+)\]\]\s*$/.exec(line);
+    if (!match) return false;
+    if (!silent) { const token = state.push('obsidian_embed', '', 0); token.content = match[1]; token.map = [start, start + 1]; }
+    state.line = start + 1; return true;
+  });
+  md.renderer.rules.obsidian_embed = (tokens, index) => `${wikiHtml(tokens[index].content, true, context)}\n`;
+  md.inline.ruler.after('escape', 'obsidian_math', (state, silent) => {
+    const start = state.pos;
+    const bracket = state.src.startsWith('\\(', start);
+    if (!bracket && (state.src[start] !== '$' || state.src[start + 1] === '$' || /\s/.test(state.src[start + 1] ?? ' '))) return false;
+    const close = bracket ? '\\)' : '$';
+    let end = start + (bracket ? 2 : 1);
+    while ((end = state.src.indexOf(close, end)) >= 0) {
+      if (state.src[end - 1] !== '\\' && (bracket || !/\s/.test(state.src[end - 1]))) break;
+      end += close.length;
+    }
+    if (end < 0 || state.src.slice(start, end).includes('\n') || !bracket && /\d/.test(state.src[end + 1] ?? '')) return false;
+    if (!silent) { const token = state.push('obsidian_math_inline', '', 0); token.content = state.src.slice(start + (bracket ? 2 : 1), end); }
+    state.pos = end + close.length; return true;
+  });
+  // Run before escapes so the \(...\) spelling remains available.
+  md.inline.ruler.before('escape', 'obsidian_bracket_math', (state, silent) => {
+    if (!state.src.startsWith('\\(', state.pos)) return false;
+    const end = state.src.indexOf('\\)', state.pos + 2);
+    if (end < 0) return false;
+    if (!silent) { const token = state.push('obsidian_math_inline', '', 0); token.content = state.src.slice(state.pos + 2, end); }
+    state.pos = end + 2; return true;
+  });
+  md.renderer.rules.obsidian_math_inline = (tokens, index) => mathHtml(tokens[index].content, false);
+  md.renderer.rules.obsidian_math_block = (tokens, index) => `${mathHtml(tokens[index].content, true)}\n`;
+  md.inline.ruler.before('emphasis', 'obsidian_highlight', (state, silent) => {
+    if (!state.src.startsWith('==', state.pos)) return false;
+    const end = state.src.indexOf('==', state.pos + 2);
+    if (end <= state.pos + 2) return false;
+    if (!silent) {
+      state.push('mark_open', 'mark', 1);
+      const children = md.parseInline(state.src.slice(state.pos + 2, end), state.env)[0].children ?? [];
+      state.tokens.push(...children);
+      state.push('mark_close', 'mark', -1);
+    }
+    state.pos = end + 2; return true;
+  });
+  const defaultLink = md.renderer.rules.link_open ?? ((tokens, index, options, _env, renderer) => renderer.renderToken(tokens, index, options));
+  md.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
+    const token = tokens[index]; const href = token.attrGet('href') ?? '';
+    if (!/^(?:[a-z][\w+.-]*:|\/\/)/i.test(href)) {
+      const link = resolveLink(href, context.notes, context.note.path);
+      if (link.note) {
+        token.attrSet('class', 'internal-link'); token.attrSet('data-note', link.note.path);
+        token.attrSet('data-anchor', link.anchor); token.attrSet('href', link.href);
+      } else {
+        const file = resolveFile(href, context);
+        if (file?.kind === 'asset') {
+          const source = assetSource(file);
+          if (/^data:application\/pdf;/i.test(source)) { token.attrSet('class', 'pdf-embed-link'); token.attrSet('href', source); token.attrSet('download', basename(file.path)); }
+          else token.attrSet('href', '#');
+        } else if (!href.startsWith('#fn')) {
