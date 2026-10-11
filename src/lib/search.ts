@@ -68,3 +68,38 @@ export function searchNotes(query: string, notes: Note[]): Note[] {
             || (caseSensitive ? item : item.toLocaleLowerCase()).startsWith(`${tag}/`));
         }
         default: return matches(`${note.title}\n${note.path}\n${note.body}`);
+      }
+    };
+  }
+  function primary(): Predicate {
+    const token = tokens[position++];
+    if (!token) return () => false;
+    if (token.kind === 'not') { const child = primary(); return note => !child(note); }
+    if (token.kind === '(') {
+      const expression = disjunction();
+      if (tokens[position]?.kind === ')') position++;
+      return expression;
+    }
+    return token.kind === 'term' ? term(token.value) : () => false;
+  }
+  function conjunction(): Predicate {
+    let result = primary();
+    while (position < tokens.length && !['or', ')'].includes(tokens[position].kind)) {
+      if (tokens[position].kind === 'and') position++;
+      const left = result; const right = primary();
+      result = note => left(note) && right(note);
+    }
+    return result;
+  }
+  function disjunction(): Predicate {
+    let result = conjunction();
+    while (tokens[position]?.kind === 'or') {
+      position++;
+      const left = result; const right = conjunction();
+      result = note => left(note) || right(note);
+    }
+    return result;
+  }
+  const predicate = disjunction();
+  return notes.filter(predicate);
+}
