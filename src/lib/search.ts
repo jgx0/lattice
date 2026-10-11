@@ -33,3 +33,38 @@ export function searchNotes(query: string, notes: Note[]): Note[] {
   let caseSensitive = false;
   const tokens = tokenizeSearch(query).filter(token => {
     if (token.kind === 'term' && /^match-case:(?:true|false)?$/i.test(token.value)) {
+      caseSensitive = !/false$/i.test(token.value); return false;
+    }
+    return true;
+  });
+  if (!tokens.length) return notes.slice();
+  type Predicate = (note: Note) => boolean;
+  let position = 0;
+  function term(value: string): Predicate {
+    const fieldMatch = /^(path|file|tag|heading|content):([\s\S]*)$/i.exec(value);
+    const field = fieldMatch?.[1].toLowerCase() ?? '';
+    let needle = fieldMatch?.[2] ?? value;
+    if (/^(["'])[\s\S]*\1$/.test(needle)) needle = needle.slice(1, -1).replace(/\\(["'\\])/g, '$1');
+    const regexMatch = /^\/([\s\S]*)\/([imsu]*)$/.exec(needle);
+    let regex: RegExp | undefined;
+    if (regexMatch) {
+      // Reject common exponential regex shapes; cap searched input as a second safeguard.
+      if (regexMatch[1].length > 256 || /\([^)]*[+*][^)]*\)[+*{]|\\[1-9]/.test(regexMatch[1])) return () => false;
+      try { regex = new RegExp(regexMatch[1], [...new Set(`${regexMatch[2]}${caseSensitive ? '' : 'i'}`)].join('')); }
+      catch { return () => false; }
+    }
+    const normalized = caseSensitive ? needle : needle.toLocaleLowerCase();
+    const matches = (text: string) => regex ? regex.test(text.slice(0, 100_000))
+      : (caseSensitive ? text : text.toLocaleLowerCase()).includes(normalized);
+    return note => {
+      switch (field) {
+        case 'path': return matches(note.path);
+        case 'file': return matches(basename(note.path));
+        case 'heading': return note.headings.some(heading => matches(heading.text));
+        case 'content': return matches(note.body);
+        case 'tag': {
+          const tag = normalized.replace(/^#/, '');
+          return note.tags.some(item => regex ? matches(item) : (caseSensitive ? item : item.toLocaleLowerCase()) === tag
+            || (caseSensitive ? item : item.toLocaleLowerCase()).startsWith(`${tag}/`));
+        }
+        default: return matches(`${note.title}\n${note.path}\n${note.body}`);
