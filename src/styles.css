@@ -1,0 +1,235 @@
+/* Obsidian Publish baseline. Load community theme CSS after this file. */
+:root {
+  --background-primary: #ffffff;
+  --background-primary-alt: #f6f6f6;
+  --background-secondary: #f6f6f6;
+  --background-secondary-alt: #eeeeee;
+  --background-modifier-border: #e0e0e0;
+  --background-modifier-border-hover: #d4d4d4;
+  --background-modifier-border-focus: #b9b9b9;
+  --background-modifier-hover: rgba(0, 0, 0, 0.075);
+  --background-modifier-active-hover: rgba(0, 0, 0, 0.1);
+  --background-modifier-cover: rgba(0, 0, 0, 0.4);
+  --text-normal: #222222;
+  --text-muted: #5c5c5c;
+  --text-faint: #ababab;
+  --text-on-accent: #ffffff;
+  --text-accent: #705dcf;
+  --text-accent-hover: #7a6ae6;
+  --interactive-accent: #705dcf;
+  --interactive-accent-hover: #7a6ae6;
+  --interactive-normal: #f6f6f6;
+  --interactive-hover: #eeeeee;
+  --accent-h: 254;
+  --accent-s: 80%;
+  --accent-l: 68%;
+  --color-red: #e93147;
+  --color-orange: #ec7500;
+  --color-yellow: #e0ac00;
+  --color-green: #08b94e;
+  --color-cyan: #00bfbc;
+  --color-blue: #086ddd;
+  --color-purple: #7852ee;
+  --color-pink: #d53984;
+  --font-interface:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-text:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-monospace:
+    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  --font-ui-small: 13px;
+  --font-ui-smaller: 12px;
+  --font-ui-medium: 14px;
+  --font-text-size: 16px;
+  --line-height-normal: 1.6;
+  --line-height-tight: 1.3;
+  --file-line-width: 700px;
+  --h1-size: 2em;
+  --h2-size: 1.5em;
+  --h3-size: 1.25em;
+  --h4-size: 1.125em;
+  --h5-size: 1em;
+  --h6-size: 1em;
+  --h1-weight: 700;
+  --h2-weight: 600;
+  --h3-weight: 600;
+  --h4-weight: 600;
+  --h5-weight: 600;
+  --h6-weight: 600;
+  --heading-spacing: 2em;
+  --p-spacing: 1em;
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --callout-note: 8, 109, 221;
+  --callout-abstract: 0, 191, 188;
+  --callout-info: 8, 109, 221;
+  --callout-todo: 8, 109, 221;
+  --callout-tip: 0, 191, 188;
+  --callout-success: 8, 185, 78;
+  --callout-question: 236, 117, 0;
+  --callout-warning: 236, 117, 0;
+  --callout-failure: 233, 49, 71;
+  --callout-danger: 233, 49, 71;
+  --callout-bug: 233, 49, 71;
+  --callout-example: 120, 82, 238;
+  --callout-quote: 158, 158, 158;
+}
+
+/* Body-scoped colors let real .theme-light/.theme-dark rules take precedence. */
+:where(body.theme-light) {
+  color-scheme: light;
+  --background-primary: #ffffff;
+  --background-primary-alt: #f6f6f6;
+  --background-secondary: #f6f6f6;
+  --background-secondary-alt: #eeeeee;
+  --background-modifier-border: #e0e0e0;
+  --background-modifier-border-hover: #d4d4d4;
+  --background-modifier-border-focus: #b9b9b9;
+  --background-modifier-hover: rgba(0, 0, 0, 0.075);
+  --background-modifier-active-hover: rgba(0, 0, 0, 0.1);
+  --text-normal: #222222;
+  --text-muted: #5c5c5c;
+  --text-faint: #ababab;
+  --interactive-normal: #f6f6f6;
+  --interactive-hover: #eeeeee;
+  --color-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
+  --color-accent-1: hsl(
+    var(--accent-h),
+    var(--accent-s),
+    calc(var(--accent-l) - 3%)
+  );
+  --color-accent-2: hsl(
+    var(--accent-h),
+    var(--accent-s),
+    calc(var(--accent-l) + 3%)
+  );
+  --text-accent: var(--color-accent-1);
+  --text-accent-hover: var(--color-accent-2);
+  --interactive-accent: var(--color-accent-1);
+  --interactive-accent-hover: var(--color-accent-2);
+}
+:where(body.theme-dark) {
+  color-scheme: dark;
+  --background-primary: #1e1e1e;
+  --background-primary-alt: #262626;
+  --background-secondary: #262626;
+  --background-secondary-alt: #303030;
+  --background-modifier-border: #363636;
+  --background-modifier-border-hover: #454545;
+  --background-modifier-border-focus: #555555;
+  --background-modifier-hover: rgba(255, 255, 255, 0.075);
+  --background-modifier-active-hover: rgba(255, 255, 255, 0.1);
+  --background-modifier-cover: rgba(0, 0, 0, 0.6);
+  --text-normal: #dadada;
+  --text-muted: #b3b3b3;
+  --text-faint: #666666;
+  --interactive-normal: #363636;
+  --interactive-hover: #3f3f3f;
+  --color-red: #fb464c;
+  --color-orange: #e9973f;
+  --color-yellow: #e0de71;
+  --color-green: #44cf6e;
+  --color-cyan: #53dfdd;
+  --color-blue: #027aff;
+  --color-purple: #a882ff;
+  --color-pink: #fa99cd;
+  --color-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
+  --color-accent-1: hsl(
+    var(--accent-h),
+    var(--accent-s),
+    calc(var(--accent-l) + 3%)
+  );
+  --color-accent-2: hsl(
+    var(--accent-h),
+    var(--accent-s),
+    calc(var(--accent-l) + 5%)
+  );
+  --text-accent: var(--color-accent);
+  --text-accent-hover: var(--color-accent-2);
+  --interactive-accent: var(--color-accent);
+  --interactive-accent-hover: var(--color-accent-1);
+  --callout-note: 2, 122, 255;
+  --callout-abstract: 83, 223, 221;
+  --callout-info: 2, 122, 255;
+  --callout-todo: 2, 122, 255;
+  --callout-tip: 83, 223, 221;
+  --callout-success: 68, 207, 110;
+  --callout-question: 233, 151, 63;
+  --callout-warning: 233, 151, 63;
+  --callout-failure: 251, 70, 76;
+  --callout-danger: 251, 70, 76;
+  --callout-bug: 251, 70, 76;
+  --callout-example: 168, 130, 255;
+}
+:where(body) {
+  /* Compatibility is one-way: legacy graph tokens consume theme tokens. */
+  --accent: var(--interactive-accent);
+  --surface: var(--background-secondary);
+  --text: var(--text-normal);
+  --muted: var(--text-muted);
+  --border: var(--background-modifier-border);
+  margin: 0;
+  color: var(--text-normal);
+  background: var(--background-primary);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-medium);
+  line-height: var(--line-height-normal);
+  font-synthesis: none;
+}
+:where(*, *::before, *::after) {
+  box-sizing: border-box;
+}
+:where(html, body, #root) {
+  min-height: 100%;
+}
+:where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+}
+:where(button) {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+:where(button:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+:where(a) {
+  color: var(--text-accent);
+}
+:where(a:hover) {
+  color: var(--text-accent-hover);
+}
+:where(button, a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  min-width: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--input-radius, var(--radius-s));
+  background: var(--background-primary);
+  padding: 6px 10px;
+}
+:where(input, textarea)::placeholder {
+  color: var(--text-faint);
+}
+:where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--interactive-accent);
+}
+:where(svg) {
+  flex-shrink: 0;
+}
+:where(button svg) {
+  vertical-align: middle;
+}
+::selection {
+  background: var(
+    --text-selection,
+    color-mix(in srgb, var(--interactive-accent) 25%, transparent)
+  );
+}
