@@ -41,3 +41,25 @@ export function slugify(value: string): string {
 }
 
 export function uniqueHeadingId(text: string, seen: Map<string, number>): string {
+  const base = slugify(text);
+  const count = seen.get(base) ?? 0;
+  seen.set(base, count + 1);
+  return count ? `${base}-${count}` : base;
+}
+
+export function headingAnchor(target: string, headings: Heading[]): string {
+  const raw = decodeTarget(target).trim();
+  if (!raw) return '';
+  if (raw.startsWith('^')) return raw.slice(1);
+  return headings.find(heading => heading.id === raw)?.id
+    ?? headings.find(heading => heading.text.toLocaleLowerCase() === raw.toLocaleLowerCase())?.id
+    ?? slugify(raw);
+}
+
+export function noteHref(slug: string, anchor = ''): string {
+  return `#/${slug}${anchor ? `?anchor=${encodeURIComponent(anchor)}` : ''}`;
+}
+
+export function internalLink(path: string, slug: string, label: unknown, anchor = ''): string {
+  return `<a class="internal-link" data-note="${escapeHtml(path)}" data-anchor="${escapeHtml(anchor)}" href="${escapeHtml(noteHref(slug, anchor))}">${escapeHtml(label)}</a>`;
+}
