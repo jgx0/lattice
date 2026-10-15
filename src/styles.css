@@ -705,3 +705,238 @@
 :where(.markdown-rendered .task-list-item-checkbox) {
   margin: 0 0.5em 0 -1.5em;
   vertical-align: middle;
+}
+:where(.markdown-rendered input[type="checkbox"]) {
+  width: var(--checkbox-size, 16px);
+  height: var(--checkbox-size, 16px);
+  accent-color: var(--checkbox-color, var(--interactive-accent));
+}
+:where(.markdown-rendered .task-list-item.is-checked) {
+  color: var(--checklist-done-color, var(--text-muted));
+  text-decoration: var(--checklist-done-decoration, line-through);
+}
+:where(.markdown-rendered blockquote) {
+  margin: var(--p-spacing) 0;
+  padding: 0 0 0 24px;
+  border-left: var(--blockquote-border-thickness, 2px) solid
+    var(--blockquote-border-color, var(--interactive-accent));
+  color: var(--blockquote-color, inherit);
+  background: var(--blockquote-background-color, transparent);
+  font-style: var(--blockquote-font-style, normal);
+}
+:where(.markdown-rendered hr) {
+  border: 0;
+  border-top: 1px solid var(--hr-color, var(--background-modifier-border));
+  margin: 2em 0;
+}
+:where(.markdown-rendered code) {
+  padding: 0.1em 0.25em;
+  border-radius: var(--code-radius, var(--radius-s));
+  font-family: var(--font-monospace);
+  font-size: var(--code-size, 0.875em);
+  color: var(--code-normal, var(--text-normal));
+  background: var(--code-background, var(--background-primary-alt));
+}
+:where(.markdown-rendered pre) {
+  position: relative;
+  margin: var(--p-spacing) 0;
+  padding: 16px;
+  overflow: auto;
+  border-radius: var(--code-radius, var(--radius-s));
+  background: var(--code-background, var(--background-primary-alt));
+  line-height: var(--line-height-normal);
+  white-space: pre;
+}
+:where(.markdown-rendered pre code) {
+  display: block;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+:where(.copy-code-button) {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  background: var(--interactive-normal);
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-smaller);
+}
+:where(.token.comment, .token.prolog, .token.doctype) {
+  color: var(--code-comment, var(--text-faint));
+}
+:where(.token.keyword, .token.tag) {
+  color: var(--code-keyword, var(--color-pink));
+}
+:where(.token.string, .token.attr-value) {
+  color: var(--code-string, var(--color-green));
+}
+:where(.token.number, .token.boolean) {
+  color: var(--code-value, var(--color-purple));
+}
+:where(.token.function) {
+  color: var(--code-function, var(--color-yellow));
+}
+:where(.token.operator, .token.punctuation) {
+  color: var(--code-operator, var(--text-muted));
+}
+:where(.markdown-rendered table) {
+  border-collapse: collapse;
+  margin: var(--p-spacing) 0;
+  max-width: 100%;
+  font-size: var(--table-text-size, var(--font-text-size));
+}
+:where(.markdown-rendered th, .markdown-rendered td) {
+  border: 1px solid var(--table-border-color, var(--background-modifier-border));
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+:where(.markdown-rendered th) {
+  font-weight: var(--table-header-weight, 600);
+  color: var(--table-header-color, var(--text-normal));
+  background: var(--table-header-background, var(--background-secondary));
+}
+:where(.markdown-rendered td) {
+  background: var(--table-background, transparent);
+}
+:where(.table-wrapper, .base-table-wrapper) {
+  max-width: 100%;
+  overflow: auto;
+}
+:where(.markdown-rendered img, .markdown-rendered video) {
+  max-width: 100%;
+  height: auto;
+}
+:where(.markdown-rendered audio) {
+  max-width: 100%;
+  width: 100%;
+}
+:where(.markdown-rendered iframe) {
+  max-width: 100%;
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid var(--background-modifier-border);
+}
+:where(.markdown-rendered .pdf-embed) {
+  min-height: 440px;
+}
+:where(.katex-display) {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Native callout color tokens are RGB channels, as in Obsidian themes. */
+:where(.callout) {
+  --callout-color: var(--callout-note);
+  margin: var(--p-spacing) 0;
+  padding: var(--callout-padding, 12px 16px);
+  border: var(--callout-border-width, 0px) solid
+    rgba(var(--callout-color), var(--callout-border-opacity, 0.25));
+  border-radius: var(--callout-radius, var(--radius-s));
+  background: rgba(var(--callout-color), var(--callout-opacity, 0.1));
+  color: var(--text-normal);
+  font-style: normal;
+  overflow: hidden;
+}
+:where(
+  .callout[data-callout="abstract"],
+  .callout[data-callout="summary"],
+  .callout[data-callout="tldr"]
+) {
+  --callout-color: var(--callout-abstract);
+}
+:where(.callout[data-callout="info"]) {
+  --callout-color: var(--callout-info);
+}
+:where(.callout[data-callout="todo"]) {
+  --callout-color: var(--callout-todo);
+}
+:where(
+  .callout[data-callout="tip"],
+  .callout[data-callout="hint"],
+  .callout[data-callout="important"]
+) {
+  --callout-color: var(--callout-tip);
+}
+:where(
+  .callout[data-callout="success"],
+  .callout[data-callout="check"],
+  .callout[data-callout="done"]
+) {
+  --callout-color: var(--callout-success);
+}
+:where(
+  .callout[data-callout="question"],
+  .callout[data-callout="help"],
+  .callout[data-callout="faq"]
+) {
+  --callout-color: var(--callout-question);
+}
+:where(
+  .callout[data-callout="warning"],
+  .callout[data-callout="caution"],
+  .callout[data-callout="attention"]
+) {
+  --callout-color: var(--callout-warning);
+}
+:where(
+  .callout[data-callout="failure"],
+  .callout[data-callout="fail"],
+  .callout[data-callout="missing"]
+) {
+  --callout-color: var(--callout-failure);
+}
+:where(.callout[data-callout="danger"], .callout[data-callout="error"]) {
+  --callout-color: var(--callout-danger);
+}
+:where(.callout[data-callout="bug"]) {
+  --callout-color: var(--callout-bug);
+}
+:where(.callout[data-callout="example"]) {
+  --callout-color: var(--callout-example);
+}
+:where(.callout[data-callout="quote"], .callout[data-callout="cite"]) {
+  --callout-color: var(--callout-quote);
+}
+:where(.callout-title) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--callout-title-color, rgb(var(--callout-color)));
+  font-weight: var(--callout-title-weight, 600);
+}
+:where(.callout-icon) {
+  display: inline-flex;
+  color: rgb(var(--callout-color));
+}
+:where(.callout-icon svg, .callout-title > svg) {
+  width: 18px;
+  height: 18px;
+}
+:where(.callout-title-inner) {
+  flex: 1;
+}
+:where(.callout-content) {
+  margin-top: 8px;
+  overflow: auto;
+}
+:where(.callout-content > :last-child) {
+  margin-bottom: 0;
+}
+:where(.callout > summary) {
+  cursor: pointer;
+  list-style: none;
+}
+:where(.callout > summary::-webkit-details-marker) {
+  display: none;
+}
+:where(.callout-fold) {
+  display: inline-flex;
+  margin-left: auto;
+}
+:where(
+  .callout.is-collapsed .callout-fold svg,
+  .callout:not([open]) > summary .callout-fold svg
+) {
