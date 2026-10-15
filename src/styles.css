@@ -940,3 +940,239 @@
   .callout.is-collapsed .callout-fold svg,
   .callout:not([open]) > summary .callout-fold svg
 ) {
+  transform: rotate(-90deg);
+}
+:where(.callout.is-collapsed .callout-content) {
+  display: none;
+}
+
+/* Embeds, properties, bases, and footnotes stay document-like. */
+:where(
+  .markdown-embed,
+  .note-embed,
+  .internal-embed:not(.image-embed):not(.media-embed)
+) {
+  border-left: var(--embed-border-width, 2px) solid
+    var(--embed-border-color, var(--interactive-accent));
+  padding: var(--embed-padding, 0 0 0 24px);
+  margin: var(--p-spacing) 0;
+  background: var(--embed-background, transparent);
+}
+:where(.embed-title, .markdown-embed-title) {
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+:where(.markdown-embed-content) {
+  max-height: var(--embed-max-height, 600px);
+  overflow: auto;
+}
+:where(.broken-embed, .embed-error) {
+  padding: 12px;
+  border: 1px dashed var(--background-modifier-border);
+  color: var(--text-muted);
+}
+:where(.metadata-container, .properties) {
+  margin: 0 0 24px;
+  padding: var(--metadata-padding, 0);
+  border: var(--metadata-border-width, 0px) solid
+    var(--metadata-border-color, var(--background-modifier-border));
+  border-radius: var(--metadata-border-radius, 0);
+  font-family: var(--font-interface);
+  font-size: var(--metadata-label-font-size, var(--font-ui-small));
+}
+:where(.metadata-container summary, .properties summary) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+:where(.metadata-container dl, .properties dl) {
+  margin: 12px 0;
+}
+:where(.metadata-property, .properties dl > div, .metadata-container dl > div) {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+}
+:where(.metadata-property-key, .properties dt, .metadata-container dt) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 120px;
+  color: var(--metadata-label-text-color, var(--text-muted));
+}
+:where(.metadata-property-value, .properties dd, .metadata-container dd) {
+  min-width: 0;
+  margin: 0;
+  color: var(--metadata-input-text-color, var(--text-normal));
+  overflow-wrap: anywhere;
+}
+:where(.property-chip, .multi-select-pill, .tag) {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 4px 3px 0;
+  color: var(--tag-color, var(--text-accent));
+  background: var(
+    --tag-background,
+    color-mix(in srgb, var(--interactive-accent) 10%, transparent)
+  );
+  border-radius: var(--tag-radius, var(--radius-s));
+  font-size: var(--tag-size, var(--font-ui-small));
+}
+:where(.base-embed) {
+  margin: var(--p-spacing) 0;
+  border: 1px solid var(--background-modifier-border);
+  overflow: auto;
+  background: var(--background-primary);
+}
+:where(.base-embed table) {
+  width: 100%;
+  margin: 0;
+}
+:where(.base-header, .base-title, .base-view-title) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  font: 600 var(--font-ui-small) var(--font-interface);
+}
+:where(.base-sort) {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+:where(.base-sort:hover) {
+  color: var(--text-accent);
+}
+:where(.base-cards) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+:where(.base-card) {
+  border: 1px solid var(--background-modifier-border);
+  padding: 12px;
+}
+:where(.base-card h3) {
+  margin: 0 0 8px;
+}
+:where(.base-card dl) {
+  font-size: var(--font-ui-small);
+}
+:where(.base-card dt, .base-list-property) {
+  color: var(--text-muted);
+}
+:where(.base-card dd) {
+  margin: 0 0 6px;
+}
+:where(.base-list) {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+:where(.base-list li) {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+:where(.base-list-property) {
+  display: block;
+  font-size: var(--font-ui-small);
+}
+:where(.base-footer, .base-empty, .base-error) {
+  padding: 8px 12px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+:where(.footnotes) {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+  font-size: var(--footnote-size, 0.875em);
+}
+:where(.footnote-ref) {
+  font-size: 0.75em;
+}
+
+/* Publish right column. */
+:where(.site-body-right-column) {
+  flex: 0 0 var(--site-right-sidebar-width, 240px);
+  min-width: 0;
+}
+:where(.right-sidebar) {
+  flex: 0 0 var(--site-right-sidebar-width, 240px);
+  width: var(--site-right-sidebar-width, 240px);
+  max-width: 100%;
+  padding: 48px 20px 24px 12px;
+  overflow: auto;
+  scrollbar-width: thin;
+  background: var(--background-primary);
+}
+:where(.graph-view-container, .outline-view-container, .backlinks) {
+  margin: 0 0 28px;
+}
+:where(.aside-heading) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+}
+:where(.aside-heading > svg, .aside-count) {
+  color: var(--text-faint);
+}
+:where(.aside-count) {
+  font-size: var(--font-ui-smaller);
+  font-weight: 400;
+}
+:where(.outline nav, .toc nav) {
+  padding: 0;
+}
+:where(.outline-item, .toc-link) {
+  display: flex;
+  padding: 5px 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+  text-align: left;
+  text-decoration: none;
+}
+:where(.outline-item.is-active, .toc-link.current) {
+  color: var(--text-accent);
+  background: var(--background-modifier-hover);
+}
+:where(.outline-item.level-3, .toc-link.level-3) {
+  padding-left: 20px;
+}
+:where(.outline-item.level-4, .toc-link.level-4) {
+  padding-left: 32px;
+}
+:where(.outline-item.level-5) {
+  padding-left: 44px;
+}
+:where(.outline-item.level-6) {
+  padding-left: 56px;
+}
+:where(.backlink) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  text-align: left;
+  color: var(--text-muted);
+}
+:where(.backlink div) {
