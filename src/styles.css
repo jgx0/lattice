@@ -1176,3 +1176,239 @@
   color: var(--text-muted);
 }
 :where(.backlink div) {
+  min-width: 0;
+}
+:where(.backlink span) {
+  display: block;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+:where(.backlink small) {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--font-ui-smaller);
+}
+:where(.backlink > svg) {
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  color: var(--text-faint);
+}
+:where(.backlink > svg:last-child) {
+  margin-left: auto;
+}
+:where(.backlink:hover span, .all-mentions:hover) {
+  color: var(--text-accent);
+}
+:where(.all-mentions, .empty-hint, .inline-backlinks) {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+:where(.all-mentions, .inline-backlinks button) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+:where(.inline-backlinks) {
+  margin-top: 24px;
+}
+:where(.inline-backlinks h3) {
+  font: 600 var(--font-ui-medium) var(--font-interface);
+}
+:where(.inline-backlinks h3 span) {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+:where(.inline-backlinks button) {
+  color: var(--text-accent);
+}
+
+/* GraphView keeps its compact and full-page interaction surfaces. */
+:where(.graph-view) {
+  position: relative;
+  color: var(--text-muted);
+}
+:where(.graph-view.compact) {
+  height: 180px;
+  margin: 8px 0;
+  overflow: hidden;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+}
+:where(.graph-view > svg) {
+  display: block;
+  width: 100%;
+  user-select: none;
+  touch-action: none;
+  cursor: grab;
+}
+:where(.graph-view.compact > svg) {
+  height: 100%;
+}
+:where(.graph-view > svg:active) {
+  cursor: grabbing;
+}
+:where(.graph-node) {
+  cursor: pointer;
+}
+:where(.graph-node text) {
+  pointer-events: none;
+  font-family: var(--font-interface);
+}
+:where(.graph-node:hover circle) {
+  stroke: var(--interactive-accent);
+  stroke-width: 2px;
+}
+:where(.graph-expand) {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 4px;
+  color: var(--text-muted);
+  background: var(--background-primary);
+  border-radius: var(--radius-s);
+}
+:where(.explore-graph-link) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px auto 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+:where(.explore-graph-link:hover) {
+  color: var(--text-accent);
+}
+:where(.graph-page) {
+  width: 100%;
+  max-width: 1100px;
+  margin: auto;
+  padding: 48px 40px;
+  font-family: var(--font-text);
+  font-size: var(--font-text-size);
+}
+:where(.graph-page h1) {
+  margin-top: 0;
+}
+:where(.graph-description) {
+  color: var(--text-muted);
+  margin: 0 0 20px;
+}
+:where(.graph-summary) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 20px 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+:where(.graph-summary > span) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+:where(.graph-summary i, .graph-legend i) {
+  width: 6px;
+  height: 6px;
+  background: var(--interactive-accent);
+  border-radius: 50%;
+}
+:where(.graph-page > .graph-view, .graph-view.full) {
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  padding-bottom: 48px;
+}
+:where(.graph-page .graph-view > svg, .graph-view.full > svg) {
+  height: min(60dvh, 560px);
+  min-height: 300px;
+}
+:where(.graph-toolbar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-family: var(--font-interface);
+}
+:where(.graph-search) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 280px;
+  max-width: 100%;
+  padding: 6px 9px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-muted);
+}
+:where(.graph-search input) {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--font-ui-small);
+}
+:where(.graph-local) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-ui-small);
+}
+:where(.graph-controls) {
+  position: absolute;
+  right: 12px;
+  bottom: 60px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  font-size: var(--font-ui-smaller);
+}
+:where(.graph-controls button) {
+  padding: 4px;
+  border-radius: var(--radius-s);
+}
+:where(.graph-controls button:hover, .graph-expand:hover) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+:where(.graph-legend) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 16px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+:where(.graph-legend span) {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+:where(.graph-hint) {
+  position: absolute;
+  bottom: 10px;
+  left: 16px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+:where(.graph-limit) {
+  padding: 0 16px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+:where(.graph-empty) {
+  position: absolute;
+  top: 45%;
+  left: 0;
+  width: 100%;
