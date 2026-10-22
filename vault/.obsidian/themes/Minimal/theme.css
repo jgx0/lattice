@@ -5832,3 +5832,975 @@ https://github.com/sainnhe/everforest
   --accent-h:83;
   --accent-s:36%;
   --accent-l:53%;
+  --bg1:#fdf6e3;
+  --bg2:#efebd4;
+  --bg3:rgba(226,222,198,.5);
+  --ui1:#e0dcc7;
+  --ui2:#bec5b2;
+  --ui3:#bec5b2;
+  --tx1:#5C6A72;
+  --tx2:#829181;
+  --tx3:#a6b0a0;
+  --hl1:rgba(198,214,152,.4);
+  --hl2:rgba(222,179,51,.3);
+}
+
+.theme-dark.minimal-everforest-dark {
+  --color-red-rgb: 230,126,128;
+  --color-orange-rgb: 230,152,117;
+  --color-yellow-rgb: 219,188,127;
+  --color-green-rgb: 167,192,128;
+  --color-cyan-rgb: 131,192,146;
+  --color-blue-rgb: 127,187,179;
+  --color-purple-rgb: 223,105,186;
+  --color-pink-rgb: 223,105,186;
+  --color-red:#e67e80;
+  --color-orange:#e69875;
+  --color-yellow:#dbbc7f;
+  --color-green:#a7c080;
+  --color-cyan:#83c092;
+  --color-blue:#7fbbb3;
+  --color-purple:#d699b6;
+  --color-pink:#d699b6;
+}
+
+.theme-light.minimal-everforest-light.minimal-light-tonal {
+  --bg2:#fdf6e3;
+}
+
+.theme-light.minimal-everforest-light.minimal-light-white {
+  --bg3:#f3efda;
+  --ui1:#edead5;
+}
+
+.theme-light.minimal-everforest-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-everforest-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-everforest-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-everforest-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-everforest-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-everforest-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-everforest-dark {
+  --base-h:203;
+  --base-s:15%;
+  --base-l:23%;
+  --accent-h:81;
+  --accent-s:34%;
+  --accent-l:63%;
+  --bg1:#2d353b;
+  --bg2:#232a2e;
+  --bg3:rgba(71,82,88,0.5);
+  --ui1:#475258;
+  --ui2:#4f585e;
+  --ui3:#525c62;
+  --tx1:#d3c6aa;
+  --tx2:#9da9a0;
+  --tx3:#7a8478;
+  --hl1:rgba(134,70,93,.5);
+  --hl2:rgba(147,185,96,.3);
+}
+
+.theme-dark.minimal-everforest-dark.minimal-dark-black {
+  --hl1:rgba(134,70,93,.4);
+  --ui1:#2b3339;
+}
+
+/*
+Flexoki
+MIT License
+Copyright (c) 2023 Steph Ango
+https://stephango.com/flexoki
+*/
+.theme-light.minimal-flexoki-light {
+  --color-red-rgb: 175, 48, 41;
+  --color-orange-rgb: 188, 82, 21;
+  --color-yellow-rgb: 173, 131, 1;
+  --color-green-rgb: 102, 128, 11;
+  --color-cyan-rgb: 36, 131, 123;
+  --color-blue-rgb: 32, 94, 166;
+  --color-purple-rgb: 94, 64, 157;
+  --color-pink-rgb: 160, 47, 111;
+  --color-red: #AF3029;
+  --color-orange: #BC5215;
+  --color-yellow: #AD8301;
+  --color-green: #66800B;
+  --color-cyan: #24837B;
+  --color-blue: #205EA6;
+  --color-purple: #5E409D;
+  --color-pink: #A02F6F;
+  --base-h: 48;
+  --base-s: 100%;
+  --base-l: 97%;
+  --accent-h: 175;
+  --accent-s: 57%;
+  --accent-l: 33%;
+  --bg1: #FFFCF0;
+  --bg2: #F2F0E5;
+  --bg3: rgba(16,15,15,0.05);
+  --ui1: #E6E4D9;
+  --ui2: #DAD8CE;
+  --ui3: #CECDC3;
+  --tx1: #100F0F;
+  --tx2: #6F6E69;
+  --tx3: #B7B5AC;
+  --hl1: rgba(187,220,206,0.3);
+  --hl2: rgba(247,209,61,0.3);
+}
+
+.theme-dark.minimal-flexoki-dark {
+  --color-red-rgb: 209, 77, 65;
+  --color-orange-rgb: 218, 112, 44;
+  --color-yellow-rgb:208, 162, 21;
+  --color-green-rgb: 135, 154, 57;
+  --color-cyan-rgb: 58, 169, 159;
+  --color-blue-rgb: 67, 133, 190;
+  --color-purple-rgb: 139, 126, 200;
+  --color-pink-rgb: 206, 93, 151;
+  --color-red: #D14D41;
+  --color-orange: #DA702C;
+  --color-yellow: #D0A215;
+  --color-green: #879A39;
+  --color-cyan: #3AA99F;
+  --color-blue: #4385BE;
+  --color-purple: #8B7EC8;
+  --color-pink: #CE5D97;
+}
+
+.theme-light.minimal-flexoki-light.minimal-light-tonal {
+  --bg2: #FFFCF0;
+}
+
+.theme-light.minimal-flexoki-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-flexoki-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-flexoki-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-flexoki-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-flexoki-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-flexoki-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-flexoki-dark {
+  --base-h: 360;
+  --base-s: 3%;
+  --base-l: 6%;
+  --accent-h: 175;
+  --accent-s: 49%;
+  --accent-l: 45%;
+  --bg1: #100F0F;
+  --bg2: #1C1B1A;
+  --bg3: rgba(254,252,240,0.05);
+  --ui1: #282726;
+  --ui2: #343331;
+  --ui3: #403E3C;
+  --tx1: #CECDC3;
+  --tx2: #878580;
+  --tx3: #575653;
+  --hl1: rgba(30,95,91,0.3);
+  --hl2: rgba(213,159,17,0.3);
+}
+
+.theme-dark.minimal-flexoki-dark.minimal-dark-black {
+  --ui1: #1C1B1A;
+}
+
+/*
+Gruvbox
+MIT License
+https://github.com/morhetz/gruvbox
+*/
+.theme-dark.minimal-gruvbox-dark,
+.theme-light.minimal-gruvbox-light {
+  --color-red-rgb: 204, 36, 29;
+  --color-orange-rgb: 214,93,14;
+  --color-yellow-rgb: 215,153,33;
+  --color-green-rgb: 152,151,26;
+  --color-cyan-rgb: 104,157,106;
+  --color-blue-rgb: 69,133,136;
+  --color-purple-rgb: 177,98,134;
+  --color-pink-rgb: 177,98,134;
+  --color-red:#cc241d;
+  --color-orange:#d65d0e;
+  --color-yellow:#d79921;
+  --color-green:#98971a;
+  --color-cyan:#689d6a;
+  --color-blue:#458588;
+  --color-purple:#b16286;
+  --color-pink:#b16286;
+}
+
+.theme-light.minimal-gruvbox-light {
+  --base-h:49;
+  --base-s:92%;
+  --base-l:89%;
+  --accent-h:24;
+  --accent-s:88%;
+  --accent-l:45%;
+  --bg1:#fcf2c7;
+  --bg2:#f2e6bd;
+  --bg3:#ebd9b3;
+  --ui1:#ebdbb2;
+  --ui2:#d5c4a1;
+  --ui3:#bdae93;
+  --tx1:#282828;
+  --tx2:#7c7065;
+  --tx3:#a89a85;
+  --hl1:rgba(192,165,125,.3);
+  --hl2:rgba(215,153,33,.4);
+}
+
+.theme-light.minimal-gruvbox-light.minimal-light-tonal {
+  --bg2:#fcf2c7;
+}
+
+.theme-light.minimal-gruvbox-light.minimal-light-white {
+  --bg3:#faf5d7;
+  --ui1:#f2e6bd;
+}
+
+.theme-light.minimal-gruvbox-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-gruvbox-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-gruvbox-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-gruvbox-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-gruvbox-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-gruvbox-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-gruvbox-dark {
+  --accent-h:24;
+  --accent-s:88%;
+  --accent-l:45%;
+  --bg1:#282828;
+  --bg2:#1e2021;
+  --bg3:#3d3836;
+  --bg3:rgba(62,57,55,0.5);
+  --ui1:#3c3836;
+  --ui2:#504945;
+  --ui3:#665c54;
+  --tx1:#fbf1c7;
+  --tx2:#bdae93;
+  --tx3:#7c6f64;
+  --hl1:rgba(173,149,139,0.3);
+  --hl2:rgba(215,153,33,.4);
+}
+
+.theme-dark.minimal-gruvbox-dark.minimal-dark-black {
+  --hl1:rgba(173,149,139,0.4);
+  --ui1:#282828;
+}
+
+/* macOS */
+.theme-dark.minimal-macos-dark,
+.theme-light.minimal-macos-light {
+  --color-red-rgb: 255,59,49;
+  --color-orange-rgb: 255,149,2;
+  --color-yellow-rgb: 255,204,0;
+  --color-green-rgb: 42,205,65;
+  --color-cyan-rgb: 2,199,190;
+  --color-blue-rgb: 2,122,255;
+  --color-purple-rgb: 176,81,222;
+  --color-pink-rgb: 255,46,85;
+  --color-red:#ff3b31;
+  --color-orange:#ff9502;
+  --color-yellow:#ffcc00;
+  --color-green:#2acd41;
+  --color-cyan:#02c7be;
+  --color-blue:#027aff;
+  --color-purple:#b051de;
+  --color-pink:#ff2e55;
+}
+
+.theme-light.minimal-macos-light {
+  --base-h:106;
+  --base-s:0%;
+  --base-l:94%;
+  --accent-h:212;
+  --accent-s:100%;
+  --accent-l:50%;
+  --bg1:#ffffff;
+  --bg2:#f0f0f0;
+  --bg3:rgba(0,0,0,.1);
+  --ui1:#e7e7e7;
+  --tx1:#454545;
+  --tx2:#808080;
+  --tx3:#b0b0b0;
+  --hl1:#b3d7ff;
+}
+
+.theme-light.minimal-macos-light.minimal-light-tonal {
+  --bg1:#f0f0f0;
+  --bg2:#f0f0f0;
+}
+
+.theme-light.minimal-macos-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-macos-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-macos-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-macos-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-macos-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-macos-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-macos-dark {
+  --base-h:106;
+  --base-s:0%;
+  --base-l:12%;
+  --accent-h:212;
+  --accent-s:100%;
+  --accent-l:50%;
+  --bg1:#1e1e1e;
+  --bg2:#282828;
+  --bg3:rgba(255,255,255,0.11);
+  --divider-color:#000000;
+  --tab-outline-color:#000000;
+  --ui1:#373737;
+  --ui2:#515151;
+  --ui3:#595959;
+  --tx1:#dcdcdc;
+  --tx2:#8c8c8c;
+  --tx3:#686868;
+  --hl1:rgba(98,169,252,0.5);
+  --sp1:#ffffff;
+}
+
+.theme-dark.minimal-macos-dark.minimal-dark-black {
+  --divider-color:#1e1e1e;
+  --tab-outline-color:#1e1e1e;
+}
+
+/*
+Nord
+MIT License
+Copyright (c) 2016-present Sven Greb <development@svengreb.de> (https://www.svengreb.de)
+https://github.com/nordtheme/nord
+*/
+.theme-dark.minimal-nord-dark,
+.theme-light.minimal-nord-light {
+  --color-red-rgb: 191,97,106;
+  --color-orange-rgb: 208,138,112;
+  --color-yellow-rgb: 235,203,139;
+  --color-green-rgb: 163,190,140;
+  --color-cyan-rgb: 136,192,208;
+  --color-blue-rgb: 129,161,193;
+  --color-purple-rgb: 180,142,173;
+  --color-pink-rgb: 180,142,173;
+  --color-red:#BF616A;
+  --color-orange:#D08770;
+  --color-yellow:#EBCB8B;
+  --color-green:#A3BE8C;
+  --color-cyan:#88C0D0;
+  --color-blue:#81A1C1;
+  --color-purple:#B48EAD;
+  --color-pink:#B48EAD;
+}
+
+.theme-light.minimal-nord-light {
+  --base-h:221;
+  --base-s:27%;
+  --base-l:94%;
+  --accent-h:213;
+  --accent-s:32%;
+  --accent-l:52%;
+  --bg1:#ffffff;
+  --bg2:#eceff4;
+  --bg3:rgba(157,174,206,0.25);
+  --ui1:#d8dee9;
+  --ui2:#BBCADC;
+  --ui3:#81a1c1;
+  --tx1:#2e3440;
+  --tx2:#7D8697;
+  --tx3:#ADB1B8;
+  --hl2:rgba(208, 135, 112, 0.35);
+}
+
+.theme-light.minimal-nord-light.minimal-light-tonal {
+  --bg1:#eceff4;
+}
+
+.theme-light.minimal-nord-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-nord-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-nord-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-nord-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-nord-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-nord-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-nord-dark {
+  --base-h:220;
+  --base-s:16%;
+  --base-l:22%;
+  --accent-h:213;
+  --accent-s:32%;
+  --accent-l:52%;
+  --bg1:#2e3440;
+  --bg2:#3b4252;
+  --bg3:rgba(135,152,190,0.15);
+  --ui1:#434c5e;
+  --ui2:#58647b;
+  --ui3:#58647b;
+  --tx1:#d8dee9;
+  --tx2:#9eafcc;
+  --tx3:#4c566a;
+  --hl1:rgba(129,142,180,0.3);
+  --hl2:rgba(208, 135, 112, 0.35);
+}
+
+.theme-dark.minimal-nord-dark.minimal-dark-black {
+  --ui1:#2e3440;
+}
+
+/* Sky color scheme, inspired by Notion */
+.theme-light.minimal-notion-light {
+  --base-h:39;
+  --base-s:18%;
+  --base-d:96%;
+  --accent-h:197;
+  --accent-s:71%;
+  --accent-l:52%;
+  --bg1:#fff;
+  --bg2:#f7f6f4;
+  --bg3:#e9e8e4;
+  --ui1:#ededec;
+  --ui2:#dbdbda;
+  --ui3:#aaa9a5;
+  --tx1:#37352f;
+  --tx2:#72706c;
+  --tx3:#aaa9a5;
+  --hl1:rgba(131,201,229,0.3);
+}
+
+.theme-light.minimal-notion-light.minimal-light-tonal {
+  --bg1:#f7f6f4;
+  --bg2: #f7f6f4;
+}
+
+.theme-light.minimal-notion-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-notion-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-notion-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-notion-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-notion-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-notion-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-notion-dark {
+  --base-h:203;
+  --base-s:8%;
+  --base-d:20%;
+  --accent-h:197;
+  --accent-s:71%;
+  --accent-l:52%;
+  --bg1:#2f3437;
+  --bg2:#373c3f;
+  --bg3:#4b5053;
+  --ui1:#3e4245;
+  --ui2:#585d5f;
+  --ui3:#585d5f;
+  --tx1:#ebebeb;
+  --tx2:#909295;
+  --tx3:#585d5f;
+  --hl1:rgba(57,134,164,0.3);
+}
+
+.theme-dark.minimal-notion-dark.minimal-dark-black {
+  --base-d:5%;
+  --bg3:#232729;
+  --ui1:#2f3437;
+}
+
+/* 
+Rosé Pine
+MIT License 
+Copyright (c) 2023 Rosé Pine
+https://github.com/rose-pine/rose-pine-theme
+*/
+.theme-light.minimal-rose-pine-light {
+  --color-red-rgb: 180,99,122;
+  --color-orange-rgb: 215,130,125;
+  --color-yellow-rgb: 234,157,53;
+  --color-green-rgb: 40,105,131;
+  --color-cyan-rgb: 87,147,159;
+  --color-blue-rgb: 87,147,159;
+  --color-purple-rgb: 144,122,169;
+  --color-pink-rgb: 144,122,169;
+  --color-red: #b4637a;
+  --color-orange: #d7827e;
+  --color-yellow: #ea9d34;
+  --color-green: #286983;
+  --color-cyan: #56949f;
+  --color-blue: #56949f;
+  --color-purple: #907aa9;
+  --color-pink: #907aa9;
+  --base-h: 32;
+  --base-s: 57%;
+  --base-l: 95%;
+  --accent-h: 3;
+  --accent-s: 53%;
+  --accent-l: 67%;
+  --bg1: #fffaf3;
+  --bg2: #faf4ed;
+  --bg3: rgba(233,223,218,0.5);
+  --ui1: #EAE3E1;
+  --ui2: #dfdad9;
+  --ui3: #cecacd;
+  --tx1: #575279;
+  --tx2: #797593;
+  --tx3: #9893a5;
+  --hl1: rgba(191,180,181,0.35);
+}
+
+.theme-dark.minimal-rose-pine-dark {
+  --color-red-rgb: 234,111,146;
+  --color-orange-rgb: 233,155,151;
+  --color-yellow-rgb: 246,193,119;
+  --color-green-rgb: 47,116,143;
+  --color-cyan-rgb: 157,207,215;
+  --color-blue-rgb: 157,207,215;
+  --color-purple-rgb: 196,167,231;
+  --color-pink-rgb: 196,167,231;
+  --color-red: #eb6f92;
+  --color-orange: #ea9a97;
+  --color-yellow: #f6c177;
+  --color-green: #31748f;
+  --color-cyan: #9ccfd8;
+  --color-blue: #9ccfd8;
+  --color-purple: #c4a7e7;
+  --color-pink: #c4a7e7;
+}
+
+.theme-light.minimal-rose-pine-light.minimal-light-tonal {
+  --bg2:#fffaf3;
+}
+
+.theme-light.minimal-rose-pine-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-rose-pine-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-rose-pine-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-rose-pine-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-rose-pine-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-rose-pine-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-rose-pine-dark {
+  --base-h: 247;
+  --base-s: 23%;
+  --base-l: 15%;
+  --accent-h: 2;
+  --accent-s: 55%;
+  --accent-l: 83%;
+  --bg1: #1f1d2e;
+  --bg2: #191724;
+  --bg3: rgba(68,66,86,0.5);
+  --ui1: #312F41;
+  --ui2: #403d52;
+  --ui3: #524f67;
+  --tx1: #e0def4;
+  --tx2: #908caa;
+  --tx3: #6e6a86;
+  --hl1: rgba(126,121,155,0.35);
+}
+
+.theme-dark.minimal-rose-pine-dark.minimal-dark-black {
+  --ui1: #21202e;
+}
+
+/*
+Solarized
+MIT License
+Copyright (c) 2011 Ethan Schoonover
+https://ethanschoonover.com/solarized/
+*/
+.theme-dark.minimal-solarized-dark,
+.theme-light.minimal-solarized-light {
+  --color-red-rgb: 220, 50, 47;
+  --color-orange-rgb: 203,77,22;
+  --color-yellow-rgb: 181,137,0;
+  --color-green-rgb: 133,153,0;
+  --color-cyan-rgb: 42,161,152;
+  --color-blue-rgb: 38,139,210;
+  --color-purple-rgb: 108,113,196;
+  --color-pink-rgb: 211,54,130;
+  --color-red: #dc322f;
+  --color-orange: #cb4b16;
+  --color-yellow: #b58900;
+  --color-green: #859900;
+  --color-cyan: #2aa198;
+  --color-blue: #268bd2;
+  --color-purple: #6c71c4;
+  --color-pink: #d33682;
+}
+
+.theme-light.minimal-solarized-light {
+  --base-h: 44;
+  --base-s: 87%;
+  --base-l: 94%;
+  --accent-h: 205;
+  --accent-s: 70%;
+  --accent-l: 48%;
+  --bg1: #fdf6e3;
+  --bg2: #eee8d5;
+  --bg3: rgba(0,0,0,0.062);
+  --ui1: #e9e1c8;
+  --ui2: #d0cab8;
+  --ui3: #d0cab8;
+  --tx1: #073642;
+  --tx2: #586e75;
+  --tx3: #ABB2AC;
+  --tx4: #586e75;
+  --hl1: rgba(202,197,182,0.3);
+  --hl2: rgba(203,75,22,0.3);
+}
+
+.theme-light.minimal-solarized-light.minimal-light-tonal {
+  --bg2: #fdf6e3;
+}
+
+.theme-light.minimal-solarized-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-solarized-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-solarized-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-solarized-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-solarized-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-solarized-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-solarized-dark {
+  --accent-h: 205;
+  --accent-s: 70%;
+  --accent-l: 48%;
+  --base-h: 193;
+  --base-s: 98%;
+  --base-l: 11%;
+  --bg1: #002b36;
+  --bg2: #073642;
+  --bg3: rgba(255,255,255,0.062);
+  --ui1: #19414B;
+  --ui2: #274850;
+  --ui3: #31535B;
+  --tx1: #93a1a1;
+  --tx2: #657b83;
+  --tx3: #31535B;
+  --tx4: #657b83;
+  --hl1: rgba(15,81,98,0.3);
+  --hl2: rgba(203, 75, 22, 0.35);
+}
+
+.theme-dark.minimal-solarized-dark.minimal-dark-black {
+  --hl1: rgba(15,81,98,0.55);
+  --ui1: #002b36;
+}
+
+/* Things */
+.theme-dark.minimal-things-dark,
+.theme-light.minimal-things-light {
+  --color-red-rgb: 255,48,108;
+  --color-orange-rgb: 255,149,2;
+  --color-yellow-rgb: 255,213,0;
+  --color-green-rgb: 75,191,94;
+  --color-cyan-rgb: 73,174,164;
+  --color-purple-rgb: 176,81,222;
+  --color-pink-rgb: 255,46,85;
+  --color-red:#FF306C;
+  --color-orange:#ff9502;
+  --color-yellow:#FFD500;
+  --color-green:#4BBF5E;
+  --color-cyan:#49AEA4;
+  --color-purple:#b051de;
+  --color-pink:#ff2e55;
+}
+
+.theme-light.minimal-things-light {
+  --color-blue-rgb: 27,97,194;
+  --color-blue:#1b61c2;
+  --accent-h:215;
+  --accent-s:76%;
+  --accent-l:43%;
+  --bg1:white;
+  --bg2:#f5f6f8;
+  --bg3:rgba(162,177,187,0.25);
+  --ui1:#eef0f4;
+  --ui2:#D8DADD;
+  --ui3:#c1c3c6;
+  --tx1:#26272b;
+  --tx2:#7D7F84;
+  --tx3:#a9abb0;
+  --hl1:#cae2ff;
+}
+
+.theme-dark.minimal-things-dark {
+  --color-blue-rgb: 77,149,247;
+  --color-blue:#4d95f7;
+}
+
+.theme-light.minimal-things-light.minimal-light-tonal {
+  --bg1:#f5f6f8;
+  --ui1:#e6e8ec;
+}
+
+.theme-light.minimal-things-light.minimal-light-white {
+  --bg3:#f5f6f8;
+}
+
+.theme-light.minimal-things-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-things-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-things-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-things-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-things-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-things-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-things-dark {
+  --base-h:218;
+  --base-s:9%;
+  --base-l:15%;
+  --accent-h:215;
+  --accent-s:91%;
+  --accent-l:64%;
+  --bg1:#24262a;
+  --bg2:#202225;
+  --bg3:#3d3f41;
+  --divider-color:#17191c;
+  --tab-outline-color:#17191c;
+  --ui1:#3A3B3F;
+  --ui2:#45464a;
+  --ui3:#6c6e70;
+  --tx1:#fbfbfb;
+  --tx2:#CBCCCD;
+  --tx3:#6c6e70;
+  --hl1:rgba(40,119,236,0.35);
+  --sp1:#ffffff;
+}
+
+.theme-dark.minimal-things-dark.minimal-dark-black {
+  --base-d:5%;
+  --bg3:#24262a;
+  --divider-color:#24262a;
+  --tab-outline-color:#24262a;
+}
+/* Plugin compatibility */
+
+/* @plugins
+core:
+- backlink
+- command-palette
+- daily-notes
+- file-explorer
+- file-recovery
+- global-search
+- graph
+- outgoing-link
+- outline
+- page-preview
+- publish
+- random-note
+- starred
+- switcher
+- sync
+- tag-pane
+- word-count
+community:
+- dataview
+- calendar
+- obsidian-charts
+- obsidian-git
+- obsidian-hider
+- obsidian-kanban
+- obsidian-metatable
+- obsidian-minimal-settings
+- obsidian-style-settings
+- quickadd
+*/
+
+/* @settings
+
+name: Minimal
+id: minimal-style
+settings:
+	-
+		id: instructions
+		title: Documentation
+		type: heading
+		level: 2
+		collapsed: true
+		description: Use the Minimal Theme Settings plugin to set hotkeys, adjust features, select fonts, and choose from preset color schemes. Use the settings below for more granular customization. Go to https://minimal.guide for documentation.
+	-
+		id: interface
+		title: Interface colors
+		type: heading
+		level: 2
+		collapsed: true
+	-
+		id: base
+		title: Base color
+		description: Defines all background and border colors unless overridden in more granular settings
+		type: variable-themed-color
+		format: hsl-split
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: bg1
+		title: Primary background
+		description: Background color for the main window
+		type: variable-themed-color
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: bg2
+		title: Secondary background
+		description: Background color for left sidebar and menus
+		type: variable-themed-color
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: bg3
+		title: Active background
+		description: Background color for hovered buttons and currently selected file
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: ui1
+		title: Border color
+		type: variable-themed-color
+		description: For buttons, divider lines, and outlined elements
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: ui2
+		title: Highlighted border color
+		description: Used when hovering over buttons, dividers, and outlined elements
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: ui3
+		title: Active border color
+		description: Used when clicking buttons and outlined elements
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: accent-color
+		title: Accent color
+		type: heading
+		level: 2
+		collapsed: true
+	-
+		id: ax1
+		title: Accent color
+		type: variable-themed-color
+		description: Used primarily for links
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: ax2
+		title: Accent color (hover)
+		type: variable-themed-color
+		description: Used primarily for hovered links
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: ax3
+		title: Accent color interactive
+		type: variable-themed-color
+		description: Used for buttons, checklists, toggles
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: sp1
+		title: Text on accent
+		type: variable-themed-color
+		description: Used primarily for text on accented buttons
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: extended-palette
+		title: Extended colors
+		type: heading
+		level: 2
+		collapsed: true
+	-
+		id: color-red
+		title: Red
+		description: Extended palette colors are defaults used for progress bar status, syntax highlighting, colorful headings, and graph nodes
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: color-orange
+		title: Orange
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: color-yellow
+		title: Yellow
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: color-green
+		title: Green
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: color-cyan
+		title: Cyan
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: color-blue
+		title: Blue
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: color-purple
+		title: Purple
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: color-pink
+		title: Pink
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: bases
+		title: Bases
+		type: heading
+		level: 2
+		collapsed: true
+	-
+		id: bases-toolbar-opacity
+		title: Toolbar opacity
+		type: variable-number-slider
+		default: 1
+		min: 0
+		max: 1
+		step: 0.05
+	-
+		id: bases-table-header-icon-display
+		title: Table header icons
+		type: variable-select
+		allowEmpty: false
+		default: flex
+		options:
+			-
+				label: Visible
+				value: flex
+			-
+				label: Hidden
+				value: none
+	-
+		id: bases-table-row-height
