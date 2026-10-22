@@ -4859,3 +4859,976 @@ body .kanban-plugin__item {
   background-color: var(--background-primary);
 }
 body .kanban-plugin__item-title-wrapper {
+  align-items: center;
+}
+body .kanban-plugin__lane-form-wrapper {
+  border: 1px solid var(--background-modifier-border);
+}
+body .kanban-plugin__lane-header-wrapper {
+  border-bottom: 0;
+}
+body .kanban-plugin__lane-title p,
+body .kanban-plugin__lane-header-wrapper .kanban-plugin__grow-wrap > textarea,
+body .kanban-plugin__lane-input-wrapper .kanban-plugin__grow-wrap > textarea {
+  background: transparent;
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: 500;
+}
+body .kanban-plugin__item-input-wrapper .kanban-plugin__grow-wrap > textarea {
+  padding: 0;
+  border-radius: 0;
+  height: auto;
+}
+body .kanban-plugin__item-form .kanban-plugin__grow-wrap {
+  background-color: var(--background-primary);
+}
+body .kanban-plugin__item-input-wrapper .kanban-plugin__grow-wrap > textarea::placeholder {
+  color: var(--text-faint);
+}
+body .kanban-plugin__lane button.kanban-plugin__lane-settings-button.is-enabled,
+body .kanban-plugin__lane button.kanban-plugin__lane-settings-button,
+body .kanban-plugin__item .kanban-plugin__item-edit-archive-button,
+body .kanban-plugin__item button.kanban-plugin__item-edit-button,
+body .kanban-plugin__item-settings-actions > button,
+body .kanban-plugin__lane-action-wrapper > button {
+  background: transparent;
+  transition: color 0.1s ease-in-out;
+}
+body .kanban-plugin__item .kanban-plugin__item-edit-archive-button:hover,
+body .kanban-plugin__item button.kanban-plugin__item-edit-button.is-enabled,
+body .kanban-plugin__item button.kanban-plugin__item-edit-button:hover,
+body .kanban-plugin__lane button.kanban-plugin__lane-settings-button.is-enabled,
+body .kanban-plugin__lane button.kanban-plugin__lane-settings-button:hover {
+  color: var(--text-normal);
+  transition: color 0.1s ease-in-out;
+  background: transparent;
+}
+body .kanban-plugin__new-lane-button-wrapper {
+  position: fixed;
+  bottom: 30px;
+}
+body .kanban-plugin__lane-items > .kanban-plugin__placeholder:only-child {
+  border: 1px dashed var(--background-modifier-border);
+  height: 2em;
+}
+body .kanban-plugin__item-postfix-button-wrapper {
+  align-self: flex-start;
+}
+body .kanban-plugin__item button.kanban-plugin__item-prefix-button.is-enabled,
+body .kanban-plugin__item button.kanban-plugin__item-postfix-button.is-enabled,
+body .kanban-plugin__lane button.kanban-plugin__lane-settings-button.is-enabled {
+  color: var(--text-muted);
+}
+body .kanban-plugin button {
+  box-shadow: none;
+  cursor: var(--cursor);
+  height: auto;
+}
+body .kanban-plugin__item button.kanban-plugin__item-prefix-button:hover,
+body .kanban-plugin__item button.kanban-plugin__item-postfix-button:hover,
+body .kanban-plugin__lane button.kanban-plugin__lane-settings-button:hover {
+  background-color: var(--background-modifier-hover);
+}
+body .kanban-plugin__item-button-wrapper > button {
+  color: var(--text-muted);
+  font-weight: 400;
+  background: transparent;
+  min-height: calc(var(--input-height) + 8px);
+}
+body .kanban-plugin__item-button-wrapper > button:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+body .kanban-plugin__item-button-wrapper > button:focus {
+  box-shadow: none;
+}
+body .kanban-plugin__item-button-wrapper {
+  padding: 1px 6px 5px;
+  border-top: none;
+}
+body .kanban-plugin__lane-setting-wrapper > div:last-child {
+  border: none;
+  margin: 0;
+}
+body .kanban-plugin.something-is-dragging {
+  cursor: grabbing;
+}
+body .kanban-plugin__item.is-dragging {
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--text-selection);
+}
+body .kanban-plugin__lane-items {
+  border: var(--kanban-border) solid var(--background-modifier-border);
+  padding: 0 4px;
+  margin: 0;
+  background-color: var(--background-secondary);
+}
+body .kanban-plugin__lane {
+  background: transparent;
+  padding: 0;
+  border: var(--border-width) solid transparent;
+}
+body .kanban-plugin__lane.is-dragging {
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--background-modifier-border);
+}
+body .kanban-plugin__lane .kanban-plugin__item-button-wrapper {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+  border-bottom-width: 0;
+  padding: 4px 4px 0;
+}
+body .kanban-plugin__lane.will-prepend .kanban-plugin__lane-items {
+  border-radius: 8px;
+}
+body .kanban-plugin__lane.will-prepend .kanban-plugin__item-form {
+  border-top: 1px solid var(--background-modifier-border);
+  border-radius: 8px 8px 0 0;
+  padding: 4px 4px 0;
+  border-bottom-width: 0;
+}
+body .kanban-plugin__lane.will-prepend .kanban-plugin__item-form + .kanban-plugin__lane-items {
+  border-top-width: 0px;
+  border-radius: 0 0 8px 8px;
+}
+body .kanban-plugin__lane.will-prepend .kanban-plugin__item-button-wrapper + .kanban-plugin__lane-items {
+  border-top-width: 0px;
+  border-radius: 0 0 8px 8px;
+}
+body .kanban-plugin__lane:not(.will-prepend) .kanban-plugin__item-form,
+body .kanban-plugin__lane:not(.will-prepend) .kanban-plugin__item-button-wrapper {
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+body .kanban-plugin__lane:not(.will-prepend) .kanban-plugin__item-button-wrapper {
+  padding: 0 4px 4px;
+  border-bottom-width: 1px;
+}
+body .kanban-plugin__lane:not(.will-prepend) .kanban-plugin__lane-items {
+  border-bottom: none;
+  border-top-width: 1px;
+  border-radius: 8px 8px 0 0;
+}
+body .kanban-plugin__item-form .kanban-plugin__item-input-wrapper {
+  min-height: calc(var(--input-height) + 8px);
+  display: flex;
+  justify-content: center;
+}
+body .kanban-plugin__item-form,
+body .kanban-plugin__item-button-wrapper {
+  background-color: var(--background-secondary);
+  border: var(--kanban-border) solid var(--background-modifier-border);
+}
+body .kanban-plugin__item-form {
+  padding: 0 4px 5px;
+}
+body .kanban-plugin__markdown-preview-view ol.contains-task-list .contains-task-list,
+body .kanban-plugin__markdown-preview-view ul.contains-task-list .contains-task-list,
+body .kanban-plugin__markdown-preview-view ul, body .kanban-plugin__markdown-preview-view ol {
+  padding-inline-start: 1.8em !important;
+}
+
+@media (max-width: 400pt) {
+  .kanban-plugin__board {
+    flex-direction: column !important;
+  }
+  .kanban-plugin__lane {
+    width: 100% !important;
+    margin-bottom: 1rem !important;
+  }
+}
+/* Lapel */
+body .cm-heading-marker {
+  cursor: var(--cursor);
+  padding-left: 10px;
+}
+
+/* Sortable plugin */
+body .markdown-preview-view th,
+body .table-view-table > thead > tr > th,
+body .markdown-source-view.mod-cm6 .dataview.table-view-table thead.table-view-thead tr th {
+  cursor: var(--cursor);
+  background-image: none;
+}
+
+/* Live preview */
+.markdown-source-view.mod-cm6 th {
+  background-repeat: no-repeat;
+  background-position: right;
+}
+
+/* Style Settings preferences */
+.style-settings-container[data-level="2"] {
+  background: var(--background-secondary);
+  border: 1px solid var(--ui1);
+  border-radius: 5px;
+  padding: 10px 20px;
+  margin: 2px 0 2px -20px;
+}
+
+.workspace-leaf-content[data-type=style-settings] div[data-id=instructions] .setting-item-name {
+  display: none;
+}
+.workspace-leaf-content[data-type=style-settings] div[data-id=instructions] .setting-item-description {
+  color: var(--text-normal);
+  font-size: var(--font-adaptive-smaller);
+  padding-bottom: 0.5em;
+}
+.workspace-leaf-content[data-type=style-settings] .view-content {
+  padding: var(--size-4-4) 0;
+}
+.workspace-leaf-content[data-type=style-settings] .view-content > div {
+  width: var(--line-width);
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+.workspace-leaf-content[data-type=style-settings] .style-settings-heading[data-level="0"] .setting-item-name {
+  padding-left: 17px;
+}
+.workspace-leaf-content[data-type=style-settings] .setting-item {
+  max-width: 100%;
+  margin: 0 auto;
+  border: none;
+}
+.workspace-leaf-content[data-type=style-settings] .setting-item-name {
+  position: relative;
+}
+.workspace-leaf-content[data-type=style-settings] .style-settings-collapse-indicator {
+  position: absolute;
+  left: 0;
+}
+
+.setting-item-heading.style-settings-heading,
+.style-settings-container .style-settings-heading {
+  cursor: var(--cursor);
+}
+
+.modal.mod-settings .setting-item .pickr button.pcr-button {
+  box-shadow: none;
+  border-radius: 40px;
+  height: 24px;
+  width: 24px;
+}
+
+.style-settings-container .setting-item {
+  background-color: transparent;
+}
+
+.setting-item .pickr .pcr-button:after,
+.setting-item .pickr .pcr-button:before {
+  border-radius: 40px;
+  box-shadow: none;
+  border: none;
+}
+.setting-item.setting-item-heading.style-settings-heading.is-collapsed {
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.setting-item.setting-item-heading.style-settings-heading {
+  border: 0;
+  padding: 10px 0 5px;
+  margin-bottom: 0;
+  border-radius: 0;
+}
+.setting-item .style-settings-import,
+.setting-item .style-settings-export {
+  text-decoration: none;
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 5px;
+  cursor: var(--cursor);
+}
+.setting-item .style-settings-import:hover,
+.setting-item .style-settings-export:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+  cursor: var(--cursor);
+}
+
+.mod-root .workspace-leaf-content[data-type=style-settings] .style-settings-container .setting-item:not(.setting-item-heading) {
+  flex-direction: row;
+  align-items: center;
+  padding: 0.5em 0;
+}
+
+.workspace-split:not(.mod-root) .workspace-leaf-content[data-type=style-settings] .setting-item-name {
+  font-size: var(--font-adaptive-smaller);
+}
+
+.themed-color-wrapper > div + div {
+  margin-top: 0;
+  margin-left: 6px;
+}
+
+.theme-light .themed-color-wrapper > .theme-light {
+  background-color: transparent;
+}
+.theme-light .themed-color-wrapper > .theme-dark {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.theme-dark .themed-color-wrapper > .theme-dark {
+  background-color: transparent;
+}
+
+@media (max-width: 400pt) {
+  .workspace-leaf-content[data-type=style-settings] .setting-item-name {
+    font-size: var(--font-adaptive-small);
+  }
+  .workspace-leaf-content[data-type=style-settings] .view-content > .setting-item > .setting-item-info:first-child {
+    width: 100%;
+    margin-right: 0;
+  }
+}
+.zoom-plugin-header {
+  --link-color: var(--text-normal);
+  --link-decoration: none;
+  font-size: var(--font-ui-small);
+  padding: 0;
+  justify-content: center;
+  margin: var(--size-4-2) auto;
+  max-width: var(--max-width);
+}
+.zoom-plugin-header > .zoom-plugin-title {
+  text-decoration: none;
+  max-width: 15em;
+  overflow: hidden;
+}
+.zoom-plugin-header > .zoom-plugin-delimiter {
+  color: var(--text-faint);
+  padding: 0 var(--size-4-1);
+}
+
+/* Color schemes */
+/* Atom */
+.theme-dark.minimal-atom-dark {
+  --color-red-rgb: 225,109,118;
+  --color-orange-rgb: 209,154,102;
+  --color-yellow-rgb: 206,193,103;
+  --color-green-rgb: 152,195,121;
+  --color-cyan-rgb: 88,182,194;
+  --color-blue-rgb: 98,175,239;
+  --color-purple-rgb: 198,120,222;
+  --color-pink-rgb: 225,109,118;
+  --color-red:#e16d76;
+  --color-orange:#d19a66;
+  --color-yellow:#cec167;
+  --color-green:#98c379;
+  --color-cyan:#58b6c2;
+  --color-blue:#62afef;
+  --color-purple:#c678de;
+  --color-pink:#e16d76;
+}
+
+.theme-light.minimal-atom-light {
+  --color-red-rgb: 228,87,73;
+  --color-orange-rgb: 183,107,2;
+  --color-yellow-rgb: 193,131,2;
+  --color-green-rgb: 80,161,80;
+  --color-cyan-rgb: 13,151,179;
+  --color-blue-rgb: 98,175,239;
+  --color-purple-rgb: 166,38,164;
+  --color-pink-rgb: 228,87,73;
+  --color-red:#e45749;
+  --color-orange:#b76b02;
+  --color-yellow:#c18302;
+  --color-green:#50a150;
+  --color-cyan:#0d97b3;
+  --color-blue:#62afef;
+  --color-purple:#a626a4;
+  --color-pink:#e45749;
+  --base-h:106;
+  --base-s:0%;
+  --base-l:98%;
+  --accent-h:231;
+  --accent-s:76%;
+  --accent-l:62%;
+  --bg1:#fafafa;
+  --bg2:#eaeaeb;
+  --bg3:rgba(0,0,0,.1);
+  --ui1:#dbdbdc;
+  --ui2:#d8d8d9;
+  --tx1:#232324;
+  --tx2:#8e8e90;
+  --tx3:#a0a1a8;
+  --hl1:rgba(180,180,183,0.3);
+  --hl2:rgba(209,154,102,0.35);
+}
+
+.theme-light.minimal-atom-light.minimal-light-tonal {
+  --bg2:#fafafa;
+}
+
+.theme-light.minimal-atom-light.minimal-light-white {
+  --bg3:#eaeaeb;
+}
+
+.theme-light.minimal-atom-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-atom-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-atom-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-atom-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-atom-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-atom-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-atom-dark {
+  --base-h:220;
+  --base-s:12%;
+  --base-l:18%;
+  --accent-h:220;
+  --accent-s:86%;
+  --accent-l:65%;
+  --bg1:#282c34;
+  --bg2:#21252c;
+  --bg3:#3a3f4b;
+  --divider-color:#181a1f;
+  --tab-outline-color:#181a1f;
+  --tx1:#d8dae1;
+  --tx2:#898f9d;
+  --tx3:#5d6370;
+  --hl1:rgba(114,123,141,0.3);
+  --hl2:rgba(209,154,102,0.3);
+  --sp1:#ffffff;
+}
+
+.theme-dark.minimal-atom-dark.minimal-dark-black {
+  --base-d:5%;
+  --bg3:#282c34;
+  --divider-color:#282c34;
+  --tab-outline-color:#282c34;
+}
+
+/*
+ayu
+MIT License
+Copyright (c) Konstantin Pschera <me@kons.ch> (kons.ch)
+https://github.com/ayu-theme/ayu-colors
+*/
+.theme-light.minimal-ayu-light {
+  --color-red-rgb: 230,80,80;
+  --color-orange-rgb: 250,141,62;
+  --color-yellow-rgb: 242,174,73;
+  --color-green-rgb: 108,191,67;
+  --color-cyan-rgb: 76,191,153;
+  --color-blue-rgb: 57,158,230;
+  --color-purple-rgb: 163,122,204;
+  --color-pink-rgb: 255,115,131;
+  --color-red:#e65050;
+  --color-orange:#fa8d3e;
+  --color-yellow:#f2ae49;
+  --color-green:#6CBF43;
+  --color-cyan:#4cbf99;
+  --color-blue:#399ee6;
+  --color-purple:#a37acc;
+  --color-pink:#ff7383;
+  --base-h:210;
+  --base-s:17%;
+  --base-l:98%;
+  --accent-h:36;
+  --accent-s:100%;
+  --accent-l:50%;
+  --bg1:#ffffff;
+  --bg2:#f8f9fa;
+  --bg3:rgba(209,218,224,0.5);
+  --ui1:#E6EAED;
+  --tx1:#5C6165;
+  --tx2:#8A9199;
+  --tx3:#AAAEB0;
+  --hl1:rgba(3,91,214,0.15);
+}
+
+.theme-dark.minimal-ayu-dark {
+  --color-red-rgb: 255,102,102;
+  --color-orange-rgb: 250,173,102;
+  --color-yellow-rgb: 255,209,55;
+  --color-green-rgb: 135,217,108;
+  --color-cyan-rgb: 149,230,203;
+  --color-blue-rgb: 115,208,255;
+  --color-purple-rgb: 223,191,255;
+  --color-pink-rgb: 242,121,131;
+  --color-red:#ff6666;
+  --color-orange:#ffad66;
+  --color-yellow:#ffd137;
+  --color-green:#87D96C;
+  --color-cyan:#95e6cb;
+  --color-blue:#73d0ff;
+  --color-purple:#dfbfff;
+  --color-pink:#f27983;
+}
+
+.theme-light.minimal-ayu-light.minimal-light-tonal {
+  --bg1:#f8f9fa;
+  --bg2:#f8f9fa;
+}
+
+.theme-light.minimal-ayu-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-ayu-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-ayu-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-ayu-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-ayu-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-ayu-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-ayu-dark {
+  --base-h:222;
+  --base-s:22%;
+  --base-l:15%;
+  --accent-h:35;
+  --accent-s:100%;
+  --accent-l:60%;
+  --bg1:#232937;
+  --bg2:#1E2431;
+  --bg3:rgba(51,61,80,0.5);
+  --ui1:#333C4A;
+  --ui2:#333C4A;
+  --ui3:#333C4A;
+  --tx1:#cccac2;
+  --tx2:#707A8C;
+  --tx3:#495063;
+  --hl1:rgba(64,159,255,0.25);
+}
+
+.theme-dark.minimal-ayu-dark.minimal-dark-black {
+  --accent-h:40;
+  --accent-s:75%;
+  --accent-l:61%;
+  --bg3:#0E1017;
+  --tx1:#BFBDB6;
+  --divider-color:#11151C;
+  --tab-outline-color:#11151C;
+}
+
+/*
+Catppuccin
+MIT License
+Copyright (c) 2021 Catppuccin
+https://github.com/catppuccin/catppuccin
+*/
+.theme-light.minimal-catppuccin-light {
+  --color-red-rgb: 230,69,83;
+  --color-orange-rgb: 254,100,12;
+  --color-yellow-rgb: 223,142,29;
+  --color-green-rgb: 64,160,43;
+  --color-cyan-rgb: 23,146,154;
+  --color-blue-rgb: 33,102,246;
+  --color-purple-rgb: 137,56,239;
+  --color-pink-rgb: 234,119,203;
+  --color-red: #E64553;
+  --color-orange: #FE640C;
+  --color-yellow: #DF8E1D;
+  --color-green: #40A02B;
+  --color-cyan: #17929A;
+  --color-blue: #2166F6;
+  --color-purple: #8938EF;
+  --color-pink: #EA77CB;
+  --base-h: 228;
+  --base-s: 20%;
+  --base-l: 95%;
+  --accent-h: 11;
+  --accent-s: 59%;
+  --accent-l: 67%;
+  --bg1: #F0F1F5;
+  --bg2: #DCE0E8;
+  --bg3: hsla(228,11%,65%,.25);
+  --ui1: #CCD0DA;
+  --ui2: #BCC0CC;
+  --ui3: #ACB0BE;
+  --tx1: #4D4F69;
+  --tx2: #5D5F77;
+  --tx3: #8D8FA2;
+  --hl1: rgba(172,176,190,.3);
+  --hl2: rgba(223,142,29,.3);
+}
+
+.theme-dark.minimal-catppuccin-dark {
+  --color-red-rgb: 235,153,156;
+  --color-orange-rgb: 239,160,118;
+  --color-yellow-rgb: 229,200,144;
+  --color-green-rgb: 166,209,138;
+  --color-cyan-rgb: 129,200,190;
+  --color-blue-rgb: 140,170,238;
+  --color-purple-rgb: 202,158,230;
+  --color-pink-rgb: 244,185,229;
+  --color-red: #EB999C;
+  --color-orange: #EFA076;
+  --color-yellow: #E5C890;
+  --color-green: #A6D18A;
+  --color-cyan: #81C8BE;
+  --color-blue: #8CAAEE;
+  --color-purple: #CA9EE6;
+  --color-pink: #F4B9E5;
+}
+
+.theme-light.minimal-catppuccin-light.minimal-light-tonal {
+  --bg2: #F0F1F5;
+}
+
+.theme-light.minimal-catppuccin-light.minimal-light-white {
+  --bg3: #F0F1F5;
+  --ui1: #DCE0E8;
+}
+
+.theme-light.minimal-catppuccin-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-catppuccin-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-catppuccin-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-catppuccin-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-catppuccin-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-catppuccin-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-catppuccin-dark {
+  --base-h: 229;
+  --base-s: 19%;
+  --base-l: 23%;
+  --accent-h: 10;
+  --accent-s: 57%;
+  --accent-l: 88%;
+  --bg1: #303446;
+  --bg2: #242634;
+  --bg3: hsla(229,13%,52%,0.25);
+  --ui1: #41455A;
+  --ui2: #51576D;
+  --ui3: #626880;
+  --tx1: #C6D0F5;
+  --tx2: #A6ADCE;
+  --tx3: #848BA7;
+  --sp1: #242634;
+  --hl1: rgba(98,104,128,.5);
+  --hl2: rgba(223,142,29,.4);
+}
+
+.theme-dark.minimal-catppuccin-dark.minimal-dark-black {
+  --ui1: #303446;
+  --hl2: rgba(223,142,29,.5);
+}
+
+/*
+Dracula
+MIT License
+Copyright (c) 2016 Dracula Theme
+https://github.com/dracula/dracula-theme
+*/
+.theme-dark.minimal-dracula-dark {
+  --color-red-rgb: 255,85,85;
+  --color-orange-rgb: 255,184,108;
+  --color-yellow-rgb: 241,250,140;
+  --color-green-rgb: 80,250,123;
+  --color-cyan-rgb: 139,233,253;
+  --color-blue-rgb: 98,114,164;
+  --color-purple-rgb: 189,147,249;
+  --color-pink-rgb: 255,121,198;
+  --color-red:#ff5555;
+  --color-orange:#ffb86c;
+  --color-yellow:#f1fa8c;
+  --color-green:#50fa7b;
+  --color-cyan:#8be9fd;
+  --color-blue:#6272a4;
+  --color-purple:#bd93f9;
+  --color-pink:#ff79c6;
+}
+
+.theme-light.minimal-dracula-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-dracula-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-dracula-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-dracula-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-dracula-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-dracula-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-dracula-dark {
+  --base-h: 232;
+  --base-s: 16%;
+  --base-l: 19%;
+  --accent-h: 265;
+  --accent-s: 89%;
+  --accent-l: 78%;
+  --bg1: #282a37;
+  --bg2: #21222c;
+  --ui2: #44475a;
+  --ui3: #6272a4;
+  --tx1: #f8f8f2;
+  --tx2: #949FBE;
+  --tx3: #6272a4;
+  --hl1:rgba(134, 140, 170, 0.3);
+  --hl2:rgba(189, 147, 249, 0.35);
+}
+
+.theme-dark.minimal-dracula-dark.minimal-dark-black {
+  --ui1:#282a36;
+}
+
+/* Eink */
+.theme-light.minimal-eink-light,
+.theme-dark.minimal-eink-dark {
+  --collapse-icon-color: var(--text-normal);
+  --icon-color-active: var(--bg1);
+  --icon-color-hover: var(--bg1);
+  --icon-color-focused: var(--bg1);
+  --icon-opacity: 1;
+  --indentation-guide-color: var(--tx1);
+  --indentation-guide-color-active: var(--tx1);
+  --indentation-guide-width-active: 3px;
+  --interactive-normal: var(--bg1);
+  --input-shadow: 0 0 0 1px var(--tx1);
+  --link-unresolved-opacity: 1;
+  --link-unresolved-decoration-style: dashed;
+  --link-unresolved-decoration-color: var(--tx1);
+  --metadata-label-background-active: var(--bg1);
+  --metadata-input-background-active: var(--bg1);
+  --modal-border-color: var(--tx1);
+  --modal-border-width: 2px;
+  --prompt-border-color: var(--tx1);
+  --prompt-border-width: 2px;
+  --calendar-dot-active: var(--bg1);
+  --calendar-dot-today: var(--bg1);
+  --calendar-text-active: var(--bg1);
+  --tag-border-width: 1.25px;
+  --tag-background: transparent;
+  --tag-background-hover: transparent;
+  --tag-border-color: var(--tx1);
+  --tag-border-color-hover: var(--tx1);
+  --text-on-accent: var(--bg1);
+  --text-on-accent-inverted: var(--bg1);
+  --text-selection: var(--tx1);
+  --vault-profile-color: var(--tx1);
+  --nav-item-color-hover: var(--bg1);
+}
+.theme-light.minimal-eink-light button:hover,
+.theme-light.minimal-eink-light ::selection,
+.theme-dark.minimal-eink-dark button:hover,
+.theme-dark.minimal-eink-dark ::selection {
+  color: var(--bg1);
+}
+.theme-light.minimal-eink-light .nav-files-container,
+.theme-dark.minimal-eink-dark .nav-files-container {
+  --nav-item-color-active: var(--bg1);
+}
+.theme-light.minimal-eink-light .tree-item-self:hover,
+.theme-dark.minimal-eink-dark .tree-item-self:hover {
+  --nav-collapse-icon-color: var(--bg1);
+}
+.theme-light.minimal-eink-light.is-focused .mod-active .workspace-tab-header.is-active .workspace-tab-header-inner-icon, .theme-light.minimal-eink-light.labeled-nav .mod-primary-split .mod-top .workspace-tab-header.is-active, .theme-light.minimal-eink-light.tabs-modern,
+.theme-dark.minimal-eink-dark.is-focused .mod-active .workspace-tab-header.is-active .workspace-tab-header-inner-icon,
+.theme-dark.minimal-eink-dark.labeled-nav .mod-primary-split .mod-top .workspace-tab-header.is-active,
+.theme-dark.minimal-eink-dark.tabs-modern {
+  --minimal-tab-text-color-active: var(--bg1);
+  --tab-text-color-focused: var(--bg1);
+  --tab-text-color-focused-active-current: var(--bg1);
+}
+.theme-light.minimal-eink-light .setting-hotkey,
+.theme-dark.minimal-eink-dark .setting-hotkey {
+  background-color: transparent;
+  border: 1px solid var(--tx1);
+}
+.theme-light.minimal-eink-light .suggestion-container,
+.theme-dark.minimal-eink-dark .suggestion-container {
+  border-width: 3px;
+}
+.theme-light.minimal-eink-light .markdown-rendered code,
+.theme-light.minimal-eink-light .cm-s-obsidian span.cm-inline-code,
+.theme-dark.minimal-eink-dark .markdown-rendered code,
+.theme-dark.minimal-eink-dark .cm-s-obsidian span.cm-inline-code {
+  font-weight: 600;
+}
+.theme-light.minimal-eink-light .tree-item-self:hover,
+.theme-light.minimal-eink-light .tree-item-self.is-active,
+.theme-dark.minimal-eink-dark .tree-item-self:hover,
+.theme-dark.minimal-eink-dark .tree-item-self.is-active {
+  --icon-color: var(--bg1);
+}
+.theme-light.minimal-eink-light .metadata-property-icon,
+.theme-dark.minimal-eink-dark .metadata-property-icon {
+  --icon-color-focused: var(--tx1);
+}
+.theme-light.minimal-eink-light .checkbox-container,
+.theme-dark.minimal-eink-dark .checkbox-container {
+  background-color: var(--bg1);
+  box-shadow: 0 0 0 1px var(--tx1);
+  --toggle-thumb-color: var(--tx1);
+}
+.theme-light.minimal-eink-light .checkbox-container.is-enabled,
+.theme-dark.minimal-eink-dark .checkbox-container.is-enabled {
+  background-color: var(--tx1);
+  --toggle-thumb-color: var(--bg1);
+}
+.theme-light.minimal-eink-light.tabs-modern .mod-root .workspace-tabs:not(.mod-stacked) .workspace-tab-header.is-active, .theme-light.minimal-eink-light.labeled-nav .mod-primary-split .mod-top .workspace-tab-header.is-active:not(:hover),
+.theme-dark.minimal-eink-dark.tabs-modern .mod-root .workspace-tabs:not(.mod-stacked) .workspace-tab-header.is-active,
+.theme-dark.minimal-eink-dark.labeled-nav .mod-primary-split .mod-top .workspace-tab-header.is-active:not(:hover) {
+  background-color: var(--tx1);
+}
+.theme-light.minimal-eink-light.labeled-nav .mod-primary-split .mod-top .workspace-tab-header.is-active, .theme-light.minimal-eink-light.labeled-nav .mod-primary-split .mod-top .workspace-tab-header:hover, .theme-light.minimal-eink-light.is-focused.tabs-modern .mod-active .workspace-tab-header.is-active .workspace-tab-header-inner-title,
+.theme-light.minimal-eink-light #calendar-container .reset-button:hover,
+.theme-light.minimal-eink-light .status-bar .plugin-sync:hover .sync-status-icon.mod-success,
+.theme-light.minimal-eink-light .status-bar .plugin-sync:hover .sync-status-icon.mod-working,
+.theme-light.minimal-eink-light .status-bar-item.mod-clickable:hover,
+.theme-light.minimal-eink-light .text-icon-button:hover,
+.theme-light.minimal-eink-light .community-item .suggestion-highlight,
+.theme-light.minimal-eink-light .cm-s-obsidian span.cm-formatting-highlight,
+.theme-light.minimal-eink-light .cm-s-obsidian span.cm-highlight,
+.theme-light.minimal-eink-light .markdown-rendered mark,
+.theme-light.minimal-eink-light .suggestion-item.is-selected,
+.theme-light.minimal-eink-light .horizontal-tab-nav-item:hover,
+.theme-light.minimal-eink-light .search-result-file-matched-text,
+.theme-light.minimal-eink-light .vertical-tab-nav-item:hover,
+.theme-light.minimal-eink-light .mod-root .workspace-tab-header-status-icon,
+.theme-light.minimal-eink-light .mod-root .workspace-tab-header:hover, .theme-light.minimal-eink-light:not(.colorful-active) .horizontal-tab-nav-item.is-active, .theme-light.minimal-eink-light:not(.colorful-active) .vertical-tab-nav-item.is-active,
+.theme-light.minimal-eink-light button.mod-cta,
+.theme-light.minimal-eink-light .search-result-file-match:hover,
+.theme-light.minimal-eink-light select:hover, .theme-light.minimal-eink-light .dropdown:hover,
+.theme-dark.minimal-eink-dark.labeled-nav .mod-primary-split .mod-top .workspace-tab-header.is-active,
+.theme-dark.minimal-eink-dark.labeled-nav .mod-primary-split .mod-top .workspace-tab-header:hover,
+.theme-dark.minimal-eink-dark.is-focused.tabs-modern .mod-active .workspace-tab-header.is-active .workspace-tab-header-inner-title,
+.theme-dark.minimal-eink-dark #calendar-container .reset-button:hover,
+.theme-dark.minimal-eink-dark .status-bar .plugin-sync:hover .sync-status-icon.mod-success,
+.theme-dark.minimal-eink-dark .status-bar .plugin-sync:hover .sync-status-icon.mod-working,
+.theme-dark.minimal-eink-dark .status-bar-item.mod-clickable:hover,
+.theme-dark.minimal-eink-dark .text-icon-button:hover,
+.theme-dark.minimal-eink-dark .community-item .suggestion-highlight,
+.theme-dark.minimal-eink-dark .cm-s-obsidian span.cm-formatting-highlight,
+.theme-dark.minimal-eink-dark .cm-s-obsidian span.cm-highlight,
+.theme-dark.minimal-eink-dark .markdown-rendered mark,
+.theme-dark.minimal-eink-dark .suggestion-item.is-selected,
+.theme-dark.minimal-eink-dark .horizontal-tab-nav-item:hover,
+.theme-dark.minimal-eink-dark .search-result-file-matched-text,
+.theme-dark.minimal-eink-dark .vertical-tab-nav-item:hover,
+.theme-dark.minimal-eink-dark .mod-root .workspace-tab-header-status-icon,
+.theme-dark.minimal-eink-dark .mod-root .workspace-tab-header:hover,
+.theme-dark.minimal-eink-dark:not(.colorful-active) .horizontal-tab-nav-item.is-active,
+.theme-dark.minimal-eink-dark:not(.colorful-active) .vertical-tab-nav-item.is-active,
+.theme-dark.minimal-eink-dark button.mod-cta,
+.theme-dark.minimal-eink-dark .search-result-file-match:hover,
+.theme-dark.minimal-eink-dark select:hover,
+.theme-dark.minimal-eink-dark .dropdown:hover {
+  color: var(--bg1);
+}
+.theme-light.minimal-eink-light .is-flashing,
+.theme-dark.minimal-eink-dark .is-flashing {
+  --text-highlight-bg: #999999 ;
+}
+.theme-light.minimal-eink-light #calendar-container .day:hover,
+.theme-dark.minimal-eink-dark #calendar-container .day:hover {
+  --color-dot: var(--bg1);
+}
+
+.theme-light.minimal-eink-light {
+  --base-h:0;
+  --base-s:0%;
+  --base-l:100%;
+  --accent-h:0;
+  --accent-s:0%;
+  --accent-l:0%;
+  --ax3:#000000;
+  --bg1:#ffffff;
+  --bg2:#ffffff;
+  --bg3:#000000;
+  --ui1:#000000;
+  --ui2:#000000;
+  --ui3:#000000;
+  --tx1:#000000;
+  --tx2:#000000;
+  --tx3:#000000;
+  --hl1:#000000;
+  --hl2:#000000;
+  --sp1:#ffffff;
+  --text-on-accent:#ffffff;
+  --background-modifier-cover: rgba(235,235,235,1);
+}
+
+.theme-light.minimal-eink-light.minimal-light-contrast .titlebar,
+.theme-light.minimal-eink-light.minimal-light-contrast.minimal-status-off .status-bar,
+.theme-light.minimal-eink-light.minimal-light-contrast .workspace-drawer.mod-primary,
+.theme-light.minimal-eink-light.minimal-light-contrast .mod-primary-split,
+.theme-light.minimal-eink-light.minimal-light-contrast .workspace-ribbon.mod-primary:not(.is-collapsed),
+.theme-light.minimal-eink-light.minimal-light-contrast .theme-dark,
+.theme-dark.minimal-eink-dark {
+  --base-h:0;
+  --base-s:0%;
+  --base-l:0%;
+  --accent-h:0;
+  --accent-s:0%;
+  --accent-l:100%;
+  --ax3:#ffffff;
+  --bg1:#000000;
+  --bg2:#000000;
+  --bg3:#ffffff;
+  --ui1:#ffffff;
+  --ui2:#ffffff;
+  --ui3:#ffffff;
+  --tx1:#ffffff;
+  --tx2:#ffffff;
+  --tx3:#ffffff;
+  --hl1:#ffffff;
+  --hl2:#ffffff;
+  --sp1:#000000;
+  --background-modifier-cover: rgba(20,20,20,1);
+  --vault-profile-color: var(--tx1);
+  --vault-profile-color-hover: var(--bg1);
+  --nav-item-color-hover: var(--bg1);
+  --nav-item-color-active: var(--bg1);
+}
+
+.theme-light.minimal-eink-light.minimal-light-tonal {
+  --bg3:#bbbbbb;
+  --ui1:#bbbbbb;
+  --tx3:#999999;
+}
+
+.theme-dark.minimal-eink-dark.minimal-dark-tonal {
+  --bg3:#444444;
+  --ui1:#444444;
+  --tx3:#999999;
+}
+
+.theme-light.minimal-eink-light.minimal-light-tonal,
+.theme-dark.minimal-eink-dark.minimal-dark-tonal {
+  --hl2: var(--bg3);
+  --modal-border-color: var(--ui1);
+  --prompt-border-color: var(--ui1);
+  --tag-border-color: var(--ui1);
+  --text-selection: var(--bg3);
+  --icon-color-active: var(--tx1);
+  --icon-color-focused: var(--tx1);
+  --nav-item-color-active: var(--tx1);
+  --nav-item-color-hover: var(--tx1);
+  --minimal-tab-text-color-active: var(--tx1);
+}
+.theme-light.minimal-eink-light.minimal-light-tonal .is-flashing,
+.theme-light.minimal-eink-light.minimal-light-tonal .search-result-file-matched-text,
+.theme-dark.minimal-eink-dark.minimal-dark-tonal .is-flashing,
+.theme-dark.minimal-eink-dark.minimal-dark-tonal .search-result-file-matched-text {
+  background-color: var(--bg3);
+  color: var(--tx1);
+}
+.theme-light.minimal-eink-light.minimal-light-tonal ::selection,
+.theme-light.minimal-eink-light.minimal-light-tonal #calendar-container .reset-button:hover, .theme-light.minimal-eink-light.minimal-light-tonal:not(.colorful-active) .vertical-tab-nav-item:hover, .theme-light.minimal-eink-light.minimal-light-tonal:not(.colorful-active) .vertical-tab-nav-item.is-active,
+.theme-dark.minimal-eink-dark.minimal-dark-tonal ::selection,
+.theme-dark.minimal-eink-dark.minimal-dark-tonal #calendar-container .reset-button:hover,
+.theme-dark.minimal-eink-dark.minimal-dark-tonal:not(.colorful-active) .vertical-tab-nav-item:hover,
+.theme-dark.minimal-eink-dark.minimal-dark-tonal:not(.colorful-active) .vertical-tab-nav-item.is-active {
+  color: var(--tx1);
+}
+
+/*
+Everforest
+MIT License
+Copyright (c) 2019 sainnhe
+https://github.com/sainnhe/everforest
+*/
+.theme-light.minimal-everforest-light {
+  --color-red-rgb: 248,85,82;
+  --color-orange-rgb: 245,125,38;
+  --color-yellow-rgb: 223,160,0;
+  --color-green-rgb: 141,161,1;
+  --color-cyan-rgb: 53,167,124;
+  --color-blue-rgb: 56,148,196;
+  --color-purple-rgb: 223,105,186;
+  --color-pink-rgb: 223,105,186;
+  --color-red:#f85552;
+  --color-orange:#f57d26;
+  --color-yellow:#dfa000;
+  --color-green:#8da101;
+  --color-cyan:#35a77c;
+  --color-blue:#3795C5;
+  --color-purple:#df69ba;
+  --color-pink:#df69ba;
+  --base-h:44;
+  --base-s:87%;
+  --base-l:94%;
+  --accent-h:83;
+  --accent-s:36%;
+  --accent-l:53%;
