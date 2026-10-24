@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520" role="img" aria-labelledby="title desc">
+  <title id="title">A garden of connected ideas</title>
+  <desc id="desc">Observations lead to notes, connections, experiments, and new observations. Reading feeds connections; a monthly letter shares what grows.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#8065da"/></marker>
+  </defs>
+  <rect width="960" height="520" rx="24" fill="#faf8f4"/>
+  <text x="48" y="58" font-family="Georgia,serif" font-size="28" fill="#302a3d">Nothing grows in isolation.</text>
+  <text x="48" y="88" font-family="Arial,sans-serif" font-size="15" fill="#68616f">A working map of Alex Morgan’s knowledge garden · Lattice</text>
+  <g fill="none" stroke="#8065da" stroke-width="2.5" marker-end="url(#arrow)">
+    <path d="M260 192H340"/><path d="M550 192H630"/>
+    <path d="M735 232V312"/><path d="M630 352H550"/>
+    <path d="M340 352H160V232"/><path d="M445 312V232"/>
+    <path d="M838 192Q916 278 838 350" stroke-dasharray="6 6"/>
+  </g>
+  <g stroke="#d9d1e9" stroke-width="1.5">
