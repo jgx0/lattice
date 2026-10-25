@@ -14,3 +14,20 @@
     <path d="M838 192Q916 278 838 350" stroke-dasharray="6 6"/>
   </g>
   <g stroke="#d9d1e9" stroke-width="1.5">
+    <rect x="50" y="152" width="210" height="80" rx="14" fill="#fff"/>
+    <rect x="340" y="152" width="210" height="80" rx="14" fill="#eee8fa"/>
+    <rect x="630" y="152" width="210" height="80" rx="14" fill="#e5dcf7"/>
+    <rect x="630" y="312" width="210" height="80" rx="14" fill="#eee8fa"/>
+    <rect x="340" y="312" width="210" height="80" rx="14" fill="#fff"/>
+  </g>
+  <g font-family="Georgia,serif" font-size="23" text-anchor="middle" fill="#302a3d">
+    <text x="155" y="185">Observe</text><text x="445" y="185">Write a note</text><text x="735" y="185">Make a connection</text>
+    <text x="735" y="345">Try a small bet</text><text x="445" y="345">Read &amp; revisit</text>
+  </g>
+  <g font-family="Arial,sans-serif" font-size="14" text-anchor="middle" fill="#68616f">
+    <text x="155" y="211">a walk, a question, a detail</text><text x="445" y="211">keep the context attached</text><text x="735" y="211">name what travels between</text>
+    <text x="735" y="371">learn in the world</text><text x="445" y="371">let another voice in</text>
+  </g>
+  <text x="48" y="463" font-family="Georgia,serif" font-size="19" fill="#55446c">Observe → connect → try → return. Share the fruit, not every seed.</text>
+  <text x="48" y="491" font-family="Arial,sans-serif" font-size="13" fill="#68616f">Arrows describe a practice, not a productivity funnel.</text>
+</svg>
