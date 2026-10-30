@@ -1,0 +1,15 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - 'file.inFolder("Library/Books")'
+    - 'category == "book"'
+    - 'collection == this.file.properties.collection'
+properties:
+  file.name:
+    displayName: Book
+  note.author:
+    displayName: Author
+  note.status:
+    displayName: Reading status
+  note.rating:
+    displayName: Revisit / 5
