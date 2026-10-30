@@ -1,0 +1,13 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - 'file.inFolder("Field Notes")'
+    - 'category == this.file.properties["related-category"]'
+    - 'file.path != this.file.path'
+properties:
+  file.name:
+    displayName: Nearby note
+  note.status:
+    displayName: Growth
+  note.date:
+    displayName: Last tended
