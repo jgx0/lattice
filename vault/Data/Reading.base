@@ -13,3 +13,19 @@ properties:
     displayName: Reading status
   note.rating:
     displayName: Revisit / 5
+  note.year:
+    displayName: Published
+views:
+  - type: table
+    name: The annotated shelf
+    order:
+      - file.name
+      - note.author
+      - note.status
+      - note.rating
+      - note.year
+    sort:
+      - property: note.rating
+        direction: DESC
+      - property: file.name
+        direction: ASC
