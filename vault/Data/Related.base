@@ -11,3 +11,16 @@ properties:
     displayName: Growth
   note.date:
     displayName: Last tended
+  note.tags:
+    displayName: Threads
+views:
+  - type: table
+    name: Nearby field notes
+    order:
+      - file.name
+      - note.status
+      - note.date
+      - note.tags
+    sort:
+      - property: note.date
+        direction: DESC
