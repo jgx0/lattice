@@ -5,13 +5,15 @@ tags: [lattice, documentation, contributing]
 description: Maintain Lattice with focused changes, regression tests, and truthful demo provenance.
 ---
 
-Make focused changes that preserve the build/browser boundary, note-native presentation, and privacy filtering. See [[About/Maintainer|the maintainer]] for project maintenance information. This page does not assume a particular public repository or contribution service exists.
+Make focused changes that preserve the build/browser boundary, note-native presentation, and privacy filtering. See [[About/Maintainer|the maintainer]] for project maintenance information. Source, issues, and pull requests are hosted at [jgx0/lattice](https://github.com/jgx0/lattice).
 
 ## Set up and verify
 
 From the project root, using Node.js 22.12 or newer:
 
 ```sh
+git clone https://github.com/jgx0/lattice.git
+cd lattice
 npm ci --include=dev
 npm run check
 npm audit
@@ -59,7 +61,7 @@ For privacy or asset changes, add a regression that proves excluded material can
 
 ## Share an issue or proposed change
 
-Use a minimal, non-sensitive reproduction and explain expected versus actual behavior. Include commands and version information. Avoid publishing a full private vault, screenshots with personal data, or configuration containing secrets.
+[Open an issue](https://github.com/jgx0/lattice/issues) or [submit a pull request](https://github.com/jgx0/lattice/pulls). Use a minimal, non-sensitive reproduction and explain expected versus actual behavior. Include commands and version information. Avoid publishing a full private vault, screenshots with personal data, or configuration containing secrets.
 
 See [[About/Troubleshooting]] for diagnosis and [[About/Security and privacy]] for the safety review.
 

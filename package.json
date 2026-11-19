@@ -3,6 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "description": "Build-time Obsidian vault publishing with real theme CSS and a connected reader.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jgx0/lattice.git"
+  },
+  "homepage": "https://github.com/jgx0/lattice#readme",
+  "bugs": {
+    "url": "https://github.com/jgx0/lattice/issues"
+  },
   "author": {
     "name": "jgx0",
     "url": "https://github.com/jgx0"

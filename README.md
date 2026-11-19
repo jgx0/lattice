@@ -4,7 +4,8 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#real-obsidian-themes">Themes</a> ·
   <a href="#production-deployment">Deployment</a> ·
-  <a href="vault/About/Documentation.md">Documentation</a>
+  <a href="vault/About/Documentation.md">Documentation</a> ·
+  <a href="https://github.com/jgx0/lattice">GitHub</a>
 </p>
 
 Lattice is a filesystem-driven alternative to Obsidian Publish. It compiles Markdown, properties, wikilinks, transclusions, Bases, and theme assets **at build time**. The public browser only handles reading, navigation, previews, graphs, table sorting, and reader preferences.
@@ -21,13 +22,13 @@ No vault uploads. No browser-side site builds. No subscription or injected page 
 | **Static publishing** | Individual HTML pages, separate attachments, clean URLs, no-JavaScript content.              |
 | **Local workflow**    | Watch the vault during development; deploy only `dist/`.                                     |
 
-
-
 ## Quick start
 
 Requires **Node.js 22.12 or newer**. `.nvmrc` selects Node 22.
 
 ```sh
+git clone https://github.com/jgx0/lattice.git
+cd lattice
 npm ci
 npm run dev
 ```
@@ -139,10 +140,10 @@ See [Markdown and Bases](vault/About/Markdown%20and%20Bases.md).
 
 <p>
   <a href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages"><img src="docs/assets/cloudflare-pages-button.svg" alt="Set up Cloudflare Pages" height="40" /></a>
-  <a href="https://vercel.com/new"><img src="docs/assets/vercel-button.svg" alt="Deploy with Vercel" height="40" /></a>
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjgx0%2Flattice"><img src="docs/assets/vercel-button.svg" alt="Deploy with Vercel" height="40" /></a>
 </p>
 
-These buttons open provider setup. Select your pushed repository; they do not upload the vault or deploy anything automatically. A repository-specific clone button can be added once the public repository URL exists.
+The Vercel button opens the clone-and-deploy flow for [jgx0/lattice](https://github.com/jgx0/lattice). The Cloudflare button opens Pages setup; select `jgx0/lattice` or your fork. Both require your own account and confirmation. Opening either button does not deploy the site automatically.
 
 ```sh
 npm ci
@@ -159,7 +160,7 @@ Deploy **only `dist/`**. The builder needs development dependencies; the static 
 
 ### Cloudflare Pages
 
-Use **Workers & Pages → Create → Pages → Connect to Git** and select the repository. Configure:
+Use **Workers & Pages → Create → Pages → Connect to Git** and select [`jgx0/lattice`](https://github.com/jgx0/lattice) or your fork. Configure:
 
 | Setting                | Value                                       |
 | ---------------------- | ------------------------------------------- |
@@ -183,7 +184,7 @@ Create the project only once; omit that step for an existing Pages project. Thes
 
 ### Vercel
 
-Use **Add New → Project → Import Git Repository**. The included `vercel.json` configures:
+Use the Vercel button above, or **Add New → Project → Import Git Repository** and select [`jgx0/lattice`](https://github.com/jgx0/lattice) or your fork. The included `vercel.json` configures:
 
 | Setting          | Value                     |
 | ---------------- | ------------------------- |
@@ -245,7 +246,7 @@ The included [CI workflow](.github/workflows/verify.yml) verifies tests and buil
 
 ## Contributing
 
-Keep changes small and include regressions for rendering, privacy, URLs, or themes. Run `npm run check` before submitting. Third-party theme licenses remain with their assets. This repository currently makes no blanket open-source license grant for project code; do not infer one from the bundled Minimal theme license.
+Keep changes small and include regressions for rendering, privacy, URLs, or themes. [Report issues](https://github.com/jgx0/lattice/issues) or [submit a pull request](https://github.com/jgx0/lattice/pulls) to `jgx0/lattice`. Run `npm run check` before submitting. Third-party theme licenses remain with their assets. This repository currently makes no blanket open-source license grant for project code; do not infer one from the bundled Minimal theme license.
 
 ## Credits
 

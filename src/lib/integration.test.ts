@@ -60,8 +60,10 @@ describe('shared demo integration', () => {
       'installCommand: "npm ci --include=dev"', 'buildCommand: "npm run build"', 'public/_headers', 'base: "/"']) {
       expect(deployment.body, setting).toContain(setting);
     }
-    expect(deployment.body).toContain('No public repository URL is configured');
-    expect(deployment.body).toContain('not a one-click clone/deploy button');
+    expect(deployment.body).toContain('https://github.com/jgx0/lattice');
+    expect(deployment.body).toContain('https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjgx0%2Flattice');
+    expect(deployment.body).toContain('authentication and confirmation are still required');
+    expect(deployment.body).not.toContain('No public repository URL is configured');
     expect(deployment.body).toContain('no hosting account or live deployment is provisioned');
     expect(deployment.body).toContain('Revisit host routing and the path patterns');
   });

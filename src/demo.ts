@@ -1211,13 +1211,15 @@ tags: [lattice, documentation, contributing]
 description: Maintain Lattice with focused changes, regression tests, and truthful demo provenance.
 ---
 
-Make focused changes that preserve the build/browser boundary, note-native presentation, and privacy filtering. See [[About/Maintainer|the maintainer]] for project maintenance information. This page does not assume a particular public repository or contribution service exists.
+Make focused changes that preserve the build/browser boundary, note-native presentation, and privacy filtering. See [[About/Maintainer|the maintainer]] for project maintenance information. Source, issues, and pull requests are hosted at [jgx0/lattice](https://github.com/jgx0/lattice).
 
 ## Set up and verify
 
 From the project root, using Node.js 22.12 or newer:
 
 \`\`\`sh
+git clone https://github.com/jgx0/lattice.git
+cd lattice
 npm ci --include=dev
 npm run check
 npm audit
@@ -1265,7 +1267,7 @@ For privacy or asset changes, add a regression that proves excluded material can
 
 ## Share an issue or proposed change
 
-Use a minimal, non-sensitive reproduction and explain expected versus actual behavior. Include commands and version information. Avoid publishing a full private vault, screenshots with personal data, or configuration containing secrets.
+[Open an issue](https://github.com/jgx0/lattice/issues) or [submit a pull request](https://github.com/jgx0/lattice/pulls). Use a minimal, non-sensitive reproduction and explain expected versus actual behavior. Include commands and version information. Avoid publishing a full private vault, screenshots with personal data, or configuration containing secrets.
 
 See [[About/Troubleshooting]] for diagnosis and [[About/Security and privacy]] for the safety review.
 
@@ -1321,7 +1323,7 @@ The root \`wrangler.jsonc\` identifies the Pages project with \`name: "lattice"\
 
 ### Git integration
 
-Open the [Cloudflare Pages setup dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages), create a **Pages** project, and connect a Git repository that you control. Select the project root and configure:
+Open the [Cloudflare Pages setup dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages), create a **Pages** project, and select [jgx0/lattice](https://github.com/jgx0/lattice) or a fork that you control. Select the project root and configure:
 
 | Setting | Value |
 | --- | --- |
@@ -1351,9 +1353,9 @@ Wrangler requires authentication and an existing project named \`lattice\`; the 
 
 The root \`vercel.json\` selects a static build with \`framework: null\`, \`cleanUrls: true\`, \`outputDirectory: "dist"\`, \`installCommand: "npm ci --include=dev"\`, and \`buildCommand: "npm run build"\`. It also defines security and hashed-asset cache headers without a blanket SPA rewrite. Use Node.js 22.12 or newer in the Node 22 release line in the project's dashboard settings.
 
-Open the [Vercel dashboard](https://vercel.com/new), import a Git repository you control, and keep the root directory at this project's root. Verify the framework is **Other**, the install command includes development dependencies, the build command is \`npm run build\`, and the output directory is \`dist\` before deploying. Only the static output is served; the source vault is a build input.
+Open the [Vercel clone-and-deploy flow](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjgx0%2Flattice), or import [jgx0/lattice](https://github.com/jgx0/lattice) or your fork from the dashboard, and keep the root directory at this project's root. Verify the framework is **Other**, the install command includes development dependencies, the build command is \`npm run build\`, and the output directory is \`dist\` before deploying. Only the static output is served; the source vault is a build input.
 
-No public repository URL is configured for this checkout. The dashboard link is a setup entry point, not a one-click clone/deploy button. Git-triggered deployments require a connected repository and a push to its configured deployment branch. If the source exists only locally, create and connect your own remote repository first; importing a dashboard project does not push this checkout for you.
+The repository is [jgx0/lattice](https://github.com/jgx0/lattice). The Vercel link opens a repository-specific clone-and-deploy setup flow; authentication and confirmation are still required. Git-triggered deployments require connecting your repository or fork and pushing to its configured deployment branch. Neither the link nor these configuration files pushes local changes or provisions a deployment automatically.
 
 ## Netlify and continuous verification
 
