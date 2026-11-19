@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
+import path from "node:path";
+import { readFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { demoVault, defaultSettings } from "./demo";
@@ -83,12 +85,19 @@ const minimalThemeCss =
   "body{--community-theme:minimal}.snippet{color:rgb(200, 0, 0)}";
 const thingsThemeCss =
   "body{--community-theme:things}.snippet{color:rgb(0, 0, 200)}";
+const publishThemeCss =
+  "body{--community-theme:publish}.snippet{color:rgb(120, 90, 180)}";
 const catalogSite: CompiledSite = {
   ...site,
   settings: { ...site.settings, allowThemeSwitching: true },
   defaultTheme: "default",
   themes: [
     { id: "default", name: "Default", cssUrl: "" },
+    {
+      id: "publish-theme",
+      name: "Publish",
+      cssUrl: "/_theme/publish-theme.css",
+    },
     { id: "minimal", name: "Minimal", cssUrl: "/_theme/minimal.css" },
     { id: "things", name: "Things", cssUrl: "/_theme/things.css" },
   ],
@@ -138,6 +147,19 @@ function one<T extends Element = HTMLElement>(
 function label(text: string, scope: ParentNode = container): HTMLElement {
   return one(`[aria-label="${text}"]`, scope);
 }
+function sidebarControl(text: string, controls: string, expanded: boolean) {
+  const toolbar = one(".topbar");
+  const button = one<HTMLButtonElement>(
+    `button[aria-label="${text}"]`,
+    toolbar,
+  );
+  expect(button.getAttribute("aria-expanded")).toBe(String(expanded));
+  expect(button.getAttribute("aria-controls")).toBe(controls);
+  expect(
+    toolbar.querySelectorAll(`button[aria-controls="${controls}"]`),
+  ).toHaveLength(1);
+  return button;
+}
 function nav(title: string): HTMLAnchorElement {
   const matches = [
     ...container.querySelectorAll<HTMLAnchorElement>("a.nav-file-title"),
@@ -164,6 +186,58 @@ function deferred<T>() {
     reject = rej;
   });
   return { promise, resolve, reject };
+}
+type TestInitialAppearance = {
+  mode: "light" | "dark";
+  id: string;
+  selectedId: string;
+  defaultId: string;
+  catalog: string;
+  defaultCss: string;
+  css: string;
+  pending: boolean;
+  ready: Promise<TestInitialAppearance>;
+  cancel: () => void;
+};
+const bootstrapStyles = new Set<HTMLStyleElement>();
+async function installAppearance(
+  inputSite = catalogSite,
+  values: Partial<TestInitialAppearance> = {},
+  media: string | null = null,
+) {
+  await act(async () => root.unmount());
+  vi.clearAllTimers();
+  root = createRoot(container);
+  const ready = deferred<TestInitialAppearance>();
+  const css = inputSite.themeCss.replace(/<\/style/gi, "<\\/style");
+  const state: TestInitialAppearance = {
+    mode: "light",
+    id: inputSite.defaultTheme ?? "default",
+    selectedId: "minimal",
+    defaultId: inputSite.defaultTheme ?? "default",
+    catalog: JSON.stringify(
+      inputSite.settings.allowThemeSwitching ? (inputSite.themes ?? []) : [],
+    ),
+    defaultCss: css,
+    css,
+    pending: true,
+    ready: ready.promise,
+    cancel: vi.fn(),
+    ...values,
+  };
+  const staticTheme = document.createElement("style");
+  staticTheme.id = "published-theme";
+  staticTheme.textContent = state.css;
+  if (media !== null) staticTheme.setAttribute("media", media);
+  document.head.appendChild(staticTheme);
+  bootstrapStyles.add(staticTheme);
+  document.documentElement.dataset.theme = state.mode;
+  document.documentElement.dataset.community = state.id;
+  document.body.classList.toggle("theme-dark", state.mode === "dark");
+  document.body.classList.toggle("theme-light", state.mode === "light");
+  document.body.dataset.themeName = state.id;
+  vi.stubGlobal("__latticeAppearance", state);
+  return { state, ready, staticTheme };
 }
 function themeResponse(css: string, status = 200) {
   return new Response(css, { status });
@@ -329,6 +403,8 @@ afterEach(async () => {
     root.unmount();
   });
   container.remove();
+  bootstrapStyles.forEach((style) => style.remove());
+  bootstrapStyles.clear();
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -352,7 +428,7 @@ afterEach(async () => {
 });
 
 describe("compiled-site reader", () => {
-  it("opens property wikilinks with clean routes and heading anchors", async () => {
+  it("expands styled properties after Markdown by default, preserves safe wikilinks and keeps a reader's fold on rerender", async () => {
     const input = compileFixture({
       name: "Properties",
       files: [
@@ -360,7 +436,7 @@ describe("compiled-site reader", () => {
           path: "Welcome.md",
           kind: "note",
           content:
-            '---\ncategory: ["[[Topics/Target#Details|Related category]]"]\n---\nHome',
+            '---\ntitle: Property home\naliases: [Home]\ncssclasses: [property-note]\ncategory: ["[[Topics/Target#Details|Related category]]"]\nunsafe: \'<img src=x onerror=alert(1)> [[javascript:alert(1)|Unknown]]\'\nfallback: "<script>alert(1)</script>"\n---\nHome',
         },
         {
           path: "Topics/Target.md",
@@ -370,16 +446,82 @@ describe("compiled-site reader", () => {
       ],
     });
     input.settings.showProperties = true;
+    delete input.notes.find((note) => note.path === "Welcome.md")!.propertyHtml!
+      .fallback;
     await remount(input);
-    const link = one<HTMLAnchorElement>(".metadata-property-value a");
+    const properties = one<HTMLDetailsElement>(
+      "details.metadata-container.properties",
+    );
+    const sizer = one(".note-page .markdown-preview-sizer");
+    const markdown = one(".markdown-body", sizer);
+    expect(properties.parentElement).toBe(sizer);
+    expect([...sizer.children]).toEqual([
+      one(".note-header", sizer),
+      markdown,
+      properties,
+    ]);
+    expect(markdown.nextElementSibling).toBe(properties);
+    expect(
+      markdown.compareDocumentPosition(properties) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(properties.open).toBe(true);
+    expect(properties.hasAttribute("open")).toBe(true);
+    const summary = one("summary.metadata-properties-heading", properties);
+    expect(summary.textContent).toBe("Properties");
+    expect(summary.parentElement).toBe(properties);
+    expect(one("svg", summary).classList.contains("lucide-chevron-right")).toBe(
+      true,
+    );
+    expect(
+      [...properties.querySelectorAll(".metadata-property-key-name")].map(
+        (key) => key.textContent,
+      ),
+    ).toEqual(["category", "unsafe", "fallback"]);
+    for (const row of properties.querySelectorAll(".metadata-property")) {
+      const icon = one(
+        '.metadata-property-key .metadata-property-icon[aria-hidden="true"]',
+        row,
+      );
+      expect(icon.querySelector("svg")).not.toBeNull();
+    }
+    const values = properties.querySelectorAll(".metadata-property-value");
+    expect(values[1].textContent).toBe("<img src=x onerror=alert(1)> Unknown");
+    expect(
+      one('.is-unresolved[aria-disabled="true"]', values[1]).textContent,
+    ).toBe("Unknown");
+    expect(values[2].textContent).toBe("<script>alert(1)</script>");
+    expect(
+      properties.querySelector(
+        "script, img, iframe, [onerror], [onclick], [srcdoc]",
+      ),
+    ).toBeNull();
+    expect(properties.querySelector('a[href^="javascript:"]')).toBeNull();
+    const link = one<HTMLAnchorElement>(
+      ".metadata-property-value a",
+      properties,
+    );
     expect(link.textContent).toBe("Related category");
     expect(link.getAttribute("href")).toBe("/garden/topics/target#details");
     expect(link.dataset.note).toBe("Topics/Target.md");
     expect(link.dataset.anchor).toBe("details");
+    await click(summary);
+    expect(properties.open).toBe(false);
+    await click(label("Toggle color theme"));
+    await click(sidebarControl("Fold left sidebar", "site-navigation", true));
+    expect(one("details.metadata-container")).toBe(properties);
+    expect(properties.open).toBe(false);
+    expect(one(".metadata-property-value a", properties)).toBe(link);
+    await click(summary);
+    expect(properties.open).toBe(true);
     await click(link);
     expect(titles()).toEqual(["Target"]);
     expect(window.location.pathname).toBe("/garden/topics/target");
     expect(window.location.hash).toBe("#details");
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
   });
   it("renders plain demo content without authoring scaffolding and preserves compiled sanitization", async () => {
     expect(titles()).toEqual(["Welcome to Lattice"]);
@@ -676,6 +818,54 @@ describe("compiled-site reader", () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it("marks Publish and Minimal presets and keeps their alignment fixes in source CSS", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (url) =>
+      themeResponse(
+        url === "/_theme/publish-theme.css" ? publishThemeCss : minimalThemeCss,
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const builtInSite: CompiledSite = {
+      ...catalogSite,
+      settings: {
+        ...catalogSite.settings,
+        communityTheme: "publish-theme",
+      },
+      defaultTheme: "publish-theme",
+      themeCss: publishThemeCss,
+    };
+    await remount(builtInSite);
+    expect(document.body.dataset.themePreset).toBe("publish");
+    await click(label("Reader settings"));
+    expect([...picker().options].map((option) => option.textContent)).toEqual([
+      "Default",
+      "Publish",
+      "Minimal",
+      "Things",
+    ]);
+    await input(picker(), "minimal");
+    expect(document.body.dataset.themePreset).toBe("minimal");
+    const [publishCss, appCss] = await Promise.all([
+      readFile(
+        path.join(process.cwd(), "src/themes/publish-theme.css"),
+        "utf8",
+      ),
+      readFile(path.join(process.cwd(), "src/styles.css"), "utf8"),
+    ]);
+    expect(publishCss).toMatch(/--h1-size:\s*2\.6em/);
+    expect(publishCss).toMatch(/--file-line-width:\s*700px/);
+    expect(publishCss).toContain(".outline-item.level-2");
+    expect(appCss).toMatch(
+      /body\[data-theme-preset=["']?minimal["']?\][^{]*\.markdown-preview-sizer\s*\{[^}]*padding:\s*0\s*!important[^}]*width:\s*100%\s*!important/s,
+    );
+    expect(appCss).toMatch(
+      /body\[data-theme-preset=["']?minimal["']?\][^{]*\.markdown-body\s*\{[^}]*max-width:\s*none\s*!important/s,
+    );
+    expect(
+      appCss.match(/\.main-shell\s*>\s*\.reader\s*\{[^}]*overflow-y:\s*auto/g),
+    ).toHaveLength(1);
+  });
+
   describe("published theme picker and reader status", () => {
     it("hides the picker when switching is disabled or no catalog is supplied, ignoring a stale selection", async () => {
       const fetch = vi.fn<typeof globalThis.fetch>();
@@ -724,6 +914,7 @@ describe("compiled-site reader", () => {
         [...select.options].map((option) => [option.value, option.textContent]),
       ).toEqual([
         ["default", "Default"],
+        ["publish-theme", "Publish"],
         ["minimal", "Minimal"],
         ["things", "Things"],
       ]);
@@ -959,6 +1150,325 @@ describe("compiled-site reader", () => {
       expect(fetch).toHaveBeenCalledTimes(2);
     });
 
+    describe("appearance bootstrap handoff", () => {
+      it.each([null, "screen"])(
+        "keeps the static stylesheet active while ready is pending, then copies exact CSS before disabling its %s media baseline",
+        async (media) => {
+          const fetch = vi.fn<typeof globalThis.fetch>();
+          vi.stubGlobal("fetch", fetch);
+          localStorage.setItem(themePreferenceKey, "minimal");
+          const { state, ready, staticTheme } = await installAppearance(
+            catalogSite,
+            {},
+            media,
+          );
+          const handoffCopies: (string | null | undefined)[] = [];
+          const setAttribute = staticTheme.setAttribute.bind(staticTheme);
+          const mediaWrites = vi
+            .spyOn(staticTheme, "setAttribute")
+            .mockImplementation((name, value) => {
+              if (name === "media" && value === "not all")
+                handoffCopies.push(
+                  container.querySelector("style[data-publish-theme]")
+                    ?.textContent,
+                );
+              setAttribute(name, value);
+            });
+          try {
+            await mount(catalogSite);
+            const owned = one<HTMLStyleElement>("style[data-publish-theme]");
+            expect(owned.getAttribute("media")).toBe("not all");
+            expect(staticTheme.getAttribute("media")).toBe(media);
+            expect(staticTheme.textContent).toBe(state.defaultCss);
+            expect(handoffCopies).toEqual([]);
+            await click(label("Reader settings"));
+            expect(picker().value).toBe("minimal");
+            expect(picker().getAttribute("aria-busy")).toBe("true");
+            expect(one('[role="status"]').textContent).toMatch(
+              /loading theme/i,
+            );
+            await advance(500);
+            expect(staticTheme.getAttribute("media")).toBe(media);
+            expect(owned.getAttribute("media")).toBe("not all");
+            expect(fetch).not.toHaveBeenCalled();
+            expect(state.cancel).not.toHaveBeenCalled();
+            // The head loader updates its own style before resolving ready.
+            // Preserve bytes, including overrides and trailing whitespace.
+            const css = `\n${minimalThemeCss}\n${commonThemeCss}\n  `;
+            await settle(() => {
+              state.id = state.selectedId = "minimal";
+              state.css = css;
+              state.pending = false;
+              staticTheme.textContent = css;
+              ready.resolve(state);
+            });
+            expectPublishedTheme("minimal", css);
+            expect(owned.getAttribute("media")).toBeNull();
+            expect(staticTheme.getAttribute("media")).toBe("not all");
+            expect(staticTheme.textContent).toBe(css);
+            expect(handoffCopies.length).toBeGreaterThan(0);
+            expect(handoffCopies.every((copy) => copy === css)).toBe(true);
+            expect(picker().getAttribute("aria-busy")).toBe("false");
+            expect(
+              container.querySelector('[role="status"], [role="alert"]'),
+            ).toBeNull();
+            expect(localStorage.getItem(themePreferenceKey)).toBe("minimal");
+            expect(fetch).not.toHaveBeenCalled();
+            await click(label("Close settings"));
+            await click(nav("Digital gardens"));
+            expectPublishedTheme("minimal", css);
+            await act(async () => root.unmount());
+            root = createRoot(container);
+            expect(
+              container.querySelector("style[data-publish-theme]"),
+            ).toBeNull();
+            expect(staticTheme.getAttribute("media")).toBe(media);
+            expect(staticTheme.textContent).toBe(css);
+          } finally {
+            mediaWrites.mockRestore();
+          }
+        },
+      );
+
+      it("uses an already-ready bootstrap theme on the first React commit without repainting the compiled default", async () => {
+        const fetch = vi.fn<typeof globalThis.fetch>();
+        vi.stubGlobal("fetch", fetch);
+        localStorage.setItem(themePreferenceKey, "minimal");
+        const css = `\n${minimalThemeCss}\n${commonThemeCss}\n`;
+        const { state, ready, staticTheme } = await installAppearance(
+          catalogSite,
+          { id: "minimal", selectedId: "minimal", css, pending: false },
+        );
+        ready.resolve(state);
+        const commits: { css: string | null; community: string | undefined }[] =
+          [];
+        function FirstCommit() {
+          useLayoutEffect(() => {
+            commits.push({
+              css: one("style[data-publish-theme]").textContent,
+              community: document.documentElement.dataset.community,
+            });
+          }, []);
+          return null;
+        }
+        await act(async () => {
+          root.render(
+            createElement("div", null, [
+              createElement(App, { key: "app", site: catalogSite }),
+              createElement(FirstCommit, { key: "probe" }),
+            ]),
+          );
+        });
+        expect(commits).toEqual([{ css, community: "minimal" }]);
+        expectPublishedTheme("minimal", css);
+        expect(
+          one("style[data-publish-theme]").getAttribute("media"),
+        ).toBeNull();
+        expect(staticTheme.getAttribute("media")).toBe("not all");
+        expect(staticTheme.textContent).toBe(css);
+        await click(label("Reader settings"));
+        expect(picker().value).toBe("minimal");
+        expect(picker().getAttribute("aria-busy")).toBe("false");
+        expect(fetch).not.toHaveBeenCalled();
+        expect(state.cancel).not.toHaveBeenCalled();
+      });
+
+      it.each(["default", "things"])(
+        "cancels pending bootstrap when choosing %s and ignores its late ready result",
+        async (id) => {
+          const request = deferred<Response>();
+          const fetch = vi
+            .fn<typeof globalThis.fetch>()
+            .mockReturnValue(request.promise);
+          vi.stubGlobal("fetch", fetch);
+          localStorage.setItem(themePreferenceKey, "minimal");
+          const { state, ready, staticTheme } = await installAppearance();
+          await mount(catalogSite);
+          await click(label("Reader settings"));
+          await input(picker(), id);
+          expect(state.cancel).toHaveBeenCalledOnce();
+          if (id === "things") {
+            expect(fetch).toHaveBeenCalledExactlyOnceWith(
+              "/_theme/things.css",
+              {
+                signal: expect.any(AbortSignal),
+              },
+            );
+            await settle(() => request.resolve(themeResponse(thingsThemeCss)));
+          } else expect(fetch).not.toHaveBeenCalled();
+          const css =
+            id === "default"
+              ? catalogSite.themeCss
+              : `${thingsThemeCss}\n${commonThemeCss}`;
+          expectPublishedTheme(id, css);
+          expect(staticTheme.getAttribute("media")).toBe("not all");
+          // Deliberately ignore cancel in this promise mock: React must also
+          // reject a stale completion instead of trusting abort alone.
+          await settle(() => {
+            state.id = state.selectedId = "minimal";
+            state.css = `${minimalThemeCss}\n${commonThemeCss}`;
+            state.pending = false;
+            ready.resolve(state);
+          });
+          expectPublishedTheme(id, css);
+          expect(picker().value).toBe(id);
+          expect(picker().getAttribute("aria-busy")).toBe("false");
+          expect(localStorage.getItem(themePreferenceKey)).toBe(id);
+          expect(staticTheme.textContent).toBe(catalogSite.themeCss);
+          expect(
+            container.querySelector('[role="status"], [role="alert"]'),
+          ).toBeNull();
+        },
+      );
+
+      it("preserves saved dark mode from before startup on the first commit without any light-mode DOM write", async () => {
+        localStorage.setItem(
+          "publish-reader-preferences",
+          JSON.stringify({ theme: "dark" }),
+        );
+        const { state, ready, staticTheme } = await installAppearance(
+          catalogSite,
+          { mode: "dark" },
+        );
+        const firstCommits: {
+          theme: string | undefined;
+          pressed: string | null;
+        }[] = [];
+        function FirstCommit() {
+          useLayoutEffect(() => {
+            firstCommits.push({
+              theme: document.documentElement.dataset.theme,
+              pressed: label("Toggle color theme").getAttribute("aria-pressed"),
+            });
+          }, []);
+          return null;
+        }
+        const classWrites = vi.spyOn(document.body.classList, "toggle");
+        const themeWrites: MutationRecord[] = [];
+        const observer = new MutationObserver((records) =>
+          themeWrites.push(...records),
+        );
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeOldValue: true,
+          attributeFilter: ["data-theme"],
+        });
+        try {
+          await act(async () => {
+            root.render(
+              createElement("div", null, [
+                createElement(App, { key: "app", site: catalogSite }),
+                createElement(FirstCommit, { key: "probe" }),
+              ]),
+            );
+          });
+          expect(firstCommits).toEqual([{ theme: "dark", pressed: "true" }]);
+          expect(document.body.classList.contains("theme-dark")).toBe(true);
+          expect(document.body.classList.contains("theme-light")).toBe(false);
+          await settle(() => {
+            state.pending = false;
+            state.id = state.selectedId = "minimal";
+            state.css = `${minimalThemeCss}\n${commonThemeCss}`;
+            staticTheme.textContent = state.css;
+            ready.resolve(state);
+          });
+          themeWrites.push(...observer.takeRecords());
+          expect(document.documentElement.dataset.theme).toBe("dark");
+          expect(
+            themeWrites.every((record) => record.oldValue === "dark"),
+          ).toBe(true);
+          expect(classWrites).not.toHaveBeenCalledWith("theme-light", true);
+          expect(classWrites).not.toHaveBeenCalledWith("theme-dark", false);
+          expect(prefs()).toEqual({ theme: "dark" });
+          expectPublishedTheme("minimal", state.css);
+        } finally {
+          observer.disconnect();
+          classWrites.mockRestore();
+        }
+      });
+
+      it.each([
+        ["null", null],
+        ["array", []],
+        ["invalid mode", { mode: "system" }],
+        ["unknown active ID", { id: "removed-theme" }],
+        ["unknown pending ID", { selectedId: "removed-theme" }],
+        ["mismatched default ID", { defaultId: "things" }],
+        ["mismatched catalog", { catalog: "[]" }],
+        ["mismatched compiled CSS", { defaultCss: "body{--stale:1}" }],
+        ["non-string CSS", { css: null }],
+        ["non-boolean pending", { pending: "true" }],
+        ["missing ready", { ready: null }],
+        ["invalid ready", { ready: {} }],
+        ["invalid cancel", { cancel: false }],
+      ])("ignores a malformed bootstrap global (%s)", async (_name, value) => {
+        const fetch = vi.fn<typeof globalThis.fetch>();
+        vi.stubGlobal("fetch", fetch);
+        const { state, ready, staticTheme } = await installAppearance();
+        vi.stubGlobal(
+          "__latticeAppearance",
+          value === null || Array.isArray(value)
+            ? value
+            : { ...state, ...value },
+        );
+        await mount(catalogSite);
+        expectPublishedTheme("default", catalogSite.themeCss);
+        expect(staticTheme.getAttribute("media")).toBe("not all");
+        expect(
+          one("style[data-publish-theme]").getAttribute("media"),
+        ).toBeNull();
+        await click(label("Reader settings"));
+        expect(picker().value).toBe("default");
+        expect(picker().getAttribute("aria-busy")).toBe("false");
+        await settle(() => {
+          state.id = "minimal";
+          state.css = minimalThemeCss;
+          state.pending = false;
+          ready.resolve(state);
+        });
+        expectPublishedTheme("default", catalogSite.themeCss);
+        expect(state.cancel).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+      });
+
+      it.each([null, "screen"])(
+        "restores the %s static baseline on unmount before a replacement is ready and ignores late readiness",
+        async (media) => {
+          const { state, ready, staticTheme } = await installAppearance(
+            catalogSite,
+            {},
+            media,
+          );
+          await mount(catalogSite);
+          expect(staticTheme.getAttribute("media")).toBe(media);
+          expect(one("style[data-publish-theme]").getAttribute("media")).toBe(
+            "not all",
+          );
+          await act(async () => root.unmount());
+          root = createRoot(container);
+          await advance(0); // Includes the real-unmount cancellation microtask.
+          expect(state.cancel).toHaveBeenCalledOnce();
+          expect(
+            container.querySelector("style[data-publish-theme]"),
+          ).toBeNull();
+          expect(staticTheme.getAttribute("media")).toBe(media);
+          const community = document.documentElement.dataset.community;
+          await settle(() => {
+            state.id = "minimal";
+            state.css = minimalThemeCss;
+            state.pending = false;
+            ready.resolve(state);
+          });
+          expect(staticTheme.getAttribute("media")).toBe(media);
+          expect(staticTheme.textContent).toBe(catalogSite.themeCss);
+          expect(
+            container.querySelector("style[data-publish-theme]"),
+          ).toBeNull();
+          expect(document.documentElement.dataset.community).toBe(community);
+        },
+      );
+    });
+
     it("keeps stacked-page icon status in sync with the settings switch through reload, independently of theme and color scheme, without disrupting focus trapping", async () => {
       const fetch = vi
         .fn<typeof globalThis.fetch>()
@@ -1082,6 +1592,119 @@ describe("compiled-site reader", () => {
       "/garden/field-notes/digital-gardens",
     );
     expect(container.querySelector(".graph-page")).toBeNull();
+  });
+
+  it("keeps local graph controls compact, opens an accessible popover, and navigates a node with Enter", async () => {
+    await remount(
+      site,
+      "/garden/field-notes/digital-gardens#a-link-should-carry-a-thought",
+    );
+    const reader = one("main.reader#main-content");
+    const information = one("#page-information", reader);
+    const page = one(".reader-page-content .note-page", reader);
+    expect([...container.querySelectorAll("main")]).toEqual([reader]);
+    expect([...reader.children]).toEqual([
+      one(".reader-page-content", reader),
+      information,
+    ]);
+    expect(information.querySelector(".global-graph-button")).toBeNull();
+    for (const name of ["Expand graph", "Global Graph"]) {
+      const button = label(name, information);
+      expect(button.classList.contains("clickable-icon")).toBe(true);
+      expect(button.textContent).toBe("");
+      expect(one("svg", button).getAttribute("width")).toBe("16");
+    }
+    const sidebarGraph = one(".graph-view.compact", information);
+    expect(
+      sidebarGraph.querySelector(
+        ".graph-toolbar, .graph-controls, .graph-legend",
+      ),
+    ).toBeNull();
+    const trigger = label("Expand graph", information);
+    const url = window.location.href;
+    await act(async () => trigger.focus());
+    await click(trigger);
+    const overlay = one(".graph-popover-overlay");
+    const dialog = one('[role="dialog"][aria-label="Local graph"]', overlay);
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(label("Open global graph", dialog));
+    expect(one(".graph-view", dialog).classList.contains("compact")).toBe(true);
+    expect(
+      dialog.querySelector(".graph-toolbar, .graph-controls, .graph-legend"),
+    ).toBeNull();
+    expect(one(".reader-page-content .note-page")).toBe(page);
+    expect(window.location.href).toBe(url);
+    const patterns = [...container.querySelectorAll(".graph-view svg pattern")];
+    expect(patterns).toHaveLength(2);
+    expect(patterns.every((pattern) => !!pattern.id)).toBe(true);
+    expect(new Set(patterns.map((pattern) => pattern.id)).size).toBe(2);
+    for (const pattern of patterns) {
+      expect(one("rect", pattern.closest("svg")!).getAttribute("fill")).toBe(
+        `url(#${pattern.id})`,
+      );
+    }
+    for (const graph of [sidebarGraph, one(".graph-view.compact", dialog)]) {
+      const svg = one("svg", graph);
+      const transform = one("g[transform]", svg);
+      const before = transform.getAttribute("transform");
+      const event = new WheelEvent("wheel", {
+        deltaY: 100,
+        bubbles: true,
+        cancelable: true,
+      });
+      await act(async () => {
+        expect(svg.dispatchEvent(event)).toBe(true);
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(transform.getAttribute("transform")).toBe(before);
+    }
+    await key(label("Open Attention is a material", dialog), "Enter");
+    expect(container.querySelector(".graph-popover-overlay")).toBeNull();
+    expect(titles()).toEqual(["Attention is a material"]);
+    expect(window.location.pathname).toBe(
+      compiled("Field Notes/Attention is a material.md").url,
+    );
+  });
+
+  it("closes the local graph only from its backdrop, close control, or Escape and restores trigger focus", async () => {
+    const trigger = label("Expand graph", one("#page-information"));
+    const url = window.location.href;
+    await act(async () => trigger.focus());
+    await click(trigger);
+    let overlay = one(".graph-popover-overlay");
+    let dialog = one('[role="dialog"][aria-label="Local graph"]', overlay);
+    await act(async () => {
+      dialog.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    expect(one('[role="dialog"][aria-label="Local graph"]')).toBe(dialog);
+    await act(async () => {
+      overlay.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    expect(container.querySelector(".graph-popover-overlay")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(window.location.href).toBe(url);
+    await click(trigger);
+    dialog = one('[role="dialog"][aria-label="Local graph"]');
+    await click(label("Close local graph", dialog));
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    await click(trigger);
+    dialog = one('[role="dialog"][aria-label="Local graph"]');
+    await key(label("Open global graph", dialog), "Escape");
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(window.location.href).toBe(url);
+  });
+
+  it("preserves full graph search and zoom controls", async () => {
+    await click(label("Graph view", label("Site navigation")));
+    const graphPage = one(".reader-page-content .graph-page");
+    const graph = one(".graph-view", graphPage);
+    expect(graph.classList.contains("compact")).toBe(false);
+    expect(label("Filter graph", graph)).toBeDefined();
+    expect(label("Zoom in", graph)).toBeDefined();
+    expect(label("Reset graph", graph)).toBeDefined();
+    expect(one(".graph-controls span", graph).textContent).toBe("100%");
   });
 
   it("filters inline sidebar search by path, tag and heading and supports keyboard navigation", async () => {
@@ -1223,6 +1846,245 @@ describe("compiled-site reader", () => {
     expect(container.querySelector('[role="tooltip"]')).toBeNull();
   });
 
+  it("folds the left sidebar from the header or top-left toolbar and reopens it without losing navigation", async () => {
+    const toggle = sidebarControl("Fold left sidebar", "site-navigation", true);
+    expect(
+      toggle.parentElement?.classList.contains("view-header-title-container"),
+    ).toBe(true);
+    expect(toggle.parentElement?.firstElementChild).toBe(toggle);
+    const navigation = one("#site-navigation");
+    const destination = nav("Digital gardens");
+    const controls = one(".reader-controls", navigation);
+    expect(
+      [...controls.querySelectorAll("button")].map((button) =>
+        button.getAttribute("aria-label"),
+      ),
+    ).toEqual([
+      "Graph view",
+      "Toggle stacked pages",
+      "Toggle color theme",
+      "Reader settings",
+    ]);
+    for (const icon of controls.querySelectorAll("button svg")) {
+      expect(icon.getAttribute("width")).toBe("16");
+      expect(icon.getAttribute("height")).toBe("16");
+    }
+    await click(label("Close sidebar", navigation));
+    expect(one(".app-shell").classList.contains("sidebar-hidden")).toBe(true);
+    const reopen = sidebarControl("Open sidebar", "site-navigation", false);
+    expect(reopen).toBe(toggle);
+    await click(reopen);
+    expect(sidebarControl("Fold left sidebar", "site-navigation", true)).toBe(
+      toggle,
+    );
+    expect(one(".app-shell").classList.contains("sidebar-hidden")).toBe(false);
+    expect(one("#site-navigation")).toBe(navigation);
+    expect(nav("Digital gardens")).toBe(destination);
+    await click(toggle);
+    expect(one(".app-shell").classList.contains("sidebar-hidden")).toBe(true);
+    await click(sidebarControl("Open sidebar", "site-navigation", false));
+    await click(destination);
+    expect(titles()).toEqual(["Digital gardens"]);
+    expect(window.location.pathname).toBe(
+      "/garden/field-notes/digital-gardens",
+    );
+  });
+
+  it("folds and reopens page information while retaining section state, outline anchors and backlink routes", async () => {
+    await click(nav("Digital gardens"));
+    const information = one<HTMLElement>("#page-information");
+    const reader = one("main.reader#main-content");
+    const content = one(".reader-page-content", reader);
+    expect(content.parentElement).toBe(reader);
+    expect(information.parentElement).toBe(reader);
+    expect([...reader.children]).toEqual([content, information]);
+    expect(one(".note-page", content).dataset.notePath).toBe(
+      "Field Notes/Digital gardens.md",
+    );
+    expect(
+      content.querySelector(".right-sidebar, .toc, .backlinks"),
+    ).toBeNull();
+    expect(reader.textContent).toContain("On this page");
+    expect(reader.textContent).toContain("Linked mentions");
+    expect(information.hidden).toBe(false);
+    expect(information.getAttribute("aria-label")).toBe("Page information");
+    const toggle = sidebarControl(
+      "Fold right sidebar",
+      "page-information",
+      true,
+    );
+    expect(toggle.disabled).toBe(false);
+    const outline = one<HTMLAnchorElement>(
+      '.toc-link[href="#a-link-should-carry-a-thought"]',
+      information,
+    );
+    const backlink = one<HTMLAnchorElement>("a.backlink", information);
+    const backlinkTarget = site.notes.find(
+      (note) => note.url === backlink.getAttribute("href"),
+    )!;
+    expect(backlinkTarget).toBeDefined();
+    const graphSection = one(".local-graph .section-toggle", information);
+    const outlineSection = one(".toc .section-toggle", information);
+    const backlinksSection = one(".backlinks .section-toggle", information);
+    await click(graphSection);
+    expect(graphSection.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      graphSection.parentElement?.parentElement?.querySelector(
+        '[aria-label="Local connections graph"]',
+      ),
+    ).toBeNull();
+    await click(toggle);
+    expect(information.hidden).toBe(true);
+    expect(one(".app-shell").classList.contains("right-sidebar-hidden")).toBe(
+      true,
+    );
+    expect(
+      container.querySelector('[aria-label="Dismiss page information"]'),
+    ).toBeNull();
+    await click(label("Toggle color theme"));
+    const reopen = sidebarControl(
+      "Open right sidebar",
+      "page-information",
+      false,
+    );
+    expect(reopen).toBe(toggle);
+    await click(reopen);
+    expect(one("#page-information")).toBe(information);
+    expect(information.hidden).toBe(false);
+    expect(one(".app-shell").classList.contains("right-sidebar-hidden")).toBe(
+      false,
+    );
+    expect(sidebarControl("Fold right sidebar", "page-information", true)).toBe(
+      toggle,
+    );
+    expect(one(".local-graph .section-toggle", information)).toBe(graphSection);
+    expect(graphSection.getAttribute("aria-expanded")).toBe("false");
+    expect(outlineSection.getAttribute("aria-expanded")).toBe("true");
+    expect(backlinksSection.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      one('.toc-link[href="#a-link-should-carry-a-thought"]', information),
+    ).toBe(outline);
+    expect(one("a.backlink", information)).toBe(backlink);
+    await click(outline);
+    expect(one(".toc-link.current", information)).toBe(outline);
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
+    await click(backlink);
+    expect(titles()).toEqual([backlinkTarget.title]);
+    expect(window.location.pathname).toBe(backlinkTarget.url);
+  });
+
+  it("disables page information in graph and multi-pane views and restores its fold state on return", async () => {
+    await click(sidebarControl("Fold right sidebar", "page-information", true));
+    await click(label("Graph view", label("Site navigation")));
+    expect(container.querySelector("#page-information")).toBeNull();
+    expect(
+      sidebarControl("Open right sidebar", "page-information", false).disabled,
+    ).toBe(true);
+    await click(nav("Digital gardens"));
+    expect(
+      sidebarControl("Open right sidebar", "page-information", false).disabled,
+    ).toBe(false);
+    expect(one<HTMLElement>("#page-information").hidden).toBe(true);
+    await click(
+      sidebarControl("Open right sidebar", "page-information", false),
+    );
+    await click(label("Toggle stacked pages"));
+    expect(
+      sidebarControl("Fold right sidebar", "page-information", true).disabled,
+    ).toBe(false);
+    await click(nav("Walking as research"));
+    expect(container.querySelectorAll(".stack-pane")).toHaveLength(2);
+    expect(container.querySelector("#page-information")).toBeNull();
+    expect(
+      sidebarControl("Open right sidebar", "page-information", false).disabled,
+    ).toBe(true);
+    await click(label("Close pane Walking as research"));
+    expect(
+      sidebarControl("Fold right sidebar", "page-information", true).disabled,
+    ).toBe(false);
+    expect(one<HTMLElement>("#page-information").hidden).toBe(false);
+  });
+
+  it.each([375, 1100, 1101])(
+    "initializes page information from the %i-pixel viewport and retains an explicit fold on rerender",
+    async (width) => {
+      vi.stubGlobal("innerWidth", width);
+      await remount();
+      const expanded = width > 1100;
+      const information = one<HTMLElement>("#page-information");
+      expect(information.hidden).toBe(!expanded);
+      expect(
+        sidebarControl(
+          expanded ? "Fold right sidebar" : "Open right sidebar",
+          "page-information",
+          expanded,
+        ).disabled,
+      ).toBe(false);
+      if (expanded)
+        await click(
+          sidebarControl("Fold right sidebar", "page-information", true),
+        );
+      await mount();
+      expect(information.hidden).toBe(true);
+      expect(
+        sidebarControl("Open right sidebar", "page-information", false)
+          .disabled,
+      ).toBe(false);
+      await click(
+        sidebarControl("Open right sidebar", "page-information", false),
+      );
+      expect(information.hidden).toBe(false);
+      sidebarControl("Fold right sidebar", "page-information", true);
+    },
+  );
+
+  it.each([375, 1100])(
+    "keeps navigation and page information mutually exclusive at %i pixels and dismisses the right overlay",
+    async (width) => {
+      vi.stubGlobal("innerWidth", width);
+      await remount();
+      const information = one<HTMLElement>("#page-information");
+      expect(information.hidden).toBe(true);
+      expect(
+        container.querySelector('[aria-label="Dismiss page information"]'),
+      ).toBeNull();
+      if (width <= 760)
+        await click(sidebarControl("Open sidebar", "site-navigation", false));
+      sidebarControl("Fold left sidebar", "site-navigation", true);
+      await click(
+        sidebarControl("Open right sidebar", "page-information", false),
+      );
+      expect(information.hidden).toBe(false);
+      expect(one(".app-shell").classList.contains("sidebar-hidden")).toBe(true);
+      expect(
+        container.querySelector('[aria-label="Dismiss navigation"]'),
+      ).toBeNull();
+      sidebarControl("Open sidebar", "site-navigation", false);
+      await click(label("Dismiss page information"));
+      expect(information.hidden).toBe(true);
+      expect(
+        container.querySelector('[aria-label="Dismiss page information"]'),
+      ).toBeNull();
+      sidebarControl("Open right sidebar", "page-information", false);
+      await click(
+        sidebarControl("Open right sidebar", "page-information", false),
+      );
+      await click(sidebarControl("Open sidebar", "site-navigation", false));
+      expect(information.hidden).toBe(true);
+      expect(one(".app-shell").classList.contains("sidebar-hidden")).toBe(
+        false,
+      );
+      expect(
+        container.querySelector('[aria-label="Dismiss page information"]'),
+      ).toBeNull();
+      sidebarControl("Fold left sidebar", "site-navigation", true);
+      sidebarControl("Open right sidebar", "page-information", false);
+    },
+  );
+
   it("starts with navigation hidden at mobile width and closes it after following a link", async () => {
     vi.stubGlobal("innerWidth", 375);
     await remount();
@@ -1237,7 +2099,7 @@ describe("compiled-site reader", () => {
     );
     expect(one(".app-shell").classList.contains("sidebar-hidden")).toBe(true);
     expect(container.querySelector(".mobile-scrim")).toBeNull();
-    await click(label("Open navigation"));
+    await click(sidebarControl("Open sidebar", "site-navigation", false));
     await click(label("Dismiss navigation"));
     expect(one(".app-shell").classList.contains("sidebar-hidden")).toBe(true);
   });

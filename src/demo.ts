@@ -1472,7 +1472,7 @@ An opening paragraph.
 The note continues here.
 \`\`\`
 
-Properties can drive Bases and are part of public compiled data even if the properties panel is hidden. Wikilinks in property strings, lists, and nested values contribute to backlinks and graphs and become clickable links in the properties panel and Base cells. For example:
+Properties can drive Bases and are part of public compiled data even if the properties panel is hidden. When visible, the properties panel appears at the bottom of the note so reading begins with the title and note body. Wikilinks in property strings, lists, and nested values contribute to backlinks and graphs and become clickable links in the properties panel and Base cells. For example:
 
 \`\`\`yaml
 category: "[[Field Notes/Digital gardens]]"
@@ -1590,6 +1590,20 @@ description: Publish with actual Obsidian theme CSS, enabled snippets, and local
 ---
 
 Lattice uses **actual installed Obsidian CSS**, not approximations selected from a theme gallery. It reads your vault's \`.obsidian/appearance.json\` and loads the corresponding files at build time.
+
+## Built-in Publish theme
+
+The demo starts with **Default (Obsidian)**; Publish remains available in Reader settings. Lattice includes \`publish-theme\`, a built-in reader style based on the public Obsidian Publish layout: one reading scrollbar, a restrained file tree, a sticky page-context column, compact graph icons with a local-graph popover, hierarchical outlines, and Publish-sized titles.
+
+\`\`\`json
+{
+  "vault": "./vault",
+  "theme": "publish-theme",
+  "site": { "theme": "system" }
+}
+\`\`\`
+
+This theme ships with Lattice, so it does not need to exist in \`.obsidian/themes\`. It still respects your light/dark choice and loads snippets, \`publish.css\`, extra CSS, and configured appearance variables afterward. Use a real installed theme instead when you want that theme's original design.
 
 ## Follow the vault
 

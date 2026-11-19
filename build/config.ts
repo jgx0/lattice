@@ -2,15 +2,18 @@ import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { SiteSettings } from '../src/types';
 
+/** Reserved built-in reference; wins over an installed theme with the same name. */
+export const PUBLISH_THEME_ID = 'publish-theme';
+
 export interface BuildConfig {
   root: string;
   vaultPath: string;
   configPath: string;
   base: string;
   settings: SiteSettings;
-  /** Obsidian theme name, or an absolute CSS file path. */
+  /** Reserved 'default'/'publish-theme', an Obsidian theme name, or an absolute CSS file path. */
   theme?: string;
-  /** Runtime theme allowlist; omitted discovers installed themes when switching is enabled. */
+  /** Installed theme allowlist; omitted discovers them. Switching always includes built-ins and selection. */
   themes?: string[];
   /** Omitted means appearance.json's enabledCssSnippets; [] disables snippets. */
   snippets?: string[];

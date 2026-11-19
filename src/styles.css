@@ -973,11 +973,12 @@
   color: var(--text-muted);
 }
 :where(.metadata-container, .properties) {
-  margin: 0 0 24px;
+  margin: 0 0 28px;
   padding: var(--metadata-padding, 0);
-  border: var(--metadata-border-width, 0px) solid
+  border: var(--metadata-border-width, 0) solid
     var(--metadata-border-color, var(--background-modifier-border));
   border-radius: var(--metadata-border-radius, 0);
+  background: var(--metadata-background, transparent);
   font-family: var(--font-interface);
   font-size: var(--metadata-label-font-size, var(--font-ui-small));
 }
@@ -985,31 +986,91 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 6px 0 10px;
   color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-weight: 600;
   cursor: pointer;
   list-style: none;
+  user-select: none;
+}
+:where(.metadata-container summary::-webkit-details-marker) {
+  display: none;
+}
+:where(.metadata-properties-heading > svg) {
+  width: 14px;
+  height: 14px;
+  color: var(--text-faint);
+  transition: transform 0.15s;
+}
+:where(.metadata-container[open] .metadata-properties-heading > svg) {
+  transform: rotate(90deg);
+}
+:where(.metadata-content) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 :where(.metadata-container dl, .properties dl) {
-  margin: 12px 0;
+  margin: 6px 0;
 }
 :where(.metadata-property, .properties dl > div, .metadata-container dl > div) {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  padding: 5px 0;
+  min-height: 30px;
+  padding: 3px 6px;
+  border-radius: var(--radius-s);
+}
+:where(.metadata-property:hover) {
+  background: var(
+    --metadata-property-background-hover,
+    var(--background-modifier-hover)
+  );
 }
 :where(.metadata-property-key, .properties dt, .metadata-container dt) {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex: 0 0 120px;
+  gap: 8px;
+  flex: 0 0 var(--metadata-label-width, 140px);
+  min-width: 0;
   color: var(--metadata-label-text-color, var(--text-muted));
+  font-size: var(--metadata-label-font-size, var(--font-ui-small));
+}
+:where(.metadata-property-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  color: var(--text-faint);
+}
+:where(.metadata-property-icon svg) {
+  width: 15px;
+  height: 15px;
+}
+:where(.metadata-property-key-name) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 :where(.metadata-property-value, .properties dd, .metadata-container dd) {
+  flex: 1;
   min-width: 0;
   margin: 0;
+  padding: 2px 4px;
+  line-height: 1.6;
   color: var(--metadata-input-text-color, var(--text-normal));
+  font-size: var(--metadata-input-font-size, var(--font-ui-small));
   overflow-wrap: anywhere;
+}
+:where(.metadata-property-value .metadata-link) {
+  text-decoration: none;
+  color: var(--link-color, var(--text-accent));
+}
+:where(.metadata-property-value .metadata-link:hover) {
+  text-decoration: underline;
 }
 :where(.property-chip, .multi-select-pill, .tag) {
   display: inline-block;
@@ -2176,4 +2237,362 @@
 }
 :where(.theme-error) {
   color: var(--color-red);
+}
+
+/* Sidebar toggles belong to the center toolbar, not to the foldable panels. */
+.app-shell .main-shell > .topbar {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--background-primary);
+  border-bottom: 0;
+  z-index: 6;
+}
+.app-shell .main-shell > .topbar .view-header-title-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-shell .main-shell > .topbar .view-header-title {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+:where(.sidebar-toggle) {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+:where(.sidebar-toggle svg) {
+  width: 17px;
+  height: 17px;
+}
+:where(.sidebar-toggle:disabled) {
+  opacity: 0.3;
+}
+.app-shell .reader-controls .clickable-icon {
+  width: 25px;
+  height: 25px;
+}
+.app-shell .reader-controls .clickable-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.app-shell .right-sidebar[hidden] {
+  display: none;
+}
+.app-shell:not(.right-sidebar-hidden) .right-sidebar {
+  display: block;
+}
+:where(.right-sidebar-scrim) {
+  display: none;
+}
+@media (max-width: 1100px) {
+  .app-shell:not(.right-sidebar-hidden) .right-sidebar {
+    position: fixed;
+    inset: 40px 0 0 auto;
+    z-index: 51;
+    width: min(280px, calc(100vw - 40px));
+    height: calc(100dvh - 40px);
+    padding: 20px 18px;
+    background: var(--background-primary);
+    border-left: 1px solid var(--background-modifier-border);
+    box-shadow: -10px 0 30px #0002;
+  }
+  .right-sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 40px 0 0;
+    z-index: 50;
+    background: var(--background-modifier-cover);
+  }
+}
+@media (max-width: 760px) {
+  .app-shell .main-shell > .topbar {
+    height: 44px;
+    padding: 0 8px;
+    z-index: 52;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+  .app-shell .main-shell > .topbar .view-header-title {
+    max-width: calc(100vw - 125px);
+  }
+  .app-shell:not(.right-sidebar-hidden) .right-sidebar {
+    top: 44px;
+    height: calc(100dvh - 44px);
+  }
+  .right-sidebar-scrim {
+    top: 44px;
+  }
+  :where(.metadata-property-key) {
+    flex-basis: 110px;
+  }
+}
+@media print {
+  .app-shell .main-shell > .topbar,
+  .right-sidebar-scrim {
+    display: none !important;
+  }
+}
+
+/* One vertical reading scroller includes the sticky contextual column. */
+.app-shell .main-shell > .reader {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+.app-shell .reader-page-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 100%;
+}
+.app-shell .reader > .right-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  flex-shrink: 0;
+  overflow: visible;
+  height: auto;
+}
+.app-shell .reader.stacked-reader {
+  overflow-x: auto;
+}
+.app-shell .note-page {
+  width: 100%;
+  max-width: none;
+  overflow: visible;
+  height: auto;
+  padding: 32px 40px 80px;
+}
+.app-shell .note-page .markdown-preview-sizer {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  overflow: visible;
+  min-height: 0;
+}
+.app-shell .note-page.readable-line-width .markdown-preview-sizer {
+  max-width: var(--file-line-width, 700px);
+}
+.app-shell .note-page .page-header {
+  padding: 0;
+  margin: 0 0 24px;
+  max-width: none;
+}
+.app-shell .note-page .page-header-title {
+  margin: 0;
+  padding: 0;
+  font-size: var(--inline-title-size, 2.6em);
+  font-weight: var(--inline-title-weight, 700);
+  line-height: var(--inline-title-line-height, 1.2);
+  color: var(--inline-title-color, var(--h1-color, var(--text-normal)));
+  letter-spacing: var(--inline-title-letter-spacing, -0.02em);
+}
+.app-shell .note-page .markdown-body {
+  width: 100%;
+  max-width: none;
+  padding: 0 !important;
+  margin: 0;
+  overflow: visible;
+  height: auto;
+  min-height: 0;
+}
+.app-shell .note-page .metadata-container {
+  margin-top: 36px;
+  margin-bottom: 0;
+}
+.app-shell .local-graph-shell {
+  position: relative;
+}
+.app-shell .local-graph-shell .graph-view.compact {
+  margin: 0;
+  height: 250px;
+  background: transparent;
+  border: 0;
+  overflow: hidden;
+}
+.app-shell .graph-icon-actions {
+  position: absolute;
+  right: 4px;
+  bottom: 6px;
+  display: flex;
+  gap: 3px;
+}
+.app-shell .graph-icon-actions .graph-icon {
+  position: static;
+  display: flex;
+  width: 24px;
+  height: 24px;
+  color: var(--text-muted);
+  background: var(--background-primary);
+  border-radius: 3px;
+  opacity: 0.75;
+}
+.app-shell .graph-icon-actions .graph-icon:hover {
+  opacity: 1;
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+.app-shell .outline {
+  border-left: 0;
+  padding-left: 0;
+}
+.app-shell .outline-item {
+  display: flex;
+  padding: 5px 10px;
+  font-weight: 400;
+  border-radius: 0;
+  background: transparent;
+  text-decoration: none;
+  line-height: 1.4;
+}
+.app-shell .outline-item.is-active {
+  color: var(--text-accent);
+  background: transparent;
+  font-weight: 400;
+}
+.app-shell .toc-link.current::before {
+  content: none;
+}
+.app-shell .outline-item.level-1 {
+  padding-left: 10px;
+}
+.app-shell .outline-item.level-2 {
+  padding-left: 22px;
+}
+.app-shell .outline-item.level-3 {
+  padding-left: 34px;
+}
+.app-shell .outline-item.level-4 {
+  padding-left: 46px;
+}
+:where(.graph-popover-overlay) {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+:where(.local-graph-popover) {
+  width: min(640px, calc(100vw - 48px));
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 16px 64px #0005;
+  overflow: hidden;
+}
+:where(.graph-popover-header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+:where(.graph-popover-header h2) {
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-medium);
+  font-weight: 500;
+  margin: 0;
+}
+:where(.graph-popover-header > div) {
+  display: flex;
+  gap: 4px;
+}
+.local-graph-popover .graph-view.compact {
+  height: min(500px, 65vh);
+  margin: 0;
+  background: var(--background-primary);
+  border: 0;
+}
+@media (max-width: 1100px) {
+  .app-shell:not(.right-sidebar-hidden) .reader > .right-sidebar {
+    position: fixed;
+    top: 40px;
+    bottom: 0;
+    right: 0;
+    width: min(280px, calc(100vw - 40px));
+    height: calc(100dvh - 40px);
+    overflow: auto;
+    z-index: 51;
+  }
+}
+@media (max-width: 760px) {
+  .app-shell .note-page {
+    padding: 24px 22px 60px;
+  }
+  .app-shell .note-page .page-header-title {
+    font-size: var(--inline-title-size, 2.1em);
+  }
+  .app-shell:not(.right-sidebar-hidden) .reader > .right-sidebar {
+    top: 44px;
+    height: calc(100dvh - 44px);
+  }
+  .graph-popover-overlay {
+    padding: 14px;
+  }
+}
+@media print {
+  .graph-popover-overlay {
+    display: none !important;
+  }
+  .app-shell .main-shell > .reader {
+    display: block;
+    overflow: visible;
+  }
+  .app-shell .note-page {
+    padding: 0;
+  }
+}
+
+/* Minimal's editor-side sizer rules must not indent published content twice. */
+body[data-theme-preset="minimal"]
+  .app-shell
+  .note-page
+  .markdown-preview-sizer {
+  padding: 0 !important;
+  margin: 0 auto !important;
+  width: 100% !important;
+}
+body[data-theme-preset="minimal"] .app-shell .note-page .markdown-body {
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+body[data-theme-preset="minimal"] .app-shell .note-page .page-header-title {
+  font-size: 2.6em !important;
+  font-weight: 700;
+  line-height: 1.2;
+}
+@media (max-width: 760px) {
+  body[data-theme-preset="minimal"] .app-shell .note-page .page-header-title {
+    font-size: 2.1em !important;
+  }
+}
+
+/* Navigation stays scrollable without a separate scrollbar track in the chrome. */
+.app-shell .sidebar .vault-navigation,
+.app-shell .sidebar .nav-files-container {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+.app-shell .sidebar .vault-navigation::-webkit-scrollbar,
+.app-shell .sidebar .nav-files-container::-webkit-scrollbar {
+  display: none !important;
+  width: 0;
+  height: 0;
 }

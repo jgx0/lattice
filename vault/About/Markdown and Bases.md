@@ -26,7 +26,7 @@ An opening paragraph.
 The note continues here.
 ```
 
-Properties can drive Bases and are part of public compiled data even if the properties panel is hidden. Wikilinks in property strings, lists, and nested values contribute to backlinks and graphs and become clickable links in the properties panel and Base cells. For example:
+Properties can drive Bases and are part of public compiled data even if the properties panel is hidden. When visible, the properties panel appears at the bottom of the note so reading begins with the title and note body. Wikilinks in property strings, lists, and nested values contribute to backlinks and graphs and become clickable links in the properties panel and Base cells. For example:
 
 ```yaml
 category: "[[Field Notes/Digital gardens]]"

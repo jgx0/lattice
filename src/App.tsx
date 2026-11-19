@@ -3,12 +3,21 @@ import {
   ChevronDown,
   ChevronRight,
   GitBranch,
+  GitFork,
+  ArrowUpRight,
   Layers2,
   Maximize2,
   Menu,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Hash,
+  Calendar,
+  CheckSquare,
+  List,
+  Type,
   Search,
   Settings2,
   Sun,
@@ -19,6 +28,7 @@ import { searchNotes } from "./lib/search";
 import SidebarTree from "./SidebarTree";
 import MarkdownContent from "./MarkdownContent";
 import GraphView from "./GraphView";
+import LocalGraphPopover from "./LocalGraphPopover";
 import { usePublishedTheme } from "./usePublishedTheme";
 
 function normalizeRoute(value: string) {
@@ -78,14 +88,25 @@ export default function App({ site }: { site: CompiledSite }) {
     initialNote(site)?.path || "",
   ]);
   const [sidebar, setSidebar] = useState(() => innerWidth > 760);
+  const [rightSidebar, setRightSidebar] = useState(() => innerWidth > 1100);
+  function toggleLeftSidebar() {
+    setSidebar(!sidebar);
+    if (!sidebar && innerWidth <= 1100) setRightSidebar(false);
+  }
+  function toggleRightSidebar() {
+    setRightSidebar(!rightSidebar);
+    if (!rightSidebar && innerWidth <= 1100) setSidebar(false);
+  }
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [view, setView] = useState<"note" | "graph">("note");
   const [query, setQuery] = useState("");
+  const [localGraphOpen, setLocalGraphOpen] = useState(false);
+  const closeLocalGraph = useCallback(() => setLocalGraphOpen(false), []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(
     () =>
-      site.settings.theme === "dark" ||
-      (site.settings.theme === "system" &&
+      settings.theme === "dark" ||
+      (settings.theme === "system" &&
         matchMedia("(prefers-color-scheme: dark)").matches),
   );
   const [hover, setHover] = useState<{
@@ -378,6 +399,21 @@ export default function App({ site }: { site: CompiledSite }) {
     .map((p) => notes.find((n) => n.path === p))
     .filter((n): n is PublishedNote => !!n);
   const headingItems = current.headings.filter((h) => h.level < 5);
+  const pageInformationAvailable =
+    view === "note" && !(settings.stacked && panes.length > 1);
+  const rightSidebarVisible = rightSidebar && pageInformationAvailable;
+  function propertyIcon(key: string, value: unknown) {
+    if (key === "tags" || key === "tag") return <Hash size={15} />;
+    if (typeof value === "boolean") return <CheckSquare size={15} />;
+    if (typeof value === "number") return <Hash size={15} />;
+    if (
+      /date|created|modified|updated/i.test(key) ||
+      (typeof value === "string" && /^\d{4}-\d{2}-\d{2}(?:T|$)/.test(value))
+    )
+      return <Calendar size={15} />;
+    if (Array.isArray(value)) return <List size={15} />;
+    return <Type size={15} />;
+  }
   function notePage(note: PublishedNote) {
     const classes = note.properties.cssclasses;
     const cssclasses = (
@@ -399,17 +435,27 @@ export default function App({ site }: { site: CompiledSite }) {
           <header className="page-header note-header">
             <h1 className="page-header-title inline-title">{note.title}</h1>
           </header>
+          <MarkdownContent
+            html={note.html}
+            onClick={contentClick}
+            onMouseOver={hoverLink}
+            onMouseOut={leaveHover}
+          />
           {settings.showProperties &&
             Object.keys(note.properties).some(
               (k) => !["title", "cssclasses", "aliases"].includes(k),
             ) && (
               <details
                 className="metadata-container properties"
+                open
                 onClick={contentClick}
                 onMouseOver={hoverLink}
                 onMouseOut={leaveHover}
               >
-                <summary>Properties</summary>
+                <summary className="metadata-properties-heading">
+                  <ChevronRight size={14} />
+                  <span>Properties</span>
+                </summary>
                 <div className="metadata-content">
                   {Object.entries(note.properties)
                     .filter(
@@ -417,7 +463,17 @@ export default function App({ site }: { site: CompiledSite }) {
                     )
                     .map(([k, v]) => (
                       <div className="metadata-property" key={k}>
-                        <span className="metadata-property-key">{k}</span>
+                        <span className="metadata-property-key">
+                          <span
+                            className="metadata-property-icon"
+                            aria-hidden="true"
+                          >
+                            {propertyIcon(k, v)}
+                          </span>
+                          <span className="metadata-property-key-name">
+                            {k}
+                          </span>
+                        </span>
                         {note.propertyHtml?.[k] !== undefined ? (
                           <span
                             className="metadata-property-value"
@@ -435,19 +491,13 @@ export default function App({ site }: { site: CompiledSite }) {
                 </div>
               </details>
             )}
-          <MarkdownContent
-            html={note.html}
-            onClick={contentClick}
-            onMouseOver={hoverLink}
-            onMouseOut={leaveHover}
-          />
         </div>
       </article>
     );
   }
   return (
     <div
-      className={`published-container publish-container workspace app-shell ${sidebar ? "" : "sidebar-hidden"} ${settings.stacked ? "stack-mode" : ""}`}
+      className={`published-container publish-container workspace app-shell ${sidebar ? "" : "sidebar-hidden"} ${rightSidebarVisible ? "" : "right-sidebar-hidden"} ${settings.stacked ? "stack-mode" : ""}`}
     >
       <style data-publish-theme>{appearance.themeCss}</style>
       {sidebar && (
@@ -457,7 +507,15 @@ export default function App({ site }: { site: CompiledSite }) {
           onClick={() => setSidebar(false)}
         />
       )}
+      {rightSidebarVisible && (
+        <div
+          className="right-sidebar-scrim"
+          aria-label="Dismiss page information"
+          onClick={() => setRightSidebar(false)}
+        />
+      )}
       <aside
+        id="site-navigation"
         className="site-body-left-column sidebar workspace-split mod-left-split"
         aria-label="Site navigation"
       >
@@ -558,7 +616,7 @@ export default function App({ site }: { site: CompiledSite }) {
                 title="Graph view"
                 onClick={showGraph}
               >
-                <GitBranch size={18} />
+                <GitBranch size={16} />
               </button>
               <button
                 className={`clickable-icon ${settings.stacked ? "is-active" : ""}`}
@@ -568,7 +626,7 @@ export default function App({ site }: { site: CompiledSite }) {
                 title={`Stacked pages: ${settings.stacked ? "on" : "off"}`}
                 onClick={() => change("stacked", !settings.stacked)}
               >
-                <Layers2 size={18} />
+                <Layers2 size={16} />
               </button>
               <button
                 className="clickable-icon"
@@ -584,7 +642,7 @@ export default function App({ site }: { site: CompiledSite }) {
                   )
                 }
               >
-                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+                {darkMode ? <Sun size={16} /> : <Moon size={16} />}
               </button>
               <button
                 className="clickable-icon"
@@ -592,7 +650,7 @@ export default function App({ site }: { site: CompiledSite }) {
                 title="Reader settings"
                 onClick={() => setSettingsOpen(true)}
               >
-                <Settings2 size={18} />
+                <Settings2 size={16} />
               </button>
             </div>
           </div>
@@ -602,26 +660,47 @@ export default function App({ site }: { site: CompiledSite }) {
         <div className="view-header topbar">
           <div className="view-header-title-container">
             <button
-              className="clickable-icon mobile-menu"
-              aria-label="Open navigation"
-              onClick={() => setSidebar(!sidebar)}
+              className="clickable-icon sidebar-toggle left-sidebar-toggle"
+              aria-label={sidebar ? "Fold left sidebar" : "Open sidebar"}
+              title={sidebar ? "Fold left sidebar" : "Open left sidebar"}
+              aria-expanded={sidebar}
+              aria-controls="site-navigation"
+              onClick={toggleLeftSidebar}
             >
-              <Menu size={20} />
+              {sidebar ? (
+                <PanelLeftClose size={17} />
+              ) : (
+                <PanelLeftOpen size={17} />
+              )}
             </button>
-            {!sidebar && (
-              <button
-                className="clickable-icon desktop-menu"
-                aria-label="Open sidebar"
-                onClick={() => setSidebar(true)}
-              >
-                <PanelLeftOpen size={18} />
-              </button>
-            )}
             <div className="view-header-title">
               {view === "graph" ? "Graph view" : current.title}
             </div>
           </div>
           <div className="view-actions">
+            <button
+              className="clickable-icon sidebar-toggle right-sidebar-toggle"
+              aria-label={
+                rightSidebarVisible
+                  ? "Fold right sidebar"
+                  : "Open right sidebar"
+              }
+              title={
+                rightSidebarVisible
+                  ? "Fold right sidebar"
+                  : "Open right sidebar"
+              }
+              aria-expanded={rightSidebarVisible}
+              aria-controls="page-information"
+              disabled={!pageInformationAvailable}
+              onClick={toggleRightSidebar}
+            >
+              {rightSidebarVisible ? (
+                <PanelRightClose size={17} />
+              ) : (
+                <PanelRightOpen size={17} />
+              )}
+            </button>
             <button
               className="clickable-icon"
               aria-label="Close page"
@@ -639,162 +718,191 @@ export default function App({ site }: { site: CompiledSite }) {
           ref={reader}
           id="main-content"
         >
-          {view === "graph" ? (
-            <section className="graph-page">
-              <h1>Graph view</h1>
-              <GraphView
-                notes={notes}
-                current={current.path}
-                onNavigate={navigate}
-              />
-            </section>
-          ) : settings.stacked && panes.length > 1 ? (
-            <div className="page-stack">
-              {panes.map((p) => {
-                const n = notes.find((note) => note.path === p);
-                return (
-                  n && (
-                    <div className="stack-pane workspace-leaf" key={p}>
-                      <div className="stack-pane-bar view-header">
-                        <span className="view-header-title">{n.title}</span>
-                        <button
-                          className="clickable-icon"
-                          aria-label={`Close pane ${n.title}`}
-                          onClick={() => closePane(p)}
-                        >
-                          <X size={16} />
-                        </button>
+          <div className="reader-page-content">
+            {view === "graph" ? (
+              <section className="graph-page">
+                <h1>Graph view</h1>
+                <GraphView
+                  notes={notes}
+                  current={current.path}
+                  onNavigate={navigate}
+                />
+              </section>
+            ) : settings.stacked && panes.length > 1 ? (
+              <div className="page-stack">
+                {panes.map((p) => {
+                  const n = notes.find((note) => note.path === p);
+                  return (
+                    n && (
+                      <div className="stack-pane workspace-leaf" key={p}>
+                        <div className="stack-pane-bar view-header">
+                          <span className="view-header-title">{n.title}</span>
+                          <button
+                            className="clickable-icon"
+                            aria-label={`Close pane ${n.title}`}
+                            onClick={() => closePane(p)}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                        {notePage(n)}
                       </div>
-                      {notePage(n)}
-                    </div>
-                  )
-                );
-              })}
-            </div>
-          ) : (
-            notePage(current)
+                    )
+                  );
+                })}
+              </div>
+            ) : (
+              notePage(current)
+            )}
+          </div>
+          {pageInformationAvailable && (
+            <aside
+              id="page-information"
+              className="site-body-right-column right-sidebar workspace-split mod-right-split"
+              aria-label="Page information"
+              hidden={!rightSidebarVisible}
+            >
+              {settings.showGraph && (
+                <section className="graph-view-container local-graph">
+                  <div className="aside-heading">
+                    <button
+                      className="section-toggle"
+                      onClick={() =>
+                        setRightSections((s) => ({ ...s, graph: !s.graph }))
+                      }
+                      aria-expanded={rightSections.graph}
+                    >
+                      {rightSections.graph ? (
+                        <ChevronDown size={14} />
+                      ) : (
+                        <ChevronRight size={14} />
+                      )}
+                      Interactive graph
+                    </button>
+                  </div>
+                  {rightSections.graph && (
+                    <>
+                      <div className="local-graph-shell">
+                        <GraphView
+                          notes={notes}
+                          current={current.path}
+                          compact
+                          onNavigate={navigate}
+                        />
+                        <div className="graph-icon-actions">
+                          <button
+                            className="clickable-icon graph-icon graph-expand"
+                            aria-label="Expand graph"
+                            title="Expand local graph"
+                            onClick={() => setLocalGraphOpen(true)}
+                          >
+                            <ArrowUpRight size={16} />
+                          </button>
+                          <button
+                            className="clickable-icon graph-icon graph-global"
+                            aria-label="Global Graph"
+                            title="Global graph"
+                            onClick={showGraph}
+                          >
+                            <GitFork size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </section>
+              )}
+              {settings.showToc && (
+                <section className="outline-view-container toc">
+                  <div className="aside-heading">
+                    <button
+                      className="section-toggle"
+                      onClick={() =>
+                        setRightSections((s) => ({ ...s, outline: !s.outline }))
+                      }
+                      aria-expanded={rightSections.outline}
+                    >
+                      {rightSections.outline ? (
+                        <ChevronDown size={14} />
+                      ) : (
+                        <ChevronRight size={14} />
+                      )}
+                      On this page
+                    </button>
+                  </div>
+                  {rightSections.outline && (
+                    <nav className="outline" aria-label="Table of contents">
+                      {headingItems.map((h, i) => (
+                        <a
+                          className={`tree-item-self outline-item toc-link level-${h.level} ${activeHeading === h.id ? "is-active current" : ""}`}
+                          key={`${h.id}-${i}`}
+                          href={`#${encodeURIComponent(h.id)}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            scrollTo(current, h.id);
+                          }}
+                        >
+                          <span className="tree-item-inner">{h.text}</span>
+                        </a>
+                      ))}
+                    </nav>
+                  )}
+                </section>
+              )}
+              {settings.showBacklinks && backlinks.length > 0 && (
+                <section className="backlinks backlinks-pane">
+                  <div className="aside-heading">
+                    <button
+                      className="section-toggle"
+                      onClick={() =>
+                        setRightSections((s) => ({
+                          ...s,
+                          backlinks: !s.backlinks,
+                        }))
+                      }
+                      aria-expanded={rightSections.backlinks}
+                    >
+                      {rightSections.backlinks ? (
+                        <ChevronDown size={14} />
+                      ) : (
+                        <ChevronRight size={14} />
+                      )}
+                      Linked mentions{" "}
+                      <span className="backlink-count">{backlinks.length}</span>
+                    </button>
+                  </div>
+                  {rightSections.backlinks &&
+                    backlinks.map((n) => (
+                      <a
+                        className="backlink tree-item-self"
+                        key={n.path}
+                        href={n.url}
+                        onClick={(e) => {
+                          if (e.metaKey || e.ctrlKey) return;
+                          e.preventDefault();
+                          navigate(n.path);
+                        }}
+                      >
+                        {n.title}
+                      </a>
+                    ))}
+                </section>
+              )}
+            </aside>
           )}
         </main>
       </div>
-      {view === "note" && !(settings.stacked && panes.length > 1) && (
-        <aside
-          className="site-body-right-column right-sidebar workspace-split mod-right-split"
-          aria-label="Page information"
-        >
-          {settings.showGraph && (
-            <section className="graph-view-container local-graph">
-              <div className="aside-heading">
-                <button
-                  className="section-toggle"
-                  onClick={() =>
-                    setRightSections((s) => ({ ...s, graph: !s.graph }))
-                  }
-                  aria-expanded={rightSections.graph}
-                >
-                  {rightSections.graph ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronRight size={14} />
-                  )}
-                  Interactive graph
-                </button>
-                <button
-                  className="clickable-icon"
-                  aria-label="Expand graph"
-                  onClick={showGraph}
-                >
-                  <Maximize2 size={14} />
-                </button>
-              </div>
-              {rightSections.graph && (
-                <>
-                  <GraphView
-                    notes={notes}
-                    current={current.path}
-                    compact
-                    onNavigate={navigate}
-                  />
-                  <button className="global-graph-button" onClick={showGraph}>
-                    Global Graph
-                  </button>
-                </>
-              )}
-            </section>
-          )}
-          {settings.showToc && (
-            <section className="outline-view-container toc">
-              <div className="aside-heading">
-                <button
-                  className="section-toggle"
-                  onClick={() =>
-                    setRightSections((s) => ({ ...s, outline: !s.outline }))
-                  }
-                  aria-expanded={rightSections.outline}
-                >
-                  {rightSections.outline ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronRight size={14} />
-                  )}
-                  On this page
-                </button>
-              </div>
-              {rightSections.outline && (
-                <nav className="outline" aria-label="Table of contents">
-                  {headingItems.map((h, i) => (
-                    <a
-                      className={`tree-item-self outline-item toc-link level-${h.level} ${activeHeading === h.id ? "is-active current" : ""}`}
-                      key={`${h.id}-${i}`}
-                      href={`#${encodeURIComponent(h.id)}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        scrollTo(current, h.id);
-                      }}
-                    >
-                      <span className="tree-item-inner">{h.text}</span>
-                    </a>
-                  ))}
-                </nav>
-              )}
-            </section>
-          )}
-          {settings.showBacklinks && backlinks.length > 0 && (
-            <section className="backlinks backlinks-pane">
-              <div className="aside-heading">
-                <button
-                  className="section-toggle"
-                  onClick={() =>
-                    setRightSections((s) => ({ ...s, backlinks: !s.backlinks }))
-                  }
-                  aria-expanded={rightSections.backlinks}
-                >
-                  {rightSections.backlinks ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronRight size={14} />
-                  )}
-                  Linked mentions{" "}
-                  <span className="backlink-count">{backlinks.length}</span>
-                </button>
-              </div>
-              {rightSections.backlinks &&
-                backlinks.map((n) => (
-                  <a
-                    className="backlink tree-item-self"
-                    key={n.path}
-                    href={n.url}
-                    onClick={(e) => {
-                      if (e.metaKey || e.ctrlKey) return;
-                      e.preventDefault();
-                      navigate(n.path);
-                    }}
-                  >
-                    {n.title}
-                  </a>
-                ))}
-            </section>
-          )}
-        </aside>
+      {localGraphOpen && (
+        <LocalGraphPopover
+          notes={notes}
+          current={current.path}
+          onNavigate={navigate}
+          onGlobal={() => {
+            closeLocalGraph();
+            showGraph();
+          }}
+          onClose={closeLocalGraph}
+        />
       )}
       {hover && (
         <div

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir, realpath, stat, lstat } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
 import type {
   CompiledSite,
@@ -19,7 +20,7 @@ import {
 import { renderMarkdown, renderPreview } from "../src/lib/render";
 import { createSanitizers } from "../src/lib/sanitize";
 import { decodeTarget } from "../src/lib/utils";
-import type { BuildConfig } from "./config";
+import { PUBLISH_THEME_ID, type BuildConfig } from "./config";
 import { renderPropertyValue } from "../src/lib/propertyValue";
 import { validatePublishedRoutes } from "./staticPages";
 
@@ -30,6 +31,9 @@ export interface CompileResult {
   /** Absolute files and directories, including optional input paths, for watchers. */
   dependencies: string[];
 }
+const publishThemePath = fileURLToPath(
+  new URL("../src/themes/publish-theme.css", import.meta.url),
+);
 const mimeTypes: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
@@ -576,7 +580,7 @@ export async function compileVault(
     const themesRoot = path.join(obsidianRoot, "themes");
     const themeInputs = new Map<
       string,
-      { name: string; identity: string; css: string }
+      { name: string; identity: string; css: string; id?: string }
     >();
     const readTheme = async (reference: string): Promise<string> => {
       if (
@@ -587,28 +591,37 @@ export async function compileVault(
             reference === ".."))
       )
         throw new Error(`Invalid Obsidian theme name: ${reference}`);
-      const file = path.isAbsolute(reference)
-        ? reference
-        : path.join(themesRoot, reference, "theme.css");
+      // The exact reserved name belongs to the tool, never the vault or config root.
+      const builtIn = reference === PUBLISH_THEME_ID;
+      const file = builtIn
+        ? publishThemePath
+        : path.isAbsolute(reference)
+          ? reference
+          : path.join(themesRoot, reference, "theme.css");
       try {
         // Validate every reference, even aliases of an already-read theme: a vault
         // symlink must not bypass safeRead's boundary checks through the cache.
         const bytes = (await safeRead(file, path.dirname(file)))!;
         const key = await realpath(file);
-        if (!themeInputs.has(key)) {
+        if (!themeInputs.has(key) || (builtIn && !themeInputs.get(key)!.id)) {
           const css = await rewriteCss(
             bytes.toString("utf8"),
             file,
             path.dirname(file),
           );
           themeInputs.set(key, {
-            name: path.isAbsolute(reference)
-              ? path.basename(path.dirname(reference))
-              : reference,
+            name: builtIn
+              ? "Publish"
+              : path.isAbsolute(reference)
+                ? path.basename(path.dirname(reference))
+                : reference,
             // Relative identities keep IDs stable when a project is moved. Only their
             // digest is public; neither the catalog nor filenames expose source paths.
-            identity: `css:${slash(path.relative(config.root, key))}`,
+            identity: builtIn
+              ? PUBLISH_THEME_ID
+              : `css:${slash(path.relative(config.root, key))}`,
             css,
+            ...(builtIn ? { id: PUBLISH_THEME_ID } : {}),
           });
         }
         return key;
@@ -630,12 +643,14 @@ export async function compileVault(
       selectedTheme = await readTheme(theme);
       const selected = themeInputs.get(selectedTheme)!;
       cssParts.push(selected.css);
-      settings.communityTheme = selected.name;
+      settings.communityTheme = selected.id ?? selected.name;
     }
     const themePartsCount = cssParts.length;
     let themes: PublishedTheme[] | undefined;
     let defaultTheme: string | undefined;
     if (settings.allowThemeSwitching) {
+      // Built-ins are not part of the installed-theme allowlist, including [].
+      await readTheme(PUBLISH_THEME_ID);
       dependencies.add(obsidianRoot);
       dependencies.add(themesRoot);
       let references = config.themes;
@@ -659,7 +674,12 @@ export async function compileVault(
           const entries = await readdir(themesRoot, { withFileTypes: true });
           entries.sort((a, b) => a.name.localeCompare(b.name, "en"));
           for (const entry of entries) {
-            if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+            if (
+              !entry.isDirectory() ||
+              entry.name.startsWith(".") ||
+              entry.name === PUBLISH_THEME_ID
+            )
+              continue;
             const directory = path.join(themesRoot, entry.name);
             const file = path.join(directory, "theme.css");
             dependencies.add(directory);
@@ -681,6 +701,7 @@ export async function compileVault(
       const ids = new Set(["default"]);
       const choices = [...themeInputs].sort(
         ([, a], [, b]) =>
+          Number(!!b.id) - Number(!!a.id) ||
           a.name.localeCompare(b.name, "en") ||
           a.identity.localeCompare(b.identity, "en"),
       );
@@ -690,7 +711,8 @@ export async function compileVault(
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-|-$/g, "") || "theme";
-        const stem = `${slug}-${hash(Buffer.from(choice.identity))}`;
+        const stem =
+          choice.id ?? `${slug}-${hash(Buffer.from(choice.identity))}`;
         let id = stem;
         for (let suffix = 2; ids.has(id); suffix++) id = `${stem}-${suffix}`;
         ids.add(id);

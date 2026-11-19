@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Maximize2, Minus, Plus, RotateCcw, Search, X } from "lucide-react";
 import type { PublishedNote } from "./types";
 
@@ -17,6 +17,11 @@ export default function GraphView({
   onExpand,
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
+  const gridId = `graph-grid-${useId().replace(/:/g, "")}`;
+  const noteByPath = useMemo(
+    () => new Map(notes.map((note) => [note.path, note])),
+    [notes],
+  );
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [query, setQuery] = useState("");
@@ -36,7 +41,7 @@ export default function GraphView({
     return notes.flatMap((n) =>
       n.outgoing
         .map((path) => {
-          const target = notes.find((note) => note.path === path);
+          const target = noteByPath.get(path);
           if (!target || target.path === n.path) return null;
           const key = [n.path, target.path].sort().join("|");
           if (seen.has(key)) return null;
@@ -45,7 +50,7 @@ export default function GraphView({
         })
         .filter(Boolean),
     ) as { from: string; to: string }[];
-  }, [notes]);
+  }, [notes, noteByPath]);
   const visible = useMemo(() => {
     const neighbors = new Set([current]);
     edges.forEach((e) => {
@@ -194,15 +199,16 @@ export default function GraphView({
             e.currentTarget.setPointerCapture(e.pointerId);
           }
         }}
-        onWheel={(e) =>
+        onWheel={(e) => {
+          if (compact) return;
           setZoom((z) =>
             Math.max(0.4, Math.min(3, z * (e.deltaY > 0 ? 0.92 : 1.08))),
-          )
-        }
+          );
+        }}
       >
         <defs>
           <pattern
-            id={compact ? "mini-grid" : "full-grid"}
+            id={gridId}
             width="24"
             height="24"
             patternUnits="userSpaceOnUse"
@@ -213,7 +219,7 @@ export default function GraphView({
         <rect
           width="600"
           height="440"
-          fill={`url(#${compact ? "mini-grid" : "full-grid"})`}
+          fill={`url(#${gridId})`}
           style={{ pointerEvents: "none" }}
         />
         <g

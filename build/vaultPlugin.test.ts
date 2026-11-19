@@ -114,17 +114,60 @@ describe("semantic published pages", () => {
     expect(document.querySelector("script[type=module]")?.getAttribute("src")).toBe("/main.js");
   });
 
-  it('includes compiled clickable property values in static no-JavaScript pages', async () => {
-    const {root}=await fixture();
-    const {site}=await fakeCompile(await loadConfig(root));
-    site.settings.showProperties=true;
-    const home=site.notes.find(n=>n.path===site.settings.home)!;
-    home.properties.related=['[[Topics/Other|Related topic]]'];
-    home.propertyHtml={related:'<a class="internal-link metadata-link" href="/topics/other" data-note="Topics/Other.md" data-anchor="">Related topic</a>'};
-    const html=renderPublishedPage(await readFile(path.join(root,'index.html'),'utf8'),site,home);
-    const doc=new JSDOM(html).window.document;
-    expect(doc.querySelector('.metadata-property-value a')?.textContent).toBe('Related topic');
-    expect(doc.querySelector('.metadata-property-value a')?.getAttribute('href')).toBe('/topics/other');
+  it('renders expanded styled properties after Markdown with safe compiled wikilinks in static no-JavaScript pages', async () => {
+    const { root } = await fixture();
+    const { site } = await fakeCompile(await loadConfig(root));
+    site.settings.showProperties = true;
+    site.settings.communityTheme = 'publish-theme';
+    const home = site.notes.find(note => note.path === site.settings.home)!;
+    home.properties = {
+      title: 'Hidden metadata title', aliases: ['Hidden alias'], cssclasses: ['custom-note'],
+      related: ['[[Topics/Other#Details|Related topic]]'], 'unsafe <key>': '<img src=x onerror=alert(1)>', fallback: '<script>alert(1)</script>',
+    };
+    home.propertyHtml = {
+      related: '<a class="internal-link metadata-link" href="/topics/other#details" data-note="Topics/Other.md" data-anchor="details">Related topic</a>',
+      'unsafe <key>': '&lt;img src=x onerror=alert(1)&gt;',
+    };
+    const template = (await readFile(path.join(root, 'index.html'), 'utf8')).replace('<script type="module" src="/main.js"></script>', '');
+    const doc = new JSDOM(renderPublishedPage(template, site, home)).window.document;
+    expect(doc.body.dataset.themePreset).toBe('publish');
+    const properties = doc.querySelector<HTMLDetailsElement>('details.metadata-container.properties');
+    expect(properties).not.toBeNull();
+    const sizer = doc.querySelector('.note-page .markdown-preview-sizer');
+    const markdown = sizer!.querySelector('.markdown-body')!;
+    const staticMain = doc.querySelector('main#static-content')!;
+    const readingLayout = staticMain.querySelector('.main-shell > .reading-layout')!;
+    const reader = readingLayout.querySelector('.reader')!;
+    const information = readingLayout.querySelector('aside.right-sidebar[aria-label="Page information"]')!;
+    expect(staticMain.querySelectorAll('main')).toHaveLength(0);
+    expect([...readingLayout.children]).toEqual([reader, information]);
+    expect([...reader.children]).toEqual([sizer!.closest('article.note-page')]);
+    expect(information.previousElementSibling).toBe(reader);
+    expect(information.querySelector('.toc')).not.toBeNull();
+    expect(properties!.parentElement).toBe(sizer);
+    expect([...sizer!.children]).toEqual([sizer!.querySelector('.page-header'), markdown, properties]);
+    expect(markdown.nextElementSibling).toBe(properties);
+    expect(markdown.compareDocumentPosition(properties!) & doc.defaultView!.Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(properties!.hasAttribute('open')).toBe(true);
+    expect(properties!.open).toBe(true);
+    const summary = properties!.querySelector('summary.metadata-properties-heading');
+    expect(summary?.parentElement).toBe(properties);
+    expect(summary?.textContent).toBe('Properties');
+    expect(summary?.querySelector('svg')).not.toBeNull();
+    expect([...properties!.querySelectorAll('.metadata-property-key-name')].map(key => key.textContent)).toEqual(['related', 'unsafe <key>', 'fallback']);
+    for (const row of properties!.querySelectorAll('.metadata-property')) {
+      expect(row.querySelector('.metadata-property-key .metadata-property-icon[aria-hidden="true"] svg')).not.toBeNull();
+    }
+    const link = properties!.querySelector<HTMLAnchorElement>('.metadata-property-value a');
+    expect(link?.textContent).toBe('Related topic');
+    expect(link?.getAttribute('href')).toBe('/topics/other#details');
+    expect(link?.dataset.note).toBe('Topics/Other.md');
+    expect(link?.dataset.anchor).toBe('details');
+    expect([...properties!.querySelectorAll('.metadata-property-value')].map(value => value.textContent)).toEqual(['Related topic', '<img src=x onerror=alert(1)>', '<script>alert(1)</script>']);
+    expect(properties!.querySelector('script,img,iframe,[onclick],[onerror],[srcdoc]')).toBeNull();
+    expect(doc.querySelector('script:not([data-published-appearance]),.graph-popover-overlay,.local-graph-popover')).toBeNull();
+    // Scripts remain inert with JavaScript disabled; semantic content is visible.
+    expect(doc.documentElement.hasAttribute('data-appearance-pending')).toBe(false);
   });
   it("replaces prior page metadata and content safely without duplicating styles", async () => {
     const { root } = await fixture();
@@ -140,7 +183,8 @@ describe("semantic published pages", () => {
     expect(document.querySelectorAll("#static-content")).toHaveLength(1);
     expect(document.querySelectorAll("#published-theme")).toHaveLength(1);
     expect(document.querySelector("#published-theme")?.textContent).toContain('$& <\\/style>');
-    expect(document.querySelectorAll("script")).toHaveLength(1);
+    expect(document.querySelectorAll("script:not([data-published-appearance])")).toHaveLength(1);
+    expect(document.querySelectorAll("script[data-published-appearance]")).toHaveLength(3);
     expect(document.querySelector(".page-header-title")?.textContent).toBe(target.title);
   });
 
@@ -230,7 +274,7 @@ describe("semantic published pages", () => {
     expect(document.querySelectorAll('#published-theme')).toHaveLength(1);
     expect(document.querySelectorAll('#static-content')).toHaveLength(1);
     expect(document.querySelector('.markdown-body')?.textContent).not.toContain('discarded');
-    expect(document.querySelector('script')?.getAttribute('src')).toBe('/main.js');
+    expect(document.querySelector('script[type="module"]')?.getAttribute('src')).toBe('/main.js');
     const alternate = renderedHome.replace('/main.js', '/changed.js');
     const changed = createPageRenderer(alternate, site);
     expect(changed).not.toBe(render);

@@ -1,6 +1,7 @@
 {
   "vault": "./vault",
   "base": "/",
+  "theme": "default",
   "site": {
     "title": "Lattice",
     "description": "Publish an Obsidian vault with real themes, connected notes, and static output.",

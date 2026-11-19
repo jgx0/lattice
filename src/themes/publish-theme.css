@@ -1,0 +1,267 @@
+/* Built-in Publish theme. Native reading variables stay available to snippets. */
+body {
+  --site-sidebar-width: 280px;
+  --site-right-sidebar-width: 260px;
+  --file-line-width: 700px;
+  --font-text-size: 16px;
+  --font-ui-medium: 14px;
+  --font-ui-small: 13px;
+  --font-ui-smaller: 12px;
+  --line-height-normal: 1.6;
+  --h1-size: 2.6em;
+  --h2-size: 1.6em;
+  --h3-size: 1.25em;
+  --h1-weight: 700;
+  --h2-weight: 600;
+  --heading-spacing: 1.6em;
+  --p-spacing: 1em;
+  --nav-item-size: 14px;
+  --nav-item-weight-active: 500;
+  --nav-item-background-active: transparent;
+  --nav-item-color-active: var(--text-accent);
+  --nav-indentation-guide-width: 0px;
+  --metadata-border-width: 0px;
+  --metadata-label-width: 140px;
+}
+body.theme-light {
+  --background-primary: #fff;
+  --background-secondary: #fff;
+  --background-modifier-border: #e7e7e7;
+  --background-modifier-hover: #f3f3f3;
+  --text-normal: #222;
+  --text-muted: #666;
+  --text-faint: #aaa;
+  --text-accent: #6c52c9;
+  --interactive-accent: #7b61d1;
+  --interactive-normal: #f6f6f6;
+}
+body.theme-dark {
+  --background-primary: #151515;
+  --background-secondary: #1b1b1b;
+  --background-modifier-border: #303030;
+  --background-modifier-hover: #242424;
+  --text-normal: #dcddde;
+  --text-muted: #999;
+  --text-faint: #5c5c5c;
+  --text-accent: #b5a0ed;
+  --interactive-accent: #9e83e8;
+  --interactive-normal: #232323;
+}
+body .app-shell .published-container {
+  background: var(--background-primary);
+}
+body .app-shell .site-body-left-column {
+  padding: 32px 24px 12px;
+}
+body .app-shell .site-header {
+  padding: 0 4px 26px;
+}
+body .app-shell .site-name {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+body .app-shell .sidebar-collapse {
+  opacity: 0.55;
+}
+body .app-shell .search-view-container {
+  padding: 0 0 18px;
+}
+body input.search-bar {
+  height: 32px;
+  font-size: 13px;
+  background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border);
+}
+body .app-shell .tree-item-self {
+  padding: 6px 4px;
+  line-height: 1.4;
+  border-radius: 3px;
+}
+body .app-shell .nav-folder-title {
+  font-weight: 500;
+  color: var(--text-normal);
+}
+body .app-shell .nav-folder-children {
+  margin-left: 13px;
+  padding-left: 8px;
+  border-left: 0;
+}
+body .app-shell .nav-file-title {
+  padding-left: 22px;
+}
+body .app-shell .nav-folder-children .nav-file-title {
+  padding-left: 4px;
+}
+body .app-shell .nav-file-title-content {
+  white-space: normal;
+}
+body .app-shell .tree-item-icon {
+  color: var(--text-faint);
+  width: 14px;
+}
+body .app-shell .nav-file-title.is-active {
+  color: var(--text-accent);
+  background: transparent;
+}
+body .app-shell .reader-controls {
+  padding-top: 12px;
+  gap: 8px;
+  opacity: 0.8;
+}
+body .app-shell .main-shell > .topbar {
+  position: absolute;
+  top: 4px;
+  left: 12px;
+  right: 12px;
+  height: 28px;
+  background: transparent;
+  padding: 0 10px;
+  pointer-events: none;
+}
+body .app-shell .topbar button {
+  pointer-events: auto;
+  width: 24px;
+  height: 24px;
+  opacity: 0.6;
+}
+body .app-shell .topbar button:hover {
+  opacity: 1;
+}
+body .app-shell .topbar .view-header-title {
+  display: none;
+}
+body .app-shell .note-page {
+  padding: 56px 48px 96px;
+}
+body .app-shell .page-header {
+  margin: 0 0 24px;
+}
+body .app-shell .page-header-title {
+  font-size: var(--h1-size);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+body .app-shell .markdown-body > p:first-child {
+  margin-top: 0;
+}
+body .app-shell .markdown-rendered h2 {
+  margin-top: 1.6em;
+  margin-bottom: 0.5em;
+}
+body .app-shell .markdown-rendered a {
+  text-decoration: none;
+}
+body .app-shell .markdown-rendered a:hover {
+  text-decoration: underline;
+}
+body .app-shell .markdown-rendered ul {
+  padding-left: 1.4em;
+}
+body .app-shell .markdown-rendered li {
+  margin: 0.22em 0;
+}
+body .app-shell .right-sidebar {
+  padding: 32px 24px 24px 12px;
+  background: var(--background-primary);
+}
+body .app-shell .aside-heading {
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+}
+body .app-shell .aside-heading .section-toggle {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+body .app-shell .graph-view.compact {
+  height: 250px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  margin: 0;
+}
+body .app-shell .graph-view.compact text {
+  font-size: 11px;
+}
+body .app-shell .graph-view.compact > svg {
+  height: 100%;
+}
+body .app-shell .outline-view-container {
+  margin-top: 28px;
+}
+body .app-shell .outline-item {
+  padding: 5px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  border-radius: 0;
+}
+body .app-shell .outline-item.is-active {
+  color: var(--text-accent);
+  background: transparent;
+  font-weight: 400;
+}
+body .app-shell .outline-item.level-1 {
+  padding-left: 12px;
+}
+body .app-shell .outline-item.level-2 {
+  padding-left: 24px;
+}
+body .app-shell .outline-item.level-3 {
+  padding-left: 36px;
+}
+body .app-shell .outline-item.level-4 {
+  padding-left: 48px;
+}
+body .app-shell .toc-link.current::before {
+  content: none;
+}
+body .app-shell .metadata-container {
+  margin-top: 48px;
+  padding-top: 18px;
+  border-top: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+}
+body .app-shell .metadata-properties-heading {
+  font-size: 12px;
+  font-weight: 500;
+}
+body .app-shell .metadata-property {
+  min-height: 28px;
+}
+body .app-shell .popover.hover-popover {
+  border-radius: 6px;
+  border-color: var(--background-modifier-border);
+}
+@media (max-width: 1100px) {
+  body .app-shell .note-page {
+    padding-inline: 40px;
+  }
+  body .app-shell .right-sidebar {
+    padding: 24px 20px;
+  }
+}
+@media (max-width: 760px) {
+  body .app-shell .site-body-left-column {
+    padding: 24px 18px 12px;
+  }
+  body .app-shell .main-shell > .topbar {
+    position: relative;
+    inset: auto;
+    height: 40px;
+    padding: 0 10px;
+    pointer-events: auto;
+  }
+  body .app-shell .topbar .view-header-title {
+    display: block;
+    font-size: 12px;
+  }
+  body .app-shell .note-page {
+    padding: 20px 24px 60px;
+  }
+  body .app-shell .page-header-title {
+    font-size: 2.1em;
+  }
+}
