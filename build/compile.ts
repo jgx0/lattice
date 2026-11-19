@@ -141,6 +141,7 @@ export async function compileVault(
   const dom = new JSDOM("<!doctype html><html><body></body></html>");
   const vaultRoot = await realpath(config.vaultPath);
   const boundaryPaths = new Map<string, Promise<string>>();
+  const fileTimes = new Map<string, { mtime: number; ctime: number }>();
   const safeRead = async (
     file: string,
     boundary: string,
@@ -160,8 +161,12 @@ export async function compileVault(
         (inside(vaultRoot, file) && !inside(vaultRoot, resolved))
       )
         throw new Error(`Path escapes allowed root: ${file}`);
-      if (!(await stat(resolved)).isFile())
-        throw new Error(`Expected a file: ${file}`);
+      const metadata = await stat(resolved);
+      if (!metadata.isFile()) throw new Error(`Expected a file: ${file}`);
+      fileTimes.set(file, {
+        mtime: metadata.mtimeMs,
+        ctime: metadata.birthtimeMs || metadata.ctimeMs,
+      });
       dependencies.add(resolved);
       return await readFile(resolved);
     } catch (error) {
@@ -193,7 +198,12 @@ export async function compileVault(
         const properties = publicationProperties(content, relative);
         if (properties.publish === false || properties.private === true)
           continue;
-        files.push({ path: relative, content, kind: "note" });
+        files.push({
+          path: relative,
+          content,
+          kind: "note",
+          ...fileTimes.get(absolute),
+        });
       } else if (ext === "base")
         files.push({
           path: relative,

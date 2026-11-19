@@ -7,6 +7,7 @@ import {
   rm,
   symlink,
   realpath,
+  utimes,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -104,6 +105,30 @@ describe("filesystem build configuration", () => {
 });
 
 describe("Node vault compiler", () => {
+  it("compiles inline Bases with real filesystem modification times and public link filtering", async () => {
+    const { root, put } = await fixture({ base: "/garden/" });
+    await put(
+      "vault/Welcome.md",
+      "```base\nviews:\n  - type: table\n    name: Topic\n    filters: file.links.contains(this.file)\n    order: [file.name]\n    sort: [{property: file.mtime, direction: DESC}]\n```",
+    );
+    const older = await put(
+      "vault/Older.md",
+      '---\ncategory: "[[Welcome]]"\n---\nOlder',
+    );
+    const newer = await put("vault/Newer.md", "[[Welcome]]");
+    await put("vault/Private.md", "---\nprivate: true\n---\n[[Welcome]]");
+    await utimes(older, new Date(100000), new Date(100000));
+    await utimes(newer, new Date(200000), new Date(200000));
+    const { site } = await compileVault(await loadConfig(root));
+    const home = site.notes.find((n) => n.path === "Welcome.md")!;
+    expect(home.html).toContain('class="base-embed base-inline"');
+    expect(home.html.indexOf('data-note="Newer.md"')).toBeLessThan(
+      home.html.indexOf('data-note="Older.md"'),
+    );
+    expect(home.html).toContain('href="/garden/newer"');
+    expect(home.html).not.toContain("Private.md");
+    expect(site.notes.find((n) => n.path === "Newer.md")?.mtime).toBe(200000);
+  });
   it("renders published content, Unicode clean links, previews, and host-relative Bases/transclusion without globals", async () => {
     const { root, put } = await fixture({
       base: "/garden/",

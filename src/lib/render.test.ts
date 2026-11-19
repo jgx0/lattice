@@ -76,6 +76,34 @@ describe('Obsidian rendering', () => {
     expect(document.querySelector('.pdf-embed-link[download]')).not.toBeNull();
     expect(html).not.toContain('data-pdf-capability');
   });
+  it('renders the inline Topic Base with host-relative links and modification-time sorting', () => {
+    const source='```base\nviews:\n  - type: table\n    name: Topic\n    filters:\n      and:\n        - file.links.contains(this.file)\n    order:\n      - file.name\n    sort:\n      - property: file.mtime\n        direction: DESC\n```';
+    const {document,notes,files,html}=render(source,[
+      {path:'Older.md',kind:'note',mtime:100,content:'---\ncategory: "[[Host]]"\n---\nOld'},
+      {path:'Newer.md',kind:'note',mtime:200,content:'[[Host]]'},
+      {path:'Unrelated.md',kind:'note',mtime:300,content:'Nothing linked'},
+    ]);
+    expect(document.querySelector('pre')).toBeNull();
+    expect(document.querySelector('.base-inline .base-view-title')?.textContent).toBe('Topic');
+    expect([...document.querySelectorAll('.base-inline tbody a')].map(a=>a.textContent)).toEqual(['Newer','Older']);
+    expect(html).not.toContain('Unrelated');
+    expect(renderMarkdown(notes[0],notes,files)).toBe(html);
+    expect(new DOMParser().parseFromString(renderPreview(notes[0],notes,files),'text/html').querySelector('.base-inline')).not.toBeNull();
+  });
+  it('keeps ordinary YAML fences literal and reports invalid inline Bases safely', () => {
+    const {document}=render('```yaml\nviews: [{type: table}]\n```\n\n~~~base\nviews: [{type: unsafe, name: "<script>bad()</script>"}]\n~~~');
+    expect(document.querySelector('pre code.language-yaml')?.textContent).toContain('views:');
+    expect(document.querySelector('.base-inline .base-error')?.textContent).toContain('Unsupported view');
+    expect(document.querySelector('script')).toBeNull();
+  });
+  it('uses the embedded note as an inline Base host and preserves a block reference', () => {
+    const {document}=render('![[Other#^topic]]',[
+      {path:'Other.md',kind:'note',content:'```base\nfilters: file.hasLink(this.file)\nviews: [{type: list, name: Linked, order: [file.name]}]\n```\n\n^topic'},
+      {path:'Child.md',kind:'note',content:'[[Other]]'},
+    ]);
+    expect(document.querySelector('.base-inline#topic')).not.toBeNull();
+    expect(document.querySelector('.base-inline [data-note="Child.md"]')).not.toBeNull();
+  });
   it('keeps block IDs on fenced code transclusions without parsing literal reference text', () => {
     const { document } = render('![[Other#^code]]', [{ path: 'Other.md', kind: 'note', content: '```js\nconst x = "^not-a-block";\n```\n\n^code' }]);
     expect(document.querySelector('pre#code')?.textContent).toContain('^not-a-block');

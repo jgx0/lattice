@@ -4,6 +4,8 @@ export interface VaultFile {
   kind: "note" | "base" | "asset";
   mime?: string;
   data?: string;
+  mtime?: number;
+  ctime?: number;
 }
 export interface Heading {
   level: number;
@@ -22,6 +24,8 @@ export interface Note {
   links: string[];
   tags: string[];
   words: number;
+  mtime?: number;
+  ctime?: number;
 }
 export interface Vault {
   name: string;

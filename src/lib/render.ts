@@ -311,6 +311,14 @@ function configureMarkdown(): MarkdownIt {
     token.attrSet('loading', 'lazy');
     return defaultImage(tokens, index, options, env, renderer);
   };
+  const defaultFence = md.renderer.rules.fence!;
+  md.renderer.rules.fence = (tokens, index, options, env: RenderEnv, renderer) => {
+    const token = tokens[index];
+    if (token.info.trim() !== 'base') return defaultFence(tokens, index, options, env, renderer);
+    const context = env.context!;
+    const id = token.attrGet('id');
+    return `<div class="base-embed base-inline" data-base="inline"${id ? ` id="${escapeHtml(id)}"` : ''}>${renderBase(token.content, context.notes, context.note)}</div>\n`;
+  };
   configureDecorations(md);
   return md;
 }

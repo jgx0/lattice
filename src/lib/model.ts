@@ -56,6 +56,8 @@ export function buildNotes(files: VaultFile[]): Note[] {
       path, title: typeof properties.title === 'string' && properties.title.trim() ? properties.title : stripExtension(basename(path)),
       slug, folder: dirname(path), content: file.content, body, properties, headings,
       links: [...links], tags: [...tags], words: prose.join(' ').match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu)?.length ?? 0,
+      ...(file.mtime === undefined ? {} : { mtime: file.mtime }),
+      ...(file.ctime === undefined ? {} : { ctime: file.ctime }),
     };
   });
 }

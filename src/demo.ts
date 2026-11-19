@@ -1541,6 +1541,28 @@ views:
     limit: 10
 \`\`\`
 
+You can also put the Base definition directly in your note, in a fenced block labeled \`base\`:
+
+\`\`\`\`markdown
+\`\`\`base
+views:
+  - type: table
+    name: Topic
+    filters:
+      and:
+        - file.links.contains(this.file)
+    order:
+      - file.name
+    sort:
+      - property: file.mtime
+        direction: DESC
+\`\`\`
+\`\`\`\`
+
+This renders a table of public notes that link to the current note, with the most recently modified first. \`this.file\` is the note containing the block. Property wikilinks count too. \`file.mtime\` comes from the source file's filesystem modification time; \`file.ctime\` uses its creation time where available. A copied or freshly cloned vault may have different timestamps from the original vault.
+
+Inline Bases use the same views and filters as embedded \`.base\` files. A fence labeled \`yaml\` is just a code example; label it \`base\` to render the view. Invalid configurations produce a visible Base error.
+
 Supported views are \`table\`, \`list\`, and \`cards\`. View-level filters combine with base-level filters; \`order\` chooses fields, \`sort\` defines initial sorting, and \`limit\` bounds displayed rows. A table's columns can also be sorted in the reader. Multiple configured views are rendered as sections, not an Obsidian editing interface.
 
 ## Expression context and limits

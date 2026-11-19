@@ -106,7 +106,7 @@ function isFile(value: Value): boolean {
 function fileInfo(note: Note, context: Context): Record<string, Value> {
   const name = basename(note.path).replace(/\.md$/i, '');
   return { [fileValue]: true, path: note.path, name, basename: name, fullname: basename(note.path), folder: note.folder,
-    ext: 'md', extension: 'md', tags: note.tags,
+    ext: 'md', extension: 'md', tags: note.tags, mtime: note.mtime ?? null, ctime: note.ctime ?? null,
     link: makeLink(note.path, ''), links: note.links.map(path => {
       const target = resolveNote(path, context.notes, note.path);
       return makeLink(target?.path ?? path, target ? '' : note.path);
