@@ -9,7 +9,7 @@ import type { CompiledSite, PublishedNote } from "../src/types";
 import { loadConfig, type BuildConfig } from "./config";
 import { compileVault } from "./compile";
 import { vaultPlugin } from "./vaultPlugin";
-import { absoluteShellReferences, findPublishedNote, publishedPageFile, renderPublishedPage, renderNotFoundPage, validatePublishedRoutes } from "./staticPages";
+import { absoluteShellReferences, createPageRenderer, findPublishedNote, homeNote, publishedPageFile, renderPublishedPage, renderNotFoundPage, validatePublishedRoutes } from "./staticPages";
 
 vi.mock("./compile", () => ({ compileVault: vi.fn() }));
 const compiler = vi.mocked(compileVault);
@@ -147,6 +147,114 @@ describe("semantic published pages", () => {
     expect(document.querySelector('.vault-navigation a')).not.toBeNull();
   });
 
+  it('builds navigation and indexes once per immutable site, keeping every page selected independently', async () => {
+    const { root } = await fixture();
+    const { site } = await fakeCompile(await loadConfig(root));
+    site.notes = Array.from({ length: 80 }, (_, index) => note(`Folder ${index % 4}/Note ${index}.md`, `/note-${index}`));
+    site.settings.home = site.notes[0].path;
+    site.settings.navigation = [...site.notes].reverse().map(note => note.path);
+    site.notes[0].backlinks = [site.notes[79].path, 'Missing.md', site.notes[10].path];
+    let folderReads = 0, themeReads = 0;
+    for (const entry of site.notes) {
+      const folder = entry.folder;
+      Object.defineProperty(entry, 'folder', { get: () => { folderReads++; return folder; } });
+    }
+    const themeCss = site.themeCss;
+    Object.defineProperty(site, 'themeCss', { get: () => { themeReads++; return themeCss; } });
+    const rankSearch = vi.spyOn(site.settings.navigation, 'indexOf');
+    const render = createPageRenderer(await readFile(path.join(root, 'index.html'), 'utf8'), site);
+    expect(folderReads).toBe(80);
+    const arraySearch = vi.spyOn(site.notes, 'find').mockImplementation(() => { throw new Error('Repeated note scan'); });
+    for (const current of [site.notes[0], site.notes[79], site.notes[40]]) {
+      const document = new JSDOM(render(current)).window.document;
+      expect(document.querySelectorAll('.note-nav')).toHaveLength(80);
+      expect(document.querySelectorAll('.note-nav.selected')).toHaveLength(1);
+      expect(document.querySelector('.note-nav[aria-current=page]')?.getAttribute('href')).toBe(current.url);
+      expect(findPublishedNote(site, current.url + '/index.html')).toBe(current);
+    }
+    const home = new JSDOM(render()).window.document;
+    expect([...home.querySelectorAll('.backlink')].map(link => link.getAttribute('href'))).toEqual(['/note-79', '/note-10']);
+    expect(homeNote(site)).toBe(site.notes[0]);
+    expect(new JSDOM(render(null)).window.document.querySelectorAll('.note-nav.selected')).toHaveLength(0);
+    expect(folderReads).toBe(80);
+    expect(themeReads).toBe(1);
+    expect(rankSearch).not.toHaveBeenCalled();
+    expect(arraySearch).not.toHaveBeenCalled();
+  });
+
+  it('preserves explicit navigation ranks, folder overrides, and escaped active links at all offsets', async () => {
+    const { root } = await fixture();
+    const { site } = await fakeCompile(await loadConfig(root));
+    const first = note('A.md', '/a?x=1&y="quoted"'), middle = note('B.md', '/b'), last = note('Z.md', '/z');
+    first.title = '<First> " & $&';
+    middle.title = 'Middle';
+    last.title = "Last ' $`";
+    site.notes = [last, middle, first];
+    site.settings.home = first.path;
+    site.settings.navigationFolders = { 'A.md': 'Pinned <&>', 'B.md': 'Pinned <&>', 'Z.md': '' };
+    site.settings.navigation = ['B.md', 'A.md', 'B.md'];
+    const render = createPageRenderer(await readFile(path.join(root, 'index.html'), 'utf8'), site);
+    for (const current of [middle, first, last]) {
+      const document = new JSDOM(render(current)).window.document;
+      const links = [...document.querySelectorAll('.vault-navigation .note-nav')];
+      expect(links.map(link => link.textContent)).toEqual([middle.title, first.title, last.title]);
+      expect(document.querySelector('.nav-folder-title-content')?.textContent).toBe('Pinned <&>');
+      expect(document.querySelectorAll('.note-nav.selected')).toHaveLength(1);
+      expect(document.querySelector('.note-nav.selected')?.getAttribute('href')).toBe(current.url);
+      expect(document.querySelectorAll('.vault-navigation script,.vault-navigation [onclick]')).toHaveLength(0);
+    }
+  });
+
+  it('prepares only the shell, retains transformed assets, and bounds renderer caching to the last template', async () => {
+    const { root } = await fixture();
+    const { site } = await fakeCompile(await loadConfig(root));
+    const template = await readFile(path.join(root, 'index.html'), 'utf8');
+    site.notes[1].html += '<title>Discarded content title</title><meta name="description" content="discarded"><style id="published-theme">discarded</style>';
+    const renderedHome = renderPublishedPage(template, site, site.notes[1]);
+    const render = createPageRenderer(renderedHome, site);
+    expect(createPageRenderer(renderedHome, site)).toBe(render);
+    const document = new JSDOM(render(site.notes[0])).window.document;
+    expect(document.querySelectorAll('title')).toHaveLength(1);
+    expect(document.querySelectorAll('#published-theme')).toHaveLength(1);
+    expect(document.querySelectorAll('#static-content')).toHaveLength(1);
+    expect(document.querySelector('.markdown-body')?.textContent).not.toContain('discarded');
+    expect(document.querySelector('script')?.getAttribute('src')).toBe('/main.js');
+    const alternate = renderedHome.replace('/main.js', '/changed.js');
+    const changed = createPageRenderer(alternate, site);
+    expect(changed).not.toBe(render);
+    expect(changed(site.notes[0])).toContain('src="/changed.js"');
+    expect(createPageRenderer(renderedHome, site)).not.toBe(render);
+    // An explicitly retained closure remains usable even after cache eviction.
+    expect(render(site.notes[0])).toContain('src="/main.js"');
+    const replacement = { ...site, notes: [note('New.md', '/new')], settings: { ...site.settings, home: 'New.md' } };
+    expect(homeNote(replacement)?.path).toBe('New.md');
+    expect(findPublishedNote(replacement, '/new')?.path).toBe('New.md');
+    expect(findPublishedNote(replacement, site.notes[0].url)).toBeUndefined();
+    expect(createPageRenderer(template, replacement)()).toContain('New · Fixture site');
+  });
+
+  it('keeps canonical route matching safe with indexed encoded URLs and separate snapshots', async () => {
+    const { root } = await fixture('/project/');
+    const { site } = await fakeCompile(await loadConfig(root));
+    const encoded = note('Café.md', '/project/caf%C3%A9');
+    site.notes.push(encoded);
+    for (const route of ['/project/caf%C3%A9', '/project/café/', '/project/caf%C3%A9/index.html']) {
+      expect(findPublishedNote(site, route)).toBe(encoded);
+    }
+    for (const route of ['/project/%', '/project/%00', '/project/%5c', '/project/%2e%2e/café', '/project/café?x=1']) {
+      expect(findPublishedNote(site, route)).toBeUndefined();
+    }
+    expect(() => validatePublishedRoutes([{ path: 'Encoded.md', url: encoded.url }, { path: 'Decoded.md', url: '/project/café/' }], '/project/')).toThrow('route collision');
+  });
+
+  it('rejects templates with no empty root or complete managed-content range', async () => {
+    const { root } = await fixture();
+    const { site } = await fakeCompile(await loadConfig(root));
+    for (const template of ['<html><head></head><body></body></html>', '<div id="root">not empty</div>', '<div id="root"><!--published-content:start-->broken</div>']) {
+      expect(() => createPageRenderer(template, site)).toThrow('empty <div id="root"></div>');
+    }
+  });
+
   it('rejects canonical route aliases and escapes absolutized shell query attributes', () => {
     expect(() => validatePublishedRoutes([{ path: 'Home.md', url: '/project/' }, { path: 'Alias.md', url: '/project/index.html' }], '/project/')).toThrow('route collision');
     for (const route of ['/project/x%2fy', '/project/x//y', '/project/%00']) expect(() => publishedPageFile(route, '/project/')).toThrow('Unsafe');
@@ -175,6 +283,7 @@ describe("Vite vault integration", () => {
   it("emits semantic clean-route pages with actual bundled JS/CSS and binary assets, including preview", async () => {
     const { root, vault, configPath } = await fixture("/project/");
     await build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: "silent", build: { minify: false } });
+    expect(compiler).toHaveBeenCalledTimes(1);
     const dist = path.join(root, "dist");
     const homeHtml = await readFile(path.join(dist, "index.html"), "utf8");
     const gardenHtml = await readFile(path.join(dist, "field-notes", "digital-gardens", "index.html"), "utf8");
@@ -223,6 +332,20 @@ describe("Vite vault integration", () => {
     expect(imageRange.status).toBe(206);
     expect([...new Uint8Array(await imageRange.arrayBuffer())]).toEqual([2, 3]);
   }, 15000);
+
+  it('reuses one compiled snapshot across dev transforms and module loads until an edit', async () => {
+    const { root } = await fixture('/project/');
+    const { server, origin } = await start(root);
+    for (const route of ['/project/', '/project/field-notes/digital-gardens', '/project/', '/project/missing']) {
+      const response = await fetch(origin + route);
+      expect(response.status).toBe(route.endsWith('/missing') ? 404 : 200);
+      const document = new JSDOM(await response.text()).window.document;
+      expect(document.querySelectorAll('#static-content')).toHaveLength(1);
+      expect(document.querySelectorAll('#published-theme')).toHaveLength(1);
+    }
+    await server.ssrLoadModule('virtual:published-site');
+    expect(compiler).toHaveBeenCalledTimes(1);
+  });
 
   it('returns true semantic 404s for missing dev routes and resources without swallowing Vite modules', async () => {
     const { root } = await fixture('/project/');
@@ -414,6 +537,25 @@ describe("Vite vault integration", () => {
     await mkdir(path.join(root, 'public'));
     await writeFile(path.join(root, 'public', '404.html'), 'private override');
     await expect(build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: 'silent' })).rejects.toThrow('output collision');
+  });
+
+  it('rejects normalized and reverse-order output collisions without rejecting sibling directories', async () => {
+    const { root } = await fixture();
+    for (const keys of [
+      ['_assets/FILE.png', '_assets/file.png'],
+      ['_assets/caf\u00e9.png', '_assets/cafe\u0301.png'],
+      ['_assets/folder/child.png', '_assets/folder'],
+      ['_assets/folder', '_assets/folder/child.png'],
+    ]) {
+      compiler.mockImplementation(async config => ({ ...(await fakeCompile(config)), assets: new Map(keys.map(key => [key, new Uint8Array([1])])) }));
+      await expect(build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: 'silent' })).rejects.toThrow('output collision');
+    }
+    compiler.mockImplementation(async config => ({ ...(await fakeCompile(config)), assets: new Map([
+      ['_assets/folder/a.png', new Uint8Array([1])], ['_assets/folder/b.png', new Uint8Array([2])],
+      ['_assets/folder-other/c.png', new Uint8Array([3])],
+    ]) }));
+    await build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: 'silent' });
+    expect([...await readFile(path.join(root, 'dist', '_assets', 'folder', 'b.png'))]).toEqual([2]);
   });
 
   it("rejects unsafe compiler asset outputs before publishing any bundle", async () => {

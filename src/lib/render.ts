@@ -5,7 +5,7 @@ import type { Note, VaultFile } from '../types';
 import { renderBase } from './bases';
 import { findBlockRange } from './blocks';
 import { createMarkdown, plainInline, stripComments } from './markdown';
-import { resolveLink, resolveNote } from './model';
+import { resolveLink } from './model';
 import { sanitizeHtml, sanitizeSvg } from './sanitize';
 import type { Sanitizers } from './sanitize';
 import { basename, decodeTarget, dirname, escapeHtml, internalLink, normalizePath, uniqueHeadingId } from './utils';
@@ -27,17 +27,44 @@ const mimeTypes: Record<string, string> = {
   mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', flac: 'audio/flac',
   mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', pdf: 'application/pdf',
 };
+interface FileIndex {
+  exact: Map<string, VaultFile>;
+  names: Map<string, VaultFile>;
+  folders: Map<string, Map<string, VaultFile>>;
+}
+const fileIndexes = new WeakMap<VaultFile[], FileIndex>();
+const fileKey = (value: string) => normalizePath(value).toLocaleLowerCase();
+function fileIndex(files: VaultFile[]): FileIndex {
+  const cached = fileIndexes.get(files);
+  if (cached) return cached;
+  const index: FileIndex = { exact: new Map(), names: new Map(), folders: new Map() };
+  // Exact-path collisions retain input order, as before. Basename collisions use
+  // lexical order, preferring the host's parent folder without scanning the vault.
+  for (const file of files) {
+    const key = fileKey(file.path);
+    if (!index.exact.has(key)) index.exact.set(key, file);
+    const name = fileKey(basename(file.path));
+    const folder = dirname(file.path);
+    let local = index.folders.get(folder);
+    if (!local) index.folders.set(folder, local = new Map());
+    for (const candidates of [index.names, local]) {
+      const previous = candidates.get(name);
+      if (!previous || file.path.localeCompare(previous.path) < 0) candidates.set(name, file);
+    }
+  }
+  fileIndexes.set(files, index);
+  return index;
+}
 function resolveFile(target: string, context: RenderContext): VaultFile | undefined {
   const path = decodeTarget(target.split('#')[0].split('|')[0].trim());
-  const local = normalizePath(`${dirname(context.note.path)}/${path}`);
-  const normalized = normalizePath(path);
-  const key = (value: string) => normalizePath(value).toLocaleLowerCase();
-  const find = (value: string) => context.files.find(file => key(file.path) === key(value));
-  if (/^\.\.?\//.test(path)) return find(local);
-  if (path.startsWith('/')) return find(normalized);
-  return find(normalized) ?? find(local)
-    ?? context.files.filter(file => key(basename(file.path)) === key(basename(path)))
-      .sort((a, b) => Number(dirname(b.path) === context.note.folder) - Number(dirname(a.path) === context.note.folder) || a.path.localeCompare(b.path))[0];
+  const local = fileKey(`${context.note.folder}/${path}`);
+  const normalized = fileKey(path);
+  const index = fileIndex(context.files);
+  if (/^\.\.?\//.test(path)) return index.exact.get(local);
+  if (path.startsWith('/')) return index.exact.get(normalized);
+  const name = fileKey(basename(path));
+  return index.exact.get(normalized) ?? index.exact.get(local)
+    ?? index.folders.get(context.note.folder)?.get(name) ?? index.names.get(name);
 }
 function assetSource(file: VaultFile): string {
   const mime = file.mime ?? mimeTypes[basename(file.path).split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
@@ -77,9 +104,23 @@ function assetHtml(file: VaultFile, alias: string, target: string, context: Rend
   }
   return `<span class="embed-unsupported">Unsupported asset: ${escapeHtml(target)}</span>`;
 }
+const mathCache = new Map<string, string>();
 function mathHtml(source: string, displayMode: boolean): string {
-  try { return katex.renderToString(source, { displayMode, throwOnError: false, trust: false, strict: 'ignore', maxExpand: 1000, output: 'htmlAndMathml' }); }
-  catch { return `<span class="math-error">${escapeHtml(source)}</span>`; }
+  const key = `${displayMode ? 'block' : 'inline'}:${source}`;
+  const cached = mathCache.get(key);
+  if (cached !== undefined) {
+    mathCache.delete(key);
+    mathCache.set(key, cached);
+    return cached;
+  }
+  let html: string;
+  try { html = katex.renderToString(source, { displayMode, throwOnError: false, trust: false, strict: 'ignore', maxExpand: 1000, output: 'htmlAndMathml' }); }
+  catch { html = `<span class="math-error">${escapeHtml(source)}</span>`; }
+  if (source.length <= 4096 && html.length <= 65536) {
+    mathCache.set(key, html);
+    if (mathCache.size > 128) mathCache.delete(mathCache.keys().next().value!);
+  }
+  return html;
 }
 function missingLink(target: string, label: string): string {
   return `<a class="internal-link is-unresolved" data-note="${escapeHtml(target.split('#')[0])}" data-anchor="" href="#" aria-disabled="true">${escapeHtml(label)}</a>`;
@@ -108,39 +149,77 @@ function wikiHtml(content: string, embed: boolean, context: RenderContext): stri
   if (context.depth >= MAX_EMBED_DEPTH || context.stack.includes(key)) {
     return `<span class="embed-limit">${internalLink(link.note.path, link.note.slug, label, link.anchor)} (embed recursion limit)</span>`;
   }
-  const markdown = transclusionBody(link.note, target);
-  if (markdown === undefined) return `<span class="embed-missing">Missing section: ${escapeHtml(target)}</span>`;
+  const section = transclusionBody(link.note, target);
+  if (section === undefined) return `<span class="embed-missing">Missing section: ${escapeHtml(target)}</span>`;
   const nested: RenderContext = { ...context, note: link.note, depth: context.depth + 1, stack: [...context.stack, key] };
-  const rendered = renderBody(markdown, nested, headingOffset(link.note, markdown));
+  section.parsed ??= parseBody(section.body);
+  const rendered = renderBody(section.parsed, nested, section.offset);
   return `<div class="note-embed" data-note="${escapeHtml(link.note.path)}" data-anchor="${escapeHtml(link.anchor)}"><div class="note-embed-title">${internalLink(link.note.path, link.note.slug, alias || link.note.title, link.anchor)}</div><div class="note-embed-content">${rendered}</div></div>`;
 }
 
-function transclusionBody(note: Note, target: string): string | undefined {
-  const fragment = decodeTarget(target.slice(target.indexOf('#') + 1));
-  if (!target.includes('#') || !fragment.trim()) return note.body;
-  const tokens = createMarkdown().parse(stripComments(note.body), {});
-  const lines = note.body.replace(/\r\n?/g, '\n').split('\n');
-  if (fragment.startsWith('^')) {
-    const range = findBlockRange(tokens, fragment.slice(1));
-    return range ? lines.slice(...range).join('\n') : undefined;
-  }
-  const link = resolveLink(`#${fragment}`, [note], note.path);
-  const headingIndex = note.headings.findIndex(heading => heading.id === link.anchor);
-  if (headingIndex < 0) return undefined;
-  const headings = tokens.filter(token => token.type === 'heading_open' && token.map);
-  const heading = headings[headingIndex];
-  if (!heading?.map) return undefined;
-  const level = Number(heading.tag.slice(1));
-  const next = headings.slice(headingIndex + 1).find(token => Number(token.tag.slice(1)) <= level);
-  return lines.slice(heading.map[0], next?.map?.[0] ?? lines.length).join('\n');
+interface RenderEnv {
+  context?: RenderContext;
+  footnotes?: unknown;
+  references?: unknown;
 }
-function headingOffset(note: Note, body: string): number {
-  const offset = note.body.indexOf(body);
-  if (offset <= 0) return 0;
-  return createMarkdown().parse(stripComments(note.body.slice(0, offset)), {}).filter(token => token.type === 'heading_open').length;
+interface ParsedBody {
+  tokens: Token[];
+  env: RenderEnv;
+}
+interface ParsedNote extends ParsedBody {
+  body: string;
+  lines: string[];
+  lineEnds: number[];
+  headings: Token[];
+  preview?: ParsedBody;
+  sections: Map<string, { body: string; offset: number; parsed?: ParsedBody } | undefined>;
+}
+const parsedNotes = new WeakMap<Note, ParsedNote>();
+function parseBody(body: string): ParsedBody {
+  const env: RenderEnv = {};
+  return { tokens: markdown.parse(stripComments(body), env), env };
+}
+function parsedNote(note: Note): ParsedNote {
+  const cached = parsedNotes.get(note);
+  if (cached?.body === note.body) return cached;
+  const lines = note.body.replace(/\r\n?/g, '\n').split('\n');
+  let length = -1;
+  const lineEnds = lines.map(line => length += line.length + 1);
+  const parsed = parseBody(note.body);
+  const result: ParsedNote = {
+    ...parsed, body: note.body, lines, lineEnds,
+    headings: parsed.tokens.filter(token => token.type === 'heading_open' && token.map),
+    sections: new Map(),
+  };
+  parsedNotes.set(note, result);
+  return result;
+}
+function transclusionBody(note: Note, target: string): { body: string; offset: number; parsed?: ParsedBody } | undefined {
+  const parsed = parsedNote(note);
+  const fragment = target.includes('#') ? decodeTarget(target.slice(target.indexOf('#') + 1)).trim() : '';
+  if (!fragment) return { body: note.body, offset: 0, parsed };
+  if (parsed.sections.has(fragment)) return parsed.sections.get(fragment);
+  let range: [number, number] | undefined;
+  let offset = 0;
+  if (fragment.startsWith('^')) {
+    range = findBlockRange(parsed.tokens, fragment.slice(1));
+    if (range) offset = parsed.headings.filter(token => token.map![0] < range![0]).length;
+  } else {
+    const link = resolveLink(`#${fragment}`, [note], note.path);
+    offset = note.headings.findIndex(heading => heading.id === link.anchor);
+    const heading = parsed.headings[offset];
+    if (heading?.map) {
+      const level = Number(heading.tag.slice(1));
+      const next = parsed.headings.slice(offset + 1).find(token => Number(token.tag.slice(1)) <= level);
+      range = [heading.map[0], next?.map?.[0] ?? parsed.lines.length];
+    }
+  }
+  const section = range ? { body: parsed.lines.slice(...range).join('\n'), offset } : undefined;
+  parsed.sections.set(fragment, section);
+  return section;
 }
 
-function configureMarkdown(context: RenderContext): MarkdownIt {
+function configureMarkdown(): MarkdownIt {
   const md = createMarkdown();
   md.inline.ruler.before('link', 'obsidian_wikilink', (state, silent) => {
     const start = state.pos;
@@ -155,7 +234,7 @@ function configureMarkdown(context: RenderContext): MarkdownIt {
     }
     state.pos = end + 2; return true;
   });
-  md.renderer.rules.obsidian_wiki = (tokens, index) => wikiHtml(tokens[index].content, tokens[index].meta.embed, context);
+  md.renderer.rules.obsidian_wiki = (tokens, index, _options, env: RenderEnv) => wikiHtml(tokens[index].content, tokens[index].meta.embed, env.context!);
   md.block.ruler.before('paragraph', 'obsidian_embed', (state, start, end, silent) => {
     if (state.sCount[start] - state.blkIndent >= 4) return false;
     const line = state.src.slice(state.bMarks[start] + state.tShift[start], state.eMarks[start]);
@@ -164,7 +243,7 @@ function configureMarkdown(context: RenderContext): MarkdownIt {
     if (!silent) { const token = state.push('obsidian_embed', '', 0); token.content = match[1]; token.map = [start, start + 1]; }
     state.line = start + 1; return true;
   });
-  md.renderer.rules.obsidian_embed = (tokens, index) => `${wikiHtml(tokens[index].content, true, context)}\n`;
+  md.renderer.rules.obsidian_embed = (tokens, index, _options, env: RenderEnv) => `${wikiHtml(tokens[index].content, true, env.context!)}\n`;
   md.inline.ruler.after('escape', 'obsidian_math', (state, silent) => {
     const start = state.pos;
     const bracket = state.src.startsWith('\\(', start);
@@ -202,7 +281,8 @@ function configureMarkdown(context: RenderContext): MarkdownIt {
     state.pos = end + 2; return true;
   });
   const defaultLink = md.renderer.rules.link_open ?? ((tokens, index, options, _env, renderer) => renderer.renderToken(tokens, index, options));
-  md.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
+  md.renderer.rules.link_open = (tokens, index, options, env: RenderEnv, renderer) => {
+    const context = env.context!;
     const token = tokens[index]; const href = token.attrGet('href') ?? '';
     if (!/^(?:[a-z][\w+.-]*:|\/\/)/i.test(href)) {
       const link = resolveLink(href, context.notes, context.note.path);
@@ -223,15 +303,18 @@ function configureMarkdown(context: RenderContext): MarkdownIt {
     return defaultLink(tokens, index, options, env, renderer);
   };
   const defaultImage = md.renderer.rules.image!;
-  md.renderer.rules.image = (tokens, index, options, env, renderer) => {
+  md.renderer.rules.image = (tokens, index, options, env: RenderEnv, renderer) => {
+    const context = env.context!;
     const token = tokens[index]; const source = token.attrGet('src') ?? '';
     const file = resolveFile(source, context);
     if (file?.kind === 'asset') return assetHtml(file, token.content, source, context);
     token.attrSet('loading', 'lazy');
     return defaultImage(tokens, index, options, env, renderer);
   };
+  configureDecorations(md);
   return md;
 }
+const markdown = configureMarkdown();
 
 function decorateTokens(tokens: Token[], md: MarkdownIt, context: RenderContext, offset: number): void {
   const seen = new Map<string, number>();
@@ -255,7 +338,7 @@ function decorateTokens(tokens: Token[], md: MarkdownIt, context: RenderContext,
       if (match) {
         const type = match[1].toLowerCase().replace(/[^a-z0-9-]/g, '') || 'note';
         const title = match[3]?.trim() || type.replace(/-/g, ' ').replace(/^./, value => value.toUpperCase());
-        token.meta = { callout: true, type, title: md.renderInline(title), fold: match[2] };
+        token.meta = { callout: true, type, title: md.renderInline(title, { context }), fold: match[2] };
         inline.content = inline.content.slice(match[0].length);
         inline.children = md.parseInline(inline.content, {})[0].children;
         if (!inline.content) {
@@ -308,6 +391,8 @@ function decorateTokens(tokens: Token[], md: MarkdownIt, context: RenderContext,
     }
     if (token.nesting === -1) ancestors.pop();
   }
+}
+function configureDecorations(md: MarkdownIt): void {
   for (const type of ['fence', 'code_block']) {
     const original = md.renderer.rules[type]!;
     md.renderer.rules[type] = (items, index, options, env, renderer) => {
@@ -335,30 +420,50 @@ function decorateTokens(tokens: Token[], md: MarkdownIt, context: RenderContext,
     return `${renderer.renderToken(items, index, options)}${id ? `<span id="${escapeHtml(id)}" class="block-anchor"></span>` : ''}`;
   };
 }
-function renderBody(body: string, context: RenderContext, offset = 0): string {
-  const md = configureMarkdown(context);
-  const env = {};
-  const tokens = md.parse(stripComments(body), env);
-  decorateTokens(tokens, md, context, offset);
-  return md.renderer.render(tokens, md.options, env);
+function cloneTokens(tokens: Token[]): Token[] {
+  // Renderer rules and decoration mutate attributes/content. Cached source tokens
+  // must remain pristine across previews, hosts and recursive transclusions.
+  return tokens.map(token => {
+    const copy = Object.assign(new Token(token.type, token.tag, token.nesting), token);
+    copy.attrs = token.attrs?.map(([name, value]) => [name, value]) ?? null;
+    copy.map = token.map ? [...token.map] : null;
+    copy.children = token.children ? cloneTokens(token.children) : null;
+    copy.meta = token.meta ? { ...token.meta } : token.meta;
+    return copy;
+  });
+}
+function renderBody(parsed: ParsedBody, context: RenderContext, offset = 0): string {
+  const tokens = cloneTokens(parsed.tokens);
+  const env: RenderEnv = { ...parsed.env, context };
+  decorateTokens(tokens, markdown, context, offset);
+  return markdown.renderer.render(tokens, markdown.options, env);
 }
 
 export function renderMarkdown(note: Note, notes: Note[], files: VaultFile[], sanitizers: Sanitizers = { sanitizeHtml, sanitizeSvg }): string {
   const pdfEmbeds = new Map<string, string>();
   const svgEmbeds = new Map<string, string>();
-  return sanitizers.sanitizeHtml(renderBody(note.body, { note, notes, files, sanitizers, depth: 0, stack: [`${note.path}#`], pdfEmbeds, svgEmbeds }), pdfEmbeds, svgEmbeds);
+  return sanitizers.sanitizeHtml(renderBody(parsedNote(note), { note, notes, files, sanitizers, depth: 0, stack: [`${note.path}#`], pdfEmbeds, svgEmbeds }), pdfEmbeds, svgEmbeds);
 }
 
 /** Lightweight, sanitized excerpt: omit recursive embeds and trim at complete block boundaries. */
 export function renderPreview(note: Note, notes: Note[], files: VaultFile[], sanitizers: Sanitizers = { sanitizeHtml, sanitizeSvg }): string {
-  const tokens = createMarkdown().parse(stripComments(note.body), {});
-  let end = 0;
-  for (const token of tokens) {
-    if (token.map) end = Math.max(end, token.map[1]);
-    if (end && note.body.split('\n').slice(0, end).join('\n').length >= 600 && token.level === 0) break;
+  const parsed = parsedNote(note);
+  if (!parsed.preview) {
+    let end = 0;
+    for (const token of parsed.tokens) {
+      if (token.map) end = Math.max(end, token.map[1]);
+      if (end && (parsed.lineEnds[end - 1] ?? 0) >= 600 && token.level === 0) break;
+    }
+    end ||= Math.min(12, parsed.lines.length);
+    let cutoff = parsed.tokens.findIndex(token => token.map && token.map[0] >= end);
+    if (cutoff < 0) cutoff = parsed.tokens.length;
+    // References/footnotes are source-scoped: reparsing only the excerpt keeps
+    // definitions outside it from changing link text or adding an unseen tail.
+    parsed.preview = end < parsed.lines.length && (parsed.env.footnotes || parsed.env.references)
+      ? parseBody(parsed.lines.slice(0, end).join('\n'))
+      : { tokens: parsed.tokens.slice(0, cutoff), env: parsed.env };
   }
-  const body = note.body.split('\n').slice(0, end || 12).join('\n');
   const pdfEmbeds = new Map<string, string>();
   const svgEmbeds = new Map<string, string>();
-  return sanitizers.sanitizeHtml(renderBody(body, { note, notes, files, sanitizers, depth: MAX_EMBED_DEPTH, stack: [], preview: true, pdfEmbeds, svgEmbeds }), pdfEmbeds, svgEmbeds);
+  return sanitizers.sanitizeHtml(renderBody(parsed.preview, { note, notes, files, sanitizers, depth: MAX_EMBED_DEPTH, stack: [], preview: true, pdfEmbeds, svgEmbeds }), pdfEmbeds, svgEmbeds);
 }

@@ -1,14 +1,11 @@
 import type { Heading, Note, VaultFile } from '../types';
 import { createMarkdown, plainInline, splitFrontmatter, stripComments } from './markdown';
 import { basename, decodeTarget, dirname, headingAnchor, normalizePath, noteHref, slugify, stripExtension, uniqueHeadingId } from './utils';
+import { findNoteCandidate, getNoteIndex, notePathKey } from './noteIndex';
 
 export { slugify } from './utils';
+export { invalidateNoteIndex } from './noteIndex';
 const markdown = createMarkdown();
-
-function aliases(note: Note): string[] {
-  const value = note.properties.aliases ?? note.properties.alias;
-  return (Array.isArray(value) ? value : value == null ? [] : [value]).filter(item => typeof item === 'string');
-}
 
 export function buildNotes(files: VaultFile[]): Note[] {
   const usedSlugs = new Set<string>();
@@ -62,17 +59,16 @@ export function buildNotes(files: VaultFile[]): Note[] {
 }
 
 export function resolveNote(target: string, notes: Note[], currentPath?: string): Note | undefined {
-  let path = decodeTarget(target.trim().replace(/^!?\[\[|\]\]$/g, '').split('|')[0].split('#')[0]);
-  if (!path) return currentPath ? notes.find(note => normalizePath(note.path) === normalizePath(currentPath)) : undefined;
-  if (/^(?:[a-z][\w+.-]*:|\/\/)/i.test(path)) return undefined;
-  const relative = /^\.\.?\//.test(path);
-  const rooted = path.startsWith('/');
-  path = normalizePath(path);
-  // Resolve explicit relative paths before normalizing away their parent segments.
   const original = decodeTarget(target.trim().replace(/^!?\[\[|\]\]$/g, '').split('|')[0].split('#')[0]);
+  if (!original) return currentPath ? getNoteIndex(notes).selfPaths.get(normalizePath(currentPath)) : undefined;
+  if (/^(?:[a-z][\w+.-]*:|\/\/)/i.test(original)) return undefined;
+  const relative = /^\.\.?\//.test(original);
+  const rooted = original.startsWith('/');
+  const path = normalizePath(original);
+  // Resolve explicit relative paths before normalizing away their parent segments.
   const localPath = normalizePath(`${currentPath ? dirname(currentPath) : ''}/${original}`);
-  const key = (value: string) => stripExtension(normalizePath(value)).toLocaleLowerCase();
-  const find = (value: string) => notes.find(note => key(note.path) === key(value));
+  const index = getNoteIndex(notes);
+  const find = (value: string) => index.paths.get(notePathKey(value));
   if (relative) return find(localPath);
   if (rooted) return find(path);
   const exact = find(path);
@@ -81,17 +77,7 @@ export function resolveNote(target: string, notes: Note[], currentPath?: string)
     const local = find(localPath);
     if (local) return local;
   }
-  const name = stripExtension(basename(path)).toLocaleLowerCase();
-  const candidates = notes.filter(note => stripExtension(basename(note.path)).toLocaleLowerCase() === name
-    || note.slug === path || aliases(note).some(alias => alias.toLocaleLowerCase() === path.toLocaleLowerCase()));
-  const folder = currentPath ? dirname(currentPath).split('/') : [];
-  const proximity = (note: Note) => {
-    const parts = note.folder.split('/');
-    let count = 0;
-    while (count < folder.length && parts[count] === folder[count]) count++;
-    return count;
-  };
-  return candidates.sort((a, b) => proximity(b) - proximity(a) || a.path.localeCompare(b.path))[0];
+  return findNoteCandidate(index, path, currentPath ? dirname(currentPath).split('/') : []);
 }
 
 export function resolveLink(target: string, notes: Note[], currentPath?: string): { note?: Note; anchor: string; href: string } {
@@ -104,8 +90,25 @@ export function resolveLink(target: string, notes: Note[], currentPath?: string)
 }
 
 export function getBacklinks(note: Note, notes: Note[]): Note[] {
-  return notes.filter(candidate => candidate.path !== note.path
-    && candidate.links.some(link => resolveNote(link, notes, candidate.path)?.path === note.path));
+  const index = getNoteIndex(notes);
+  if (!index.backlinks) {
+    const backlinks = new Map<string, Note[]>();
+    for (const candidate of notes) {
+      const targets = new Set<string>();
+      for (const link of candidate.links) {
+        const target = resolveNote(link, notes, candidate.path);
+        if (target && target.path !== candidate.path) targets.add(target.path);
+      }
+      for (const path of targets) {
+        const sources = backlinks.get(path);
+        if (sources) sources.push(candidate);
+        else backlinks.set(path, [candidate]);
+      }
+    }
+    index.backlinks = backlinks;
+  }
+  // Keep the original fresh-array contract: callers cannot mutate cached lists.
+  return index.backlinks.get(note.path)?.slice() ?? [];
 }
 
 export { searchNotes } from './search';

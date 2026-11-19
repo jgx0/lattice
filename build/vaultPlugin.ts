@@ -7,6 +7,7 @@ import { loadConfig, normalizeBase } from "./config";
 import { compileVault } from "./compile";
 import {
   absoluteShellReferences,
+  createPageRenderer,
   findPublishedNote,
   homeNote,
   publishedPageFile,
@@ -280,8 +281,8 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
           const note = findPublishedNote(current.site, (request.url ?? "/").split("?")[0]);
           if (!note) return next();
           const template = await readFile(path.join(projectRoot, "index.html"), "utf8");
-          const transformed = await server!.transformIndexHtml(request.url ?? "/", template);
-          const html = renderPublishedPage(transformed, current.site, note);
+          // transformIndexHtml already renders this matched note in our post hook.
+          const html = await server!.transformIndexHtml(request.url ?? "/", template);
           sendHtml(request, response, html);
         } catch (error) { next(error); }
       });
@@ -328,28 +329,37 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
         const shell = absoluteShellReferences(typeof index.source === "string" ? index.source : Buffer.from(index.source).toString("utf8"), configuration.base);
         // Reserve all outputs before emitting. Rollup may rename duplicate emitFile names;
         // file/directory conflicts and publicDir overwrites must instead fail visibly.
-        const outputs = new Map<string, string>();
+        const outputs = new Map<string, string>(), directories = new Map<string, string>();
         const reserve = (file: string, owner: string) => {
           assetFile(file);
           const key = file.normalize('NFC').toLowerCase();
-          for (const [existing, previous] of outputs) {
-            if (key === existing || key.startsWith(existing + '/') || existing.startsWith(key + '/')) {
-              this.error(`Published output collision: ${owner} (${file}) conflicts with ${previous}`);
-            }
+          const segments = key.split('/');
+          let previous = outputs.get(key) ?? directories.get(key), parent = '';
+          for (const segment of segments.slice(0, -1)) {
+            parent = parent ? `${parent}/${segment}` : segment;
+            previous ??= outputs.get(parent);
           }
+          if (previous !== undefined) this.error(`Published output collision: ${owner} (${file}) conflicts with ${previous}`);
           outputs.set(key, owner);
+          parent = '';
+          for (const segment of segments.slice(0, -1)) {
+            parent = parent ? `${parent}/${segment}` : segment;
+            if (!directories.has(parent)) directories.set(parent, owner);
+          }
         };
         for (const file of Object.keys(bundle)) reserve(file, `bundle ${file}`);
         for (const file of publicFiles) reserve(file, `publicDir ${file}`);
         reserve(BASE_MANIFEST, 'deployment base manifest');
         reserve('404.html', 'missing-page shell');
         for (const key of current.assets.keys()) reserve(key, `vault asset ${key}`);
-        for (const note of current.site.notes) {
-          const file = publishedPageFile(note.url, configuration.base);
-          if (file === 'index.html' && note.path === homeNote(current.site)?.path) continue;
-          reserve(file, `note ${note.path}`);
+        const home = homeNote(current.site);
+        const pages = current.site.notes.map(note => ({ note, fileName: publishedPageFile(note.url, configuration.base) }));
+        for (const { note, fileName } of pages) {
+          if (fileName === 'index.html' && note.path === home?.path) continue;
+          reserve(fileName, `note ${note.path}`);
         }
-        index.source = renderPublishedPage(shell, current.site, homeNote(current.site));
+        const renderPage = createPageRenderer(shell, current.site);
+        index.source = renderPage(home);
         this.emitFile({ type: 'asset', fileName: '404.html', source: renderNotFoundPage(shell, current.site) });
         this.emitFile({ type: "asset", fileName: BASE_MANIFEST, source: JSON.stringify({ version: 1, base: configuration.base }) });
         for (const [key, source] of current.assets) {
@@ -357,11 +367,10 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
           if (bundle[fileName]) this.error(`Published asset collides with a build output: ${fileName}`);
           this.emitFile({ type: "asset", fileName, source });
         }
-        for (const note of current.site.notes) {
-          const fileName = publishedPageFile(note.url, configuration.base);
+        for (const { note, fileName } of pages) {
           if (fileName === "index.html") continue;
           if (bundle[fileName]) this.error(`Published page collides with a build output: ${fileName}`);
-          this.emitFile({ type: "asset", fileName, source: renderPublishedPage(shell, current.site, note) });
+          this.emitFile({ type: "asset", fileName, source: renderPage(note) });
         }
       },
     },

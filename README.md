@@ -268,6 +268,22 @@ The documentation lives **inside the demo vault** and is published through the s
 - [Troubleshooting](vault/About/Troubleshooting.md).
 - [Contributing](vault/About/Contributing.md).
 
+## Large vaults and build performance
+
+Large vaults no longer repeat a whole-vault scan for every backlink. Lattice builds lookup indexes and the backlink graph once, reuses parsed Markdown for pages and previews, rewrites URLs in the already-sanitized DOM, and prepares the navigation and HTML shell once per build. These optimizations do not skip sanitization or privacy filtering.
+
+A repeatable synthetic benchmark is included:
+
+```sh
+npm run benchmark:build -- --notes 1000
+```
+
+It creates temporary notes with six links each, headings, tasks, occasional transclusions, and Bases, then reports compilation time, HTML-generation time, and memory. It deletes its temporary vault afterward; your own vault is not modified.
+
+On the development machine, the 300-note benchmark improved from **161 seconds to 2.5 seconds**. The optimized 1,000-note and 3,000-note runs took about **7.6 seconds** and **27.6 seconds** respectively. These measure vault compilation and HTML generation, not the complete Vite bundle or disk-write time; actual results depend on your notes, media, and hardware.
+
+Each static page still includes the full file navigation so it works without JavaScript. That means output size grows quickly with very large vaults: the 3,000-note benchmark generated roughly 1.6 GiB of HTML and used about 939 MiB of process memory. Exclude folders you do not intend to publish rather than building an entire private archive. The live server still recompiles the vault after an edit so transclusions, Bases, and privacy changes stay consistent.
+
 ## Safety and verification
 
 Private notes are filtered before rendering, so they cannot enter embeds, Bases rows, previews, search or graph data. Invalid publication metadata fails the build rather than silently publishing a private note. Vault symlinks are skipped, source/output boundaries are checked, and raw vault/config access is blocked by the live server.

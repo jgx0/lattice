@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import MarkdownIt from 'markdown-it';
+import { JSDOM } from 'jsdom';
+import type { WindowLike } from 'dompurify';
 import type { VaultFile } from '../types';
+import { createSanitizers } from './sanitize';
 import { buildNotes } from './model';
 import { renderMarkdown, renderPreview } from './render';
 
@@ -91,6 +95,112 @@ describe('Obsidian rendering', () => {
     expect(safeSvg).not.toMatch(/<script|foreignObject|onload|tracker/);
     expect(html).not.toContain('data-svg-capability');
   });
+  it('reuses one pristine parse for huge-note previews and full renders', () => {
+    const files: VaultFile[] = [{ path: 'Large.md', kind: 'note', content: '# Large\n\n' + 'A long paragraph with **formatting**.\n\n'.repeat(3000) }];
+    const notes = buildNotes(files);
+    const parse = vi.spyOn(MarkdownIt.prototype, 'parse');
+    try {
+      const preview = renderPreview(notes[0], notes, files);
+      expect(preview).toContain('<strong>formatting</strong>');
+      expect(preview.length).toBeLessThan(2000);
+      const html = renderMarkdown(notes[0], notes, files);
+      expect(html.match(/<strong>/g)).toHaveLength(3000);
+      expect(renderPreview(notes[0], notes, files)).toBe(preview);
+      expect(parse).toHaveBeenCalledTimes(1);
+    } finally { parse.mockRestore(); }
+  });
+  it('keeps previews at complete list, table, quote and fence boundaries', () => {
+    for (const block of [
+      '- ' + 'List item '.repeat(70) + '\n- Last item',
+      '> ' + 'Quoted text '.repeat(70) + '\n> Last quote',
+      '| Header |\n| --- |\n| ' + 'Table text '.repeat(70) + ' |\n| Last cell |',
+      '```text\n' + 'Literal text '.repeat(70) + '\nLast code line\n```',
+    ]) {
+      const files: VaultFile[] = [{ path: 'Host.md', kind: 'note', content: block + '\n\nAFTER EXCERPT' }];
+      const notes = buildNotes(files);
+      const preview = renderPreview(notes[0], notes, files);
+      expect(preview).toContain('Last');
+      expect(preview).not.toContain('AFTER EXCERPT');
+      expect(preview).toBe(renderMarkdown(notes[0], notes, files).split('<p>AFTER EXCERPT')[0]);
+    }
+  });
+  it('preserves excerpt-scoped reference and footnote definitions', () => {
+    const content = '[outside][ref] and note[^a]\n\n' + 'Long paragraph '.repeat(60)
+      + '\n\nNot in preview\n\n[ref]: https://example.com\n[^a]: Outside footnote';
+    const files: VaultFile[] = [{ path: 'Host.md', kind: 'note', content }];
+    const notes = buildNotes(files);
+    const preview = renderPreview(notes[0], notes, files);
+    expect(preview).toContain('[outside][ref]');
+    expect(preview).toContain('[^a]');
+    expect(preview).not.toContain('footnote');
+    expect(preview).not.toContain('https://example.com');
+    const full = renderMarkdown(notes[0], notes, files);
+    expect(full).toContain('Outside footnote');
+    expect(full).toContain('https://example.com');
+  });
+  it('caches transclusion sources and section parses while retaining duplicate heading offsets', () => {
+    const files: VaultFile[] = [
+      { path: 'Host.md', kind: 'note', content: '![[Other#repeat-1]]\n\n![[Other#repeat-1]]\n\n![[Other#^second]]' },
+      { path: 'Other.md', kind: 'note', content: '## Repeat\nFirst\n\n## Repeat\nSecond\n\n^second\n\n## Last\nLast' },
+    ];
+    const notes = buildNotes(files);
+    const parse = vi.spyOn(MarkdownIt.prototype, 'parse');
+    try {
+      const html = renderMarkdown(notes[0], notes, files);
+      const document = new DOMParser().parseFromString(html, 'text/html');
+      expect(document.querySelectorAll('h2#repeat-1')).toHaveLength(2);
+      expect(document.querySelector('#second')?.textContent).toBe('Second');
+      expect(parse).toHaveBeenCalledTimes(4); // host, source, heading section, block section
+      expect(renderMarkdown(notes[0], notes, files)).toBe(html);
+      expect(parse).toHaveBeenCalledTimes(4);
+    } finally { parse.mockRestore(); }
+  });
+  it('isolates render contexts and mutations across previews, hosts and nested embeds', () => {
+    const files: VaultFile[] = [
+      { path: 'A/Host.md', kind: 'note', content: '> [!tip] [[../Target|Callout link]]\n> - [x] [Target](../Target.md)\n\n![[B/Host]]' },
+      { path: 'B/Host.md', kind: 'note', content: '> [!tip] [[../Other|Other link]]\n> - [ ] [Other](../Other.md)' },
+      { path: 'Target.md', kind: 'note', content: '# Target' },
+      { path: 'Other.md', kind: 'note', content: '# Other' },
+    ];
+    const notes = buildNotes(files);
+    const html = renderMarkdown(notes[0], notes, files);
+    renderPreview(notes[0], notes, files);
+    renderMarkdown(notes[1], notes, files);
+    expect(renderMarkdown(notes[0], notes, files)).toBe(html);
+    const document = new DOMParser().parseFromString(html, 'text/html');
+    expect(document.querySelector('.callout-title a')?.getAttribute('data-note')).toBe('Target.md');
+    expect(document.querySelector('.note-embed .callout-title a')?.getAttribute('data-note')).toBe('Other.md');
+    expect(document.querySelectorAll('input')).toHaveLength(2);
+    expect(document.querySelectorAll('input[checked]')).toHaveLength(1);
+  });
+  it('indexes exact, relative and basename asset paths with deterministic folder preferences', () => {
+    const asset = (path: string, data: string): VaultFile => ({ path, kind: 'asset', content: '', mime: 'image/png', data });
+    const files: VaultFile[] = [
+      { path: 'B/Host.md', kind: 'note', content: '![[PIC.png]]\n\n![[../A/pic.png]]\n\n![[/A/pic.png]]\n\n![[unknown/pic.png]]\n\n![[shared.png]]\n\n![[root.png]]\n\n![[encoded%20name.png]]' },
+      asset('Z/pic.png', 'Wlpa'), asset('B/pic.png', 'QkJC'), asset('A/pic.png', 'QUFB'),
+      asset('Z/shared.png', 'Wlpa'), asset('A/shared.png', 'QUFB'),
+      asset('B/root.png', 'QkJC'), asset('root.png', 'Uk9PVA=='), asset('B/encoded name.png', 'QUFB'),
+    ];
+    const notes = buildNotes(files);
+    const find = vi.spyOn(files, 'find');
+    const filter = vi.spyOn(files, 'filter');
+    try {
+      const document = new DOMParser().parseFromString(renderMarkdown(notes[0], notes, files), 'text/html');
+      expect([...document.querySelectorAll('img')].map(element => element.getAttribute('src')?.split(',')[1]))
+        .toEqual(['QkJC', 'QUFB', 'QUFB', 'QkJC', 'QUFB', 'Uk9PVA==', 'QUFB']);
+      renderMarkdown(notes[0], notes, files);
+      expect(find).not.toHaveBeenCalled();
+      expect(filter).not.toHaveBeenCalled();
+    } finally { find.mockRestore(); filter.mockRestore(); }
+  });
+  it('invalidates parsed tokens when a Note body is replaced', () => {
+    const files: VaultFile[] = [{ path: 'Host.md', kind: 'note', content: 'Before' }];
+    const notes = buildNotes(files);
+    expect(renderPreview(notes[0], notes, files)).toContain('Before');
+    notes[0].body = 'After';
+    expect(renderMarkdown(notes[0], notes, files)).toContain('After');
+    expect(renderPreview(notes[0], notes, files)).not.toContain('Before');
+  });
   it('renders safe bounded previews', () => {
     const { notes, files } = render('Intro\n\n![[Other]]\n\n' + 'Long text '.repeat(100), [{ path: 'Other.md', kind: 'note', content: 'Embeddable' }]);
     const html = renderPreview(notes[0], notes, files);
@@ -100,6 +210,85 @@ describe('Obsidian rendering', () => {
 });
 
 describe('HTML security', () => {
+  it('rejects unsupported DOM adapters instead of returning unsanitized input', () => {
+    expect(() => createSanitizers({} as WindowLike)).toThrow('supported DOM');
+  });
+  it('transforms only the sanitized DOM and serializes it without another parse', () => {
+    const transformHtml = vi.fn((body: HTMLElement) => {
+      expect(body.querySelector('script,[onclick],[onerror],[srcdoc]')).toBeNull();
+      expect(body.querySelector('a')?.hasAttribute('href')).toBe(false);
+      for (const link of body.querySelectorAll('a[data-note]')) link.setAttribute('href', '/published/target/');
+    });
+    const sanitizers = createSanitizers(window, { transformHtml });
+    const parse = vi.spyOn(DOMParser.prototype, 'parseFromString');
+    try {
+      const html = sanitizers.sanitizeHtml('<script>bad()</script><a data-note="Target.md" href="javascript:bad()" onclick="bad()">Target</a><img onerror="bad()" src="x">');
+      expect(transformHtml).toHaveBeenCalledTimes(1);
+      expect(html).toContain('href="/published/target/"');
+      expect(html).not.toMatch(/javascript:|<script|onclick|onerror/);
+      expect(parse).toHaveBeenCalledTimes(1); // DOMPurify's initial parse only
+    } finally { parse.mockRestore(); }
+  });
+  it('resets PDF/SVG capabilities on reused sanitizers and never trusts raw lookalikes', () => {
+    const sanitizers = createSanitizers(window);
+    const source = 'data:application/pdf;base64,JVBERg==';
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1"/></svg>';
+    const svgSource = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitizers.sanitizeSvg(svg))}`;
+    const files: VaultFile[] = [
+      { path: 'Host.md', kind: 'note', content: '![[doc.pdf]]\n\n![[image.svg]]' },
+      { path: 'doc.pdf', kind: 'asset', content: '', mime: 'application/pdf', data: source },
+      { path: 'image.svg', kind: 'asset', content: svg, mime: 'image/svg+xml', data: `data:image/svg+xml,${encodeURIComponent(svg)}` },
+    ];
+    const notes = buildNotes(files);
+    const generated = renderMarkdown(notes[0], notes, files, sanitizers);
+    expect(generated).toContain(source);
+    expect(generated).toContain('data:image/svg+xml');
+    expect(generated).not.toMatch(/data-(?:pdf|svg)-capability/);
+    const trusted = `<iframe src="${source}" data-pdf-capability="pdf"></iframe><img src="${svgSource}" data-svg-capability="svg">`;
+    expect(sanitizers.sanitizeHtml(trusted, new Map([['pdf', source]]), new Map([['svg', svgSource]]))).toContain(svgSource);
+    const malicious = trusted + '<iframe src="data:text/html;base64,AAAA" srcdoc="bad"></iframe><img src="data:image/svg+xml,<svg onload=bad()>" onerror="bad()">';
+    for (let i = 0; i < 2; i++) {
+      const html = sanitizers.sanitizeHtml(malicious);
+      expect(html).not.toMatch(/<iframe|data:application\/pdf|data:image\/svg|srcdoc|onerror|data-(?:pdf|svg)-capability/);
+    }
+    expect(sanitizers.sanitizeHtml(trusted, new Map([['pdf', 'data:application/pdf;base64,AAAA']]), new Map([['svg', 'different']]))).not.toContain(source);
+  });
+  it('isolates factory DOMs, HTML/SVG hooks, and identical-source SVG caching', () => {
+    const dom = new JSDOM('');
+    try {
+      const transformHtml = vi.fn((body: HTMLElement) => {
+        expect(body).toBeInstanceOf(dom.window.HTMLElement);
+        body.querySelector('a')?.setAttribute('href', '/one/');
+      });
+      const first = createSanitizers(dom.window, { transformHtml });
+      const second = createSanitizers(window);
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://tracker.test/image"/><rect onload="bad()"/></svg>';
+      expect(first.sanitizeSvg(svg)).not.toMatch(/tracker|onload/);
+      expect(first.sanitizeSvg(svg)).toBe(first.sanitizeSvg(svg));
+      expect(first.sanitizeSvg(svg.replace('rect', 'circle'))).toContain('<circle');
+      expect(first.sanitizeHtml('<a href="https://example.com">link</a>')).toContain('/one/');
+      expect(second.sanitizeHtml('<a href="https://example.com">link</a>')).toContain('https://example.com');
+      expect(transformHtml).toHaveBeenCalledTimes(1);
+      expect(first.sanitizeHtml('')).toBe('');
+    } finally { dom.window.close(); }
+  });
+  it('fails closed on callback errors/reentrancy and resets active trust afterward', () => {
+    let fail = true;
+    let nested = false;
+    const source = 'data:application/pdf;base64,JVBERg==';
+    const sanitizers = createSanitizers(window, { transformHtml(body) {
+      expect(body.querySelector('script')).toBeNull();
+      if (fail) throw new Error('transform failed');
+      if (nested) sanitizers.sanitizeHtml('<p>nested</p>');
+    } });
+    expect(() => sanitizers.sanitizeHtml('<script>bad()</script><iframe src="' + source + '" data-pdf-capability="pdf"></iframe>', new Map([['pdf', source]]))).toThrow('transform failed');
+    fail = false;
+    expect(sanitizers.sanitizeHtml('<iframe src="' + source + '" data-pdf-capability="pdf"></iframe>')).toBe('');
+    nested = true;
+    expect(() => sanitizers.sanitizeHtml('<p>safe</p>')).toThrow('reentrantly');
+    nested = false;
+    expect(sanitizers.sanitizeHtml('<p onclick="bad()">safe</p>')).toBe('<p>safe</p>');
+  });
   it('removes event handlers, unsafe links, script/style, srcdoc and raw data iframes', () => {
     const { document, html } = render('<img src="x" onerror="alert(1)"><script>alert(1)</script>\n<a href="javascript:alert(1)" onclick="alert(1)">bad</a>\n<iframe src="data:text/html;base64,AAAA" srcdoc="bad"></iframe>\n<iframe class="pdf-embed" src="data:application/pdf;base64,JVBERg=="></iframe>\n<iframe src="https://example.com" srcdoc="<script>bad</script>"></iframe>\n<a target="_blank" href="https://example.com">safe</a>');
     expect(html).not.toMatch(/onerror|onclick|javascript:|srcdoc|<script|data:text\/html/);
