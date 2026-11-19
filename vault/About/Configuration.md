@@ -49,11 +49,14 @@ A relative `PUBLISH_CONFIG` resolves from the project root. `OBSIDIAN_VAULT` ove
 | `showBacklinks` | `true` | Incoming note links. |
 | `showGraph` | `true` | Graph panel. |
 | `stacked` | `false` | Horizontal stacked-page reading. |
+| `quickSwitcher` | `true` | Command/Ctrl+K file picker; readers can disable it in settings. |
 | `allowThemeSwitching` | `false` | Let readers choose included Obsidian themes in settings. |
 | `navigation` | `[]` | Order folders and full note paths. |
 | `hiddenPaths` | `[]` | Exclude matching vault-relative files or whole folders before rendering. |
 
 The demo deliberately sets `showProperties: false`. Reader controls can change presentation locally; they are not an authoring or access-control interface.
+
+Press **Command+K** (macOS) or **Ctrl+K** to open the quick switcher. It searches published file titles, names, paths, and aliases. Use Up/Down and Enter to choose a note; Escape dismisses it. **Reader settings → Quick switcher** turns the popup on or off and remembers the choice locally. With it disabled, the same shortcut focuses sidebar search.
 
 ## Navigation is not privacy
 

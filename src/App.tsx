@@ -29,6 +29,7 @@ import SidebarTree from "./SidebarTree";
 import MarkdownContent from "./MarkdownContent";
 import GraphView from "./GraphView";
 import LocalGraphPopover from "./LocalGraphPopover";
+import QuickSwitcher from "./QuickSwitcher";
 import { usePublishedTheme } from "./usePublishedTheme";
 
 function normalizeRoute(value: string) {
@@ -58,6 +59,7 @@ function readPreferences() {
       "showGraph",
       "showBacklinks",
       "stacked",
+      "quickSwitcher",
     ] as const) {
       if (typeof values[key] === "boolean") preferences[key] = values[key];
     }
@@ -80,7 +82,7 @@ export default function App({ site }: { site: CompiledSite }) {
   const appearance = usePublishedTheme(site);
   const [preferences, setPreferences] = useState(readPreferences);
   const settings = useMemo(
-    () => ({ ...site.settings, ...preferences }),
+    () => ({ quickSwitcher: true, ...site.settings, ...preferences }),
     [site.settings, preferences],
   );
   const [path, setPath] = useState(() => initialNote(site)?.path || "");
@@ -103,6 +105,8 @@ export default function App({ site }: { site: CompiledSite }) {
   const [localGraphOpen, setLocalGraphOpen] = useState(false);
   const closeLocalGraph = useCallback(() => setLocalGraphOpen(false), []);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+  const closeQuickSwitcher = useCallback(() => setQuickSwitcherOpen(false), []);
   const [darkMode, setDarkMode] = useState(
     () =>
       settings.theme === "dark" ||
@@ -183,12 +187,30 @@ export default function App({ site }: { site: CompiledSite }) {
   ]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.altKey &&
+        !e.shiftKey &&
+        !e.isComposing &&
+        !e.repeat &&
+        e.key.toLowerCase() === "k"
+      ) {
         e.preventDefault();
-        setSidebar(true);
-        setTimeout(() => searchInput.current?.focus(), 0);
+        if (settings.quickSwitcher) {
+          setSettingsOpen(false);
+          setLocalGraphOpen(false);
+          setHover(null);
+          if (timer.current) clearTimeout(timer.current);
+          setQuickSwitcherOpen((open) => !open);
+        } else {
+          setSidebar(true);
+          if (innerWidth <= 1100) setRightSidebar(false);
+          setTimeout(() => searchInput.current?.focus(), 0);
+        }
+        return;
       }
       if (e.key === "Escape") {
+        setQuickSwitcherOpen(false);
         setSettingsOpen(false);
         setHover(null);
         if (query) setQuery("");
@@ -196,7 +218,7 @@ export default function App({ site }: { site: CompiledSite }) {
     };
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
-  }, [query]);
+  }, [query, settings.quickSwitcher]);
   useEffect(() => {
     if (!settingsOpen) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -892,6 +914,14 @@ export default function App({ site }: { site: CompiledSite }) {
           )}
         </main>
       </div>
+      {quickSwitcherOpen && settings.quickSwitcher && (
+        <QuickSwitcher
+          notes={notes}
+          current={current.path}
+          onNavigate={navigate}
+          onClose={closeQuickSwitcher}
+        />
+      )}
       {localGraphOpen && (
         <LocalGraphPopover
           notes={notes}
@@ -1020,6 +1050,7 @@ export default function App({ site }: { site: CompiledSite }) {
                 { key: "showGraph", label: "Interactive graph" },
                 { key: "showBacklinks", label: "Backlinks" },
                 { key: "stacked", label: "Stacked pages" },
+                { key: "quickSwitcher", label: "Quick switcher" },
               ].map((item) => (
                 <div className="setting-row" key={item.key}>
                   <span>{item.label}</span>

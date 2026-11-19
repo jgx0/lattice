@@ -8,6 +8,9 @@ description: Publish connected Obsidian notes with Lattice, and explore the docu
 
 **Lattice** turns an Obsidian vault into a static website with a note-native reader. Publish connected notes, keep your vault's theme, and give readers search, hover previews, backlinks, graphs, and optional stacked pages.
 
+> [!tip] Find any note in a few keystrokes
+> Press **Command+K** on Mac or **Ctrl+K** on Windows/Linux to open the quick switcher. Start typing a note’s name, then press **Enter** to open it.
+
 ## Get started
 
 Clone the repo, copy your vault into the project folder, point Lattice at it in `publish.config.json`, and run `npm run dev`. **That's all you need to start.** Follow [[About/Quick start|Quick start]] for the commands and a small configuration example.

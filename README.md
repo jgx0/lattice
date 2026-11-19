@@ -68,12 +68,14 @@ Local setup does not publish anything to the internet. See [Deployment](#deploym
 ## What it supports
 
 - **Connected reading:** wikilinks, aliases, heading/block links, note transclusions, hover previews, backlinks, local/global graphs, and horizontally stacked pages.
-- **A familiar reader:** collapsible sidebars, search filters, heading outlines, readable line length, light/dark/system modes, and a built-in Publish-style theme.
+- **A familiar reader:** collapsible sidebars, a Command/Ctrl+K file quick switcher, search filters, heading outlines, readable line length, light/dark/system modes, and a built-in Publish-style theme.
 - **Obsidian content:** properties—including linked property values—callouts, tasks, footnotes, highlighting, code, math, images, audio, video, and inline PDFs.
 - **Bases:** embedded `.base` files and fenced `base` blocks, table/list/cards views, host-aware `this.file`, supported link/tag filters, and sortable tables.
 - **Static output:** individual HTML pages, separate attachments, clean URLs, useful no-JavaScript content, and a real 404 page.
 
 **Compatibility is not unlimited.** Bases implements a bounded, no-eval subset. Obsidian plugins, Dataview, Canvas editing, Sync, collaboration, hosted accounts, and password protection are not included. Browser media support varies. See [Markdown and Bases](vault/About/Markdown%20and%20Bases.md) for details.
+
+**Quick switcher:** press **Command+K** on macOS or **Ctrl+K** elsewhere to find a note by title, filename, folder path, or alias. Use the arrow keys and Enter to open it, or Escape to close. Turn it off in **Reader settings → Quick switcher**; the preference stays in that browser. When disabled, the shortcut focuses sidebar search instead. Set `site.quickSwitcher` to `false` to start with it disabled.
 
 ## Themes
 
@@ -142,12 +144,12 @@ npm run preview
 
 Deploy **only `dist/`**, not the checkout or source vault. Production builders need development dependencies (`npm ci --include=dev`). The finished website needs no Node runtime or source files. Vite development/preview servers are local tools, not production web servers.
 
-| Host | Included configuration | Setup |
-| --- | --- | --- |
-| **Cloudflare Pages** | [`wrangler.jsonc`](wrangler.jsonc), [`public/_headers`](public/_headers) | Framework None; build `npm run build`; output `dist`; Node 22 with `NPM_CONFIG_INCLUDE=dev`. |
-| **Vercel** | [`vercel.json`](vercel.json) | Import the repository or use the button; static preset, development dependencies, and `dist` output are configured. |
-| **Netlify** | [`netlify.toml`](netlify.toml) | Connect the repository; build/output and conservative headers are configured. |
-| **GitHub Pages** | Your own Pages workflow | Set `base` to `/lattice/` for a project site before building; publish `dist`. |
+| Host                 | Included configuration                                                   | Setup                                                                                                               |
+| -------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| **Cloudflare Pages** | [`wrangler.jsonc`](wrangler.jsonc), [`public/_headers`](public/_headers) | Framework None; build `npm run build`; output `dist`; Node 22 with `NPM_CONFIG_INCLUDE=dev`.                        |
+| **Vercel**           | [`vercel.json`](vercel.json)                                             | Import the repository or use the button; static preset, development dependencies, and `dist` output are configured. |
+| **Netlify**          | [`netlify.toml`](netlify.toml)                                           | Connect the repository; build/output and conservative headers are configured.                                       |
+| **GitHub Pages**     | Your own Pages workflow                                                  | Set `base` to `/lattice/` for a project site before building; publish `dist`.                                       |
 
 For an existing Cloudflare Pages project, manual upload is also possible:
 

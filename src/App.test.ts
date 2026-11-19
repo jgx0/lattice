@@ -178,6 +178,21 @@ function compiled(path: string) {
 function prefs() {
   return JSON.parse(localStorage.getItem("publish-reader-preferences")!);
 }
+function quickSwitcher() {
+  return one('[role="dialog"][aria-label="Quick switcher"]');
+}
+function quickOptions() {
+  return [
+    ...label("Matching files", quickSwitcher()).querySelectorAll<HTMLElement>(
+      '[role="option"]',
+    ),
+  ];
+}
+function quickPaths() {
+  return quickOptions().map(
+    (option) => one(".suggestion-note", option).textContent,
+  );
+}
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -527,9 +542,10 @@ describe("compiled-site reader", () => {
     expect(titles()).toEqual(["Welcome to Lattice"]);
     expect(one(".note-header").textContent).toBe("Welcome to Lattice");
     expect(one(".markdown-body").innerHTML).toBe(compiled("Welcome.md").html);
-    expect(one('[data-callout="tip"]').textContent).toContain(
-      "There is no correct route",
-    );
+    const tip=one('[data-callout="tip"]');
+    expect(tip.textContent).toContain('Find any note in a few keystrokes');
+    expect(tip.textContent).toContain('Command+K');
+    expect(tip.compareDocumentPosition(one('.markdown-body h2')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(one(".site-header").textContent).toBe("Notes");
     expect(
       container.querySelector(
@@ -691,6 +707,7 @@ describe("compiled-site reader", () => {
         showToc: "false",
         showProperties: 1,
         stacked: "true",
+        quickSwitcher: "false",
       }),
     );
     await remount();
@@ -729,7 +746,11 @@ describe("compiled-site reader", () => {
     await click(trigger);
     const dialog = one('[role="dialog"][aria-label="Reader settings"]');
     const first = label("Close settings", dialog);
-    const last = label("Stacked pages", dialog);
+    const last = [
+      ...dialog.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), select:not([disabled]), a[href], input:not([disabled])",
+      ),
+    ].at(-1)!;
     expect(document.activeElement).toBe(first);
     await key(first, "Tab", { shiftKey: true });
     expect(document.activeElement).toBe(last);
@@ -1484,7 +1505,11 @@ describe("compiled-site reader", () => {
       await click(trigger);
       const dialog = one('[role="dialog"][aria-label="Reader settings"]');
       const first = label("Close settings", dialog);
-      const last = label("Stacked pages", dialog);
+      const last = [
+        ...dialog.querySelectorAll<HTMLElement>(
+          "button:not([disabled]), select:not([disabled]), a[href], input:not([disabled])",
+        ),
+      ].at(-1)!;
       const expectStacked = (enabled: boolean) => {
         const icon = label("Toggle stacked pages");
         const value = String(enabled);
@@ -1532,7 +1557,7 @@ describe("compiled-site reader", () => {
       expectPublishedTheme("things", `${thingsThemeCss}\n${commonThemeCss}`);
       expect(picker().value).toBe("things");
       expect(fetch).toHaveBeenCalledTimes(2);
-      await click(last);
+      await click(label("Stacked pages", dialog));
       expectStacked(true);
       expect(prefs()).toEqual({ theme: "system", stacked: true });
       await key(picker(), "Escape");
@@ -1707,7 +1732,477 @@ describe("compiled-site reader", () => {
     expect(one(".graph-controls span", graph).textContent).toBe("100%");
   });
 
+  describe("Quick switcher", () => {
+    it("defaults on for older compiled settings and exposes wrapping keyboard selection through combobox/listbox ARIA", async () => {
+      const { quickSwitcher: _quickSwitcher, ...legacySettings } =
+        site.settings;
+      const current = compiled("Field Notes/Digital gardens.md");
+      await remount({ ...site, settings: legacySettings }, current.url);
+      await key(window, "k", { ctrlKey: true });
+      const dialog = quickSwitcher();
+      const search = label("Find a file", dialog) as HTMLInputElement;
+      const list = label("Matching files", dialog);
+      expect(dialog.getAttribute("aria-modal")).toBe("true");
+      expect(search.getAttribute("role")).toBe("combobox");
+      expect(search.getAttribute("aria-autocomplete")).toBe("list");
+      expect(search.getAttribute("aria-expanded")).toBe("true");
+      expect(list.getAttribute("role")).toBe("listbox");
+      expect(search.getAttribute("aria-controls")).toBe(list.id);
+      expect(document.activeElement).toBe(search);
+      expect(search.value).toBe("");
+      expect(quickPaths()[0]).toBe(current.path.replace(/\.md$/, ""));
+      expect(one(".suggestion-current", quickOptions()[0]).textContent).toBe(
+        "Current",
+      );
+      expect(prefs()).toEqual({});
+      const expectSelected = (index: number) => {
+        const options = quickOptions();
+        expect(
+          options.filter(
+            (option) => option.getAttribute("aria-selected") === "true",
+          ),
+        ).toEqual([options[index]]);
+        expect(
+          options.filter((option) => option.classList.contains("is-selected")),
+        ).toEqual([options[index]]);
+        expect(search.getAttribute("aria-activedescendant")).toBe(
+          options[index].id,
+        );
+        expect(
+          options.every((option) => option.id && option.parentElement === list),
+        ).toBe(true);
+        expect(new Set(options.map((option) => option.id)).size).toBe(
+          options.length,
+        );
+        expect(document.activeElement).toBe(search);
+      };
+      expectSelected(0);
+      await key(search, "ArrowUp");
+      expectSelected(quickOptions().length - 1);
+      await key(search, "ArrowDown");
+      expectSelected(0);
+      await key(search, "ArrowDown");
+      expectSelected(1);
+      await key(search, "ArrowUp");
+      expectSelected(0);
+      await key(search, "ArrowDown");
+      await input(search, "Digital gardens");
+      expect(quickOptions()).toHaveLength(1);
+      expectSelected(0);
+      await key(search, "ArrowDown");
+      await key(search, "ArrowUp");
+      expectSelected(0);
+      const url = window.location.href;
+      await input(search, "no-such-file-anywhere");
+      expect(quickOptions()).toHaveLength(0);
+      expect(one('[role="status"]', dialog).textContent).toBe(
+        "No files found.",
+      );
+      expect(search.hasAttribute("aria-activedescendant")).toBe(false);
+      for (const value of ["ArrowUp", "ArrowDown", "Enter"])
+        await key(search, value);
+      expect(quickSwitcher()).toBe(dialog);
+      expect(window.location.href).toBe(url);
+      await input(search, "");
+      expectSelected(0);
+      const nextPath = one(".suggestion-note", quickOptions()[1]).textContent;
+      const nextNote = site.notes.find(
+        (note) => note.path.replace(/\.(?:md|markdown)$/i, "") === nextPath,
+      )!;
+      await key(search, "ArrowDown");
+      expectSelected(1);
+      await key(search, "Enter");
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(titles()).toEqual([nextNote.title]);
+      expect(window.location.pathname).toBe(nextNote.url);
+      expect(history.state).toEqual({ note: nextNote.path });
+    });
+
+    it("matches title, filename, path and string/array aliases across terms, excludes body metadata, and distinguishes duplicate filenames safely", async () => {
+      const rawTitle =
+        '<img src="x" onerror="alert(1)"> & <script>alert(2)</script>';
+      const searchSite = compileFixture({
+        name: "Quick switcher search fixture",
+        files: [
+          {
+            path: "Welcome.md",
+            kind: "note",
+            content:
+              "---\ntitle: Start\ntags: [TagOnly]\ncategory: PropertyOnly\n---\n# HeadingOnly\n\nNebulousBody",
+          },
+          {
+            path: "Projects/Shared.md",
+            kind: "note",
+            content:
+              "---\ntitle: Project dossier\naliases: [Road map, launch guide, 42, true]\n---\nProject body.",
+          },
+          {
+            path: "Archive/Shared.md",
+            kind: "note",
+            content:
+              "---\ntitle: Archive dossier\naliases: Archived handbook\n---\nArchive body.",
+          },
+          {
+            path: "Projects/Coded-name.md",
+            kind: "note",
+            content:
+              "---\ntitle: Display label\nalias: Notebook\n---\nCoded body.",
+          },
+          {
+            path: "Projects/Résumé.markdown",
+            kind: "note",
+            content: "---\ntitle: Curriculum\n---\nCareer body.",
+          },
+          {
+            path: "Projects/Markup.md",
+            kind: "note",
+            content: `---\ntitle: ${JSON.stringify(rawTitle)}\n---\nSafe body.`,
+          },
+        ],
+      });
+      await remount(searchSite);
+      await key(window, "k", { metaKey: true });
+      const search = label("Find a file", quickSwitcher()) as HTMLInputElement;
+      const cases: [string, string[]][] = [
+        ["  PROjects \t launch  map  ", ["Projects/Shared"]],
+        ["ARCHIVED handbook", ["Archive/Shared"]],
+        ["notebook", ["Projects/Coded-name"]],
+        ["display LABEL", ["Projects/Coded-name"]],
+        ["coded-name", ["Projects/Coded-name"]],
+        ["projects/coded-name.md", ["Projects/Coded-name"]],
+        ["résumé.markdown", ["Projects/Résumé"]],
+        ["shared", ["Projects/Shared", "Archive/Shared"]],
+      ];
+      for (const [query, expected] of cases) {
+        await input(search, query);
+        expect(quickPaths(), query).toEqual(expected);
+      }
+      for (const query of [
+        "NebulousBody",
+        "HeadingOnly",
+        "TagOnly",
+        "PropertyOnly",
+        "42",
+        "true",
+        "launch absent-term",
+      ]) {
+        await input(search, query);
+        expect(quickOptions(), query).toHaveLength(0);
+        expect(one('[role="status"]', quickSwitcher()).textContent).toBe(
+          "No files found.",
+        );
+      }
+      await input(search, "markup");
+      expect(quickOptions()).toHaveLength(1);
+      expect(one(".suggestion-title", quickOptions()[0]).textContent).toBe(
+        rawTitle,
+      );
+      expect(
+        quickSwitcher().querySelector("img, script, [onerror]"),
+      ).toBeNull();
+      await input(search, "shared");
+      const archive = quickOptions()[1];
+      expect(one(".suggestion-title", archive).textContent).toBe(
+        "Archive dossier",
+      );
+      await click(archive);
+      const destination = searchSite.notes.find(
+        (note) => note.path === "Archive/Shared.md",
+      )!;
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(one(".note-page").getAttribute("data-note-path")).toBe(
+        destination.path,
+      );
+      expect(window.location.pathname).toBe(destination.url);
+      expect(history.state).toEqual({ note: destination.path });
+    });
+
+    it("ranks exact titles, filenames and aliases before prefixes and other matches, limits rows to 60 and keeps a late current file first", async () => {
+      const rankingVault: Vault = {
+        name: "Quick switcher ranking fixture",
+        files: [
+          { path: "Welcome.md", kind: "note", content: "Home." },
+          {
+            path: "Notebook folder/Context.md",
+            kind: "note",
+            content: "Path-only match.",
+          },
+          {
+            path: "References/On notebooks.md",
+            kind: "note",
+            content: "Name contains the query.",
+          },
+          {
+            path: "References/Notebook plans.md",
+            kind: "note",
+            content: "Name starts with the query.",
+          },
+          {
+            path: "References/Notebook.md",
+            kind: "note",
+            content: "---\ntitle: Exact filename\n---\nFilename match.",
+          },
+          {
+            path: "References/Alias.md",
+            kind: "note",
+            content:
+              "---\ntitle: Alias match\naliases: [Notebook]\n---\nAlias match.",
+          },
+          {
+            path: "References/Title.md",
+            kind: "note",
+            content: "---\ntitle: Notebook\n---\nTitle match.",
+          },
+        ],
+      };
+      await remount(compileFixture(rankingVault));
+      await key(window, "k", { ctrlKey: true });
+      await input(
+        label("Find a file", quickSwitcher()) as HTMLInputElement,
+        " notebook ",
+      );
+      const exact = [
+        "References/Notebook",
+        "References/Alias",
+        "References/Title",
+      ];
+      expect(quickPaths()).toEqual([
+        ...exact,
+        "References/Notebook plans",
+        "References/On notebooks",
+        "Notebook folder/Context",
+      ]);
+      const largeSite = compileFixture({
+        ...rankingVault,
+        files: [
+          ...rankingVault.files,
+          ...Array.from({ length: 65 }, (_, index) => ({
+            path: `Bulk/Entry ${index}.md`,
+            kind: "note" as const,
+            content: `---\ntitle: Notebook ${index}\n---\nEntry body.`,
+          })),
+        ],
+      });
+      const current = largeSite.notes.at(-1)!;
+      await remount(largeSite, current.url);
+      await key(window, "k", { metaKey: true });
+      expect(quickOptions()).toHaveLength(60);
+      expect(quickPaths()[0]).toBe("Bulk/Entry 64");
+      expect(one(".suggestion-current", quickOptions()[0]).textContent).toBe(
+        "Current",
+      );
+      expect(quickPaths()[1]).toBe("Welcome");
+      await input(
+        label("Find a file", quickSwitcher()) as HTMLInputElement,
+        "notebook",
+      );
+      expect(quickOptions()).toHaveLength(60);
+      expect(quickPaths().slice(0, 4)).toEqual([
+        ...exact,
+        "References/Notebook plans",
+      ]);
+      expect(quickPaths()).not.toContain("Notebook folder/Context");
+      expect(quickPaths()).not.toContain("References/On notebooks");
+    });
+
+    it("opens Enter selections on clean compiled routes, leaves graph view and clears sidebar search while preserving stacking and truncating existing panes", async () => {
+      await remount(site, "/garden/?stale=1#old-heading");
+      const sidebarSearch = label(
+        "Search page or heading...",
+      ) as HTMLInputElement;
+      await input(sidebarSearch, "tag:welcome");
+      await click(label("Graph view", label("Site navigation")));
+      const open = async (query: string) => {
+        await key(window, "k", { ctrlKey: true });
+        const search = label(
+          "Find a file",
+          quickSwitcher(),
+        ) as HTMLInputElement;
+        await input(search, query);
+        expect(quickOptions()).toHaveLength(1);
+        await key(search, "Enter");
+        expect(container.querySelector('[role="dialog"]')).toBeNull();
+      };
+      const digital = compiled("Field Notes/Digital gardens.md");
+      const walking = compiled("Field Notes/Walking as research.md");
+      await open("Digital gardens");
+      expect(titles()).toEqual([digital.title]);
+      expect(container.querySelector(".graph-page")).toBeNull();
+      expect(container.querySelectorAll(".stack-pane")).toHaveLength(0);
+      expect(sidebarSearch.value).toBe("");
+      expect(container.querySelector(".search-results")).toBeNull();
+      expect(window.location.pathname).toBe(digital.url);
+      expect(window.location.search).toBe("");
+      expect(window.location.hash).toBe("");
+      expect(history.state).toEqual({ note: digital.path });
+      expect(nav(digital.title).getAttribute("aria-current")).toBe("page");
+      await click(label("Toggle stacked pages"));
+      await open("Walking as research");
+      expect(titles()).toEqual([digital.title, walking.title]);
+      expect(container.querySelectorAll(".stack-pane")).toHaveLength(2);
+      expect(window.location.pathname).toBe(walking.url);
+      expect(history.state).toEqual({ note: walking.path });
+      await open("Digital gardens");
+      expect(titles()).toEqual([digital.title]);
+      expect(container.querySelectorAll(".stack-pane")).toHaveLength(0);
+      expect(window.location.pathname).toBe(digital.url);
+      expect(prefs()).toEqual({ stacked: true });
+      await advance(1000);
+      expect(titles()).toEqual([digital.title]);
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+    });
+
+    it("traps focus between the input and Close button, closes only on Escape/backdrop/Close and restores the previously focused element", async () => {
+      const previous = label("Search page or heading...") as HTMLInputElement;
+      await input(previous, "Digital gardens");
+      await act(async () => previous.focus());
+      const url = window.location.href;
+      await key(previous, "k", { ctrlKey: true });
+      const dialog = quickSwitcher();
+      const search = label("Find a file", dialog);
+      const close = label("Close quick switcher", dialog);
+      expect(document.activeElement).toBe(search);
+      expect([
+        ...dialog.querySelectorAll(
+          "input, button, a[href], select, textarea, [tabindex]",
+        ),
+      ]).toEqual([search, close]);
+      await key(search, "Tab", { shiftKey: true });
+      expect(document.activeElement).toBe(close);
+      await key(close, "Tab");
+      expect(document.activeElement).toBe(search);
+      await act(async () => {
+        dialog.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      });
+      expect(quickSwitcher()).toBe(dialog);
+      await key(search, "Escape");
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(document.activeElement).toBe(previous);
+      expect(previous.value).toBe("Digital gardens");
+      expect(window.location.href).toBe(url);
+      await key(previous, "k", { metaKey: true });
+      await act(async () => {
+        quickSwitcher().parentElement!.dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true }),
+        );
+      });
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(document.activeElement).toBe(previous);
+      expect(window.location.href).toBe(url);
+      await key(previous, "k", { ctrlKey: true });
+      await click(label("Close quick switcher", quickSwitcher()));
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(document.activeElement).toBe(previous);
+      expect(previous.value).toBe("Digital gardens");
+    });
+
+    it("persists disabling and re-enabling in reader preferences, restores sidebar-search shortcuts when disabled and overrides the site's default on reload", async () => {
+      expect(prefs()).toEqual({});
+      await click(label("Reader settings", label("Site navigation")));
+      let dialog = one('[role="dialog"][aria-label="Reader settings"]');
+      expect(label("Quick switcher", dialog).getAttribute("role")).toBe(
+        "switch",
+      );
+      expect(label("Quick switcher", dialog).getAttribute("aria-checked")).toBe(
+        "true",
+      );
+      await click(label("Quick switcher", dialog));
+      expect(label("Quick switcher", dialog).getAttribute("aria-checked")).toBe(
+        "false",
+      );
+      expect(prefs()).toEqual({ quickSwitcher: false });
+      await remount();
+      await click(label("Reader settings", label("Site navigation")));
+      dialog = one('[role="dialog"][aria-label="Reader settings"]');
+      expect(label("Quick switcher", dialog).getAttribute("aria-checked")).toBe(
+        "false",
+      );
+      await click(label("Close settings", dialog));
+      await click(label("Close sidebar"));
+      const sidebarSearch = label("Search page or heading...");
+      for (const modifiers of [{ ctrlKey: true }, { metaKey: true }]) {
+        await key(window, "k", modifiers);
+        expect(document.activeElement).toBe(sidebarSearch);
+        expect(one(".app-shell").classList.contains("sidebar-hidden")).toBe(
+          false,
+        );
+        expect(container.querySelector('[role="dialog"]')).toBeNull();
+      }
+      await click(label("Reader settings", label("Site navigation")));
+      dialog = one('[role="dialog"][aria-label="Reader settings"]');
+      await click(label("Quick switcher", dialog));
+      expect(label("Quick switcher", dialog).getAttribute("aria-checked")).toBe(
+        "true",
+      );
+      expect(prefs()).toEqual({ quickSwitcher: true });
+      const disabledSite = {
+        ...site,
+        settings: { ...site.settings, quickSwitcher: false },
+      };
+      await remount(disabledSite);
+      await click(label("Reader settings", label("Site navigation")));
+      dialog = one('[role="dialog"][aria-label="Reader settings"]');
+      expect(label("Quick switcher", dialog).getAttribute("aria-checked")).toBe(
+        "true",
+      );
+      await click(label("Close settings", dialog));
+      await key(window, "k", { metaKey: true });
+      expect(document.activeElement).toBe(
+        label("Find a file", quickSwitcher()),
+      );
+      expect(prefs()).toEqual({ quickSwitcher: true });
+      expect(disabledSite.settings.quickSwitcher).toBe(false);
+    });
+
+    it("toggles once for Ctrl/Cmd K from the focused input, rejects extra modifiers and composing shortcuts, and ignores auto-repeat", async () => {
+      const previous = label("Reader settings", label("Site navigation"));
+      await act(async () => previous.focus());
+      for (const modifiers of [
+        {},
+        { ctrlKey: true, altKey: true },
+        { metaKey: true, altKey: true },
+        { ctrlKey: true, shiftKey: true },
+        { metaKey: true, shiftKey: true },
+        { ctrlKey: true, isComposing: true },
+        { metaKey: true, isComposing: true },
+      ]) {
+        await key(previous, "k", modifiers);
+        expect(container.querySelector('[role="dialog"]')).toBeNull();
+        expect(document.activeElement).toBe(previous);
+      }
+      await key(previous, "k", { ctrlKey: true });
+      const dialog = quickSwitcher();
+      const search = label("Find a file", dialog) as HTMLInputElement;
+      await input(search, "Digital gardens");
+      for (const modifiers of [
+        { ctrlKey: true, isComposing: true },
+        { metaKey: true, shiftKey: true },
+        { ctrlKey: true, repeat: true },
+        { metaKey: true, repeat: true },
+      ]) {
+        await key(search, "k", modifiers);
+        expect(quickSwitcher()).toBe(dialog);
+        expect(search.value).toBe("Digital gardens");
+      }
+      await key(search, "K", { metaKey: true });
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(document.activeElement).toBe(previous);
+      await key(previous, "K", { metaKey: true });
+      expect(
+        (label("Find a file", quickSwitcher()) as HTMLInputElement).value,
+      ).toBe("");
+      await key(label("Find a file", quickSwitcher()), "k", { ctrlKey: true });
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(document.activeElement).toBe(previous);
+    });
+  });
+
   it("filters inline sidebar search by path, tag and heading and supports keyboard navigation", async () => {
+    localStorage.setItem(
+      "publish-reader-preferences",
+      JSON.stringify({ quickSwitcher: false }),
+    );
+    await remount();
     await click(label("Close sidebar"));
     await key(window, "k", { ctrlKey: true });
     const search = label("Search page or heading...") as HTMLInputElement;

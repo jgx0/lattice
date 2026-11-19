@@ -79,6 +79,7 @@ describe("filesystem build configuration", () => {
     expect(config.css).toEqual([path.join(root, "extra.css")]);
     expect(config.settings.accent).toBe("");
     expect(config.settings.allowThemeSwitching).toBe(false);
+    expect(config.settings.quickSwitcher).toBe(true);
     expect(config.themes).toBeUndefined();
     await put("second/Another.md", "# Another");
     await put(
@@ -140,6 +141,7 @@ describe("filesystem build configuration", () => {
       { base: "/%3cscript%3e/" },
       { site: { theme: "Minimal" } },
       { site: { showGraph: "yes" } },
+      { site: { quickSwitcher: "yes" } },
       { site: { allowThemeSwitching: "yes" } },
       { site: { hiddenPaths: ["../private"] } },
       { site: { accent: "red; color: blue" } },

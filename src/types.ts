@@ -73,4 +73,5 @@ export interface SiteSettings {
   hiddenPaths: string[];
   navigationFolders?: Record<string, string>;
   allowThemeSwitching?: boolean;
+  quickSwitcher?: boolean;
 }

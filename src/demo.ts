@@ -84,6 +84,9 @@ description: Publish connected Obsidian notes with Lattice, and explore the docu
 
 **Lattice** turns an Obsidian vault into a static website with a note-native reader. Publish connected notes, keep your vault's theme, and give readers search, hover previews, backlinks, graphs, and optional stacked pages.
 
+> [!tip] Find any note in a few keystrokes
+> Press **Command+K** on Mac or **Ctrl+K** on Windows/Linux to open the quick switcher. Start typing a note’s name, then press **Enter** to open it.
+
 ## Get started
 
 Clone the repo, copy your vault into the project folder, point Lattice at it in \`publish.config.json\`, and run \`npm run dev\`. **That's all you need to start.** Follow [[About/Quick start|Quick start]] for the commands and a small configuration example.
@@ -1180,11 +1183,14 @@ A relative \`PUBLISH_CONFIG\` resolves from the project root. \`OBSIDIAN_VAULT\`
 | \`showBacklinks\` | \`true\` | Incoming note links. |
 | \`showGraph\` | \`true\` | Graph panel. |
 | \`stacked\` | \`false\` | Horizontal stacked-page reading. |
+| \`quickSwitcher\` | \`true\` | Command/Ctrl+K file picker; readers can disable it in settings. |
 | \`allowThemeSwitching\` | \`false\` | Let readers choose included Obsidian themes in settings. |
 | \`navigation\` | \`[]\` | Order folders and full note paths. |
 | \`hiddenPaths\` | \`[]\` | Exclude matching vault-relative files or whole folders before rendering. |
 
 The demo deliberately sets \`showProperties: false\`. Reader controls can change presentation locally; they are not an authoring or access-control interface.
+
+Press **Command+K** (macOS) or **Ctrl+K** to open the quick switcher. It searches published file titles, names, paths, and aliases. Use Up/Down and Enter to choose a note; Escape dismisses it. **Reader settings → Quick switcher** turns the popup on or off and remembers the choice locally. With it disabled, the same shortcut focuses sidebar search.
 
 ## Navigation is not privacy
 
