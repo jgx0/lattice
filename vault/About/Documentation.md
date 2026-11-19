@@ -6,11 +6,13 @@ tags: [lattice, documentation]
 description: Setup, configuration, themes, Markdown, deployment, and safety for Lattice.
 ---
 
-**Lattice** is a filesystem-driven static publisher for Obsidian vaults. You choose a local vault, compile its public notes and assets, and deploy the resulting `dist/` directory. The [[Projects/Lattice|project overview]] explains the note-native reader and its features.
+**Lattice** turns your Obsidian vault into a website. To get started, clone the repo, copy your vault into the project folder, point `publish.config.json` at that folder, and run `npm run dev`. You do not need to convert notes or work through every setting.
+
+**Start with [[About/Quick start|Quick start]].** The other guides are here when you need them. [[Projects/Lattice|The project overview]] describes the reader and its features.
 
 ## Publish a vault
 
-1. [[About/Quick start|Quick start]] — prerequisites, local development, and your first build.
+1. [[About/Quick start|Quick start]] — clone, copy your vault, choose its folder, and run.
 2. [[About/Configuration|Configuration]] — choose a vault, homepage, navigation, and hidden paths.
 3. [[About/Obsidian themes|Obsidian themes]] — use the installed theme, snippets, and CSS assets.
 4. [[About/Markdown and Bases|Markdown and Bases]] — supported note syntax, transclusions, and data views.

@@ -5,7 +5,18 @@ tags: [lattice, documentation, configuration]
 description: Vault paths, site options, navigation, themes, and configuration precedence.
 ---
 
-Lattice reads `publish.config.json` from the project root. Configuration is validated: unknown top-level fields and unknown `site` settings are errors, not silently accepted extensions.
+Start with just your vault folder and a site name. Open `publish.config.json` in the `lattice` project folder and use:
+
+```json
+{
+  "vault": "./my-vault",
+  "site": { "title": "My notes" }
+}
+```
+
+If you copied your vault into `lattice/my-vault/`, that's all you need. Change the folder name to match yours, then run `npm run dev`. You can leave every other setting at its default. See [[About/Quick start]] for the full walkthrough.
+
+The sections below are optional reference material. Lattice reads `publish.config.json` from the project folder; a misspelled setting produces an error so you know it has not taken effect.
 
 ## Source and deployment paths
 

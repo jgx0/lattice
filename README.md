@@ -24,30 +24,71 @@ No vault uploads. No browser-side site builds. No subscription or injected page 
 
 ## Quick start
 
-Requires **Node.js 22.12 or newer**. `.nvmrc` selects Node 22.
+**Clone the repo, copy in your vault, tell Lattice where it is, and run. That's it.** Your notes stay Markdown; there is no upload or conversion step.
+
+You'll need Git and **Node.js 22.12 or newer** installed. Node includes npm.
+
+### 1. Clone and install
+
+Open a terminal:
 
 ```sh
 git clone https://github.com/jgx0/lattice.git
 cd lattice
 npm ci
+```
+
+Run the rest of the commands from this `lattice` folder.
+
+### 2. Put your vault in the project folder
+
+Copy your Obsidian vault into the `lattice` folder using your file manager. In this example, the copied folder is called **`my-vault`**:
+
+```text
+lattice/
+├── my-vault/               ← your notes and attachments
+│   ├── .obsidian/          ← include this for your theme and snippets
+│   └── Home.md
+├── publish.config.json
+└── package.json
+```
+
+Leave the included `vault/` demo folder alone. Your own vault goes in a separate folder. Copy the whole vault, including its hidden `.obsidian` folder if you want its theme.
+
+### 3. Point Lattice at your vault
+
+Open **`publish.config.json`** and replace its contents with:
+
+```json
+{
+  "vault": "./my-vault",
+  "site": {
+    "title": "My notes"
+  }
+}
+```
+
+Change `my-vault` to your folder's name. This is enough to start: Lattice uses sensible defaults and picks a note for the homepage. You can choose a specific homepage later with `site.home`.
+
+### 4. Run
+
+```sh
 npm run dev
 ```
 
-Open **http://localhost:5173**. The checked-in `vault/` contains Lattice documentation and illustrative notes that demonstrate the reader. Replace the sample notes with your own vault when you are ready to publish.
+Open **http://localhost:5173**, or the address printed in the terminal. **You're ready to go.** Save a change to a note in your vault and Lattice rebuilds and refreshes the page. Keep the terminal running; press **Ctrl+C** to stop it.
 
-The live server watches notes, attachments, themes, snippets, `publish.css`, and configuration. Successful edits recompile the whole vault and reload the reader. Compilation errors keep the last successful snapshot available and report the problem.
+Prefer not to copy your vault? Put its full folder path in `vault` instead. Lattice reads your source notes without moving or rewriting them.
 
-```sh
-npm run build    # Write the static site to dist/
-npm run preview  # Inspect the built site at http://localhost:4173
-npm run check    # Typecheck, run tests, and build
-```
+**Just trying it out?** After step 1, run `npm run dev` without changing the config to open the included demo.
 
-Development and preview bind to loopback by default. For trusted LAN testing, explicitly use `npm run dev -- --host 0.0.0.0`. Neither Vite development nor Vite preview is a production web server.
+**Before pushing or publishing:** keep a personal vault out of Git (add `my-vault/` to `.gitignore`) and review what should be public. Local setup does not publish anything online. See [Security and privacy](vault/About/Security%20and%20privacy.md).
 
-## Point it at your vault
+For a longer walkthrough and common setup errors, see [Quick start](vault/About/Quick%20start.md). When you're ready to go online, use the [deployment guide](#production-deployment).
 
-Edit [`publish.config.json`](publish.config.json):
+## Optional configuration
+
+The small config above is all you need to start. You can add these settings later to choose a homepage, hide folders, or adjust the reader. For example:
 
 ```json
 {
