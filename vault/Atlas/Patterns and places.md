@@ -1,7 +1,7 @@
 ---
 title: Patterns and places
 aliases: [The lived place]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: atlas
 date: 2026-11-09

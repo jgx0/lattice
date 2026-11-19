@@ -3,7 +3,7 @@ title: The Practice of Everyday Life
 aliases: [De Certeau on everyday life]
 author: Michel de Certeau
 translator: Steven Rendall
-curator: Alex Morgan
+provenance: Demo content
 status: reading
 category: book
 date: 2026-11-07

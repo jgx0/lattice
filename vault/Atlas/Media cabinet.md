@@ -1,7 +1,7 @@
 ---
 title: Media cabinet
 aliases: [A quiet media shelf]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: atlas
 date: 2026-11-11

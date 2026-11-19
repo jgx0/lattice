@@ -3,12 +3,13 @@ import { readFile, readdir, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import type { CompiledSite, Note, PublishedNote, VaultFile } from '../src/types';
-import { splitFrontmatter } from '../src/lib/markdown';
+import { parseYaml, stripComments } from '../src/lib/markdown';
 import { buildNotes, getBacklinks, resolveLink, resolveNote } from '../src/lib/model';
 import { renderMarkdown, renderPreview } from '../src/lib/render';
 import { createSanitizers } from '../src/lib/sanitize';
 import { decodeTarget } from '../src/lib/utils';
 import type { BuildConfig } from './config';
+import { validatePublishedRoutes } from './staticPages';
 
 export interface CompileResult {
   site: CompiledSite;
@@ -40,6 +41,25 @@ function decodeData(source: string): { mime: string; bytes: Uint8Array } | undef
   try {
     return { mime: match[1].toLowerCase(), bytes: /;base64(?:;|$)/i.test(match[2]) ? Buffer.from(match[3], 'base64') : Buffer.from(decodeURIComponent(match[3]), 'utf8') };
   } catch { return undefined; }
+}
+
+/** Invalid publication metadata must fail closed, unlike the interactive editor. */
+function publicationProperties(content: string, file: string): Record<string, unknown> {
+  const normalized = content.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  if (!/^---[ \t]*(?:\n|$)/.test(normalized)) return {};
+  const match = /^---[ \t]*\n([\s\S]*?)^(?:---|\.\.\.)[ \t]*(?:\n|$)/m.exec(normalized);
+  try {
+    if (!match) throw new Error('Unterminated frontmatter.');
+    const value = parseYaml(match[1]);
+    if (value != null && (typeof value !== 'object' || Array.isArray(value))) throw new Error('Frontmatter must be an object.');
+    const properties = (value ?? {}) as Record<string, unknown>;
+    for (const key of ['private', 'publish']) {
+      if (properties[key] !== undefined && typeof properties[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
+    }
+    return properties;
+  } catch (error) {
+    throw new Error(`Invalid publication frontmatter in ${file}: ${error instanceof Error ? error.message : error}`);
+  }
 }
 
 /** Compile a filesystem vault with an isolated DOM. No network, source-file emission, or global mutations. */
@@ -81,7 +101,7 @@ export async function compileVault(config: BuildConfig): Promise<CompileResult> 
       const bytes = (await safeRead(absolute, vaultRoot))!;
       if (ext === 'md' || ext === 'markdown') {
         const content = bytes.toString('utf8');
-        const { properties } = splitFrontmatter(content);
+        const properties = publicationProperties(content, relative);
         if (properties.publish === false || properties.private === true) continue;
         files.push({ path: relative, content, kind: 'note' });
       } else if (ext === 'base') files.push({ path: relative, content: bytes.toString('utf8'), kind: 'base' });
@@ -107,6 +127,7 @@ export async function compileVault(config: BuildConfig): Promise<CompileResult> 
     if (!home) throw new Error(`Configured home note is missing or private: ${settings.home}`);
     settings.home = home.path;
     const urls = new Map(notes.map(note => [note.path, note.path === home.path ? config.base : config.base + encodePath(note.slug)]));
+    validatePublishedRoutes(notes.map(note => ({ path: note.path, url: urls.get(note.path)! })), config.base);
     const assetSources = new Map(files.filter(file => file.kind === 'asset').map(file => [file.data!, file.path]));
     for (const file of files) if (file.mime === 'image/svg+xml') {
       assetSources.set(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitizers.sanitizeSvg(file.content))}`, file.path);
@@ -160,6 +181,8 @@ export async function compileVault(config: BuildConfig): Promise<CompileResult> 
     };
     const published: PublishedNote[] = notes.map(note => ({
       ...note, url: urls.get(note.path)!,
+      // Readers/search need public prose, not source or invisible author comments.
+      content: '', body: stripComments(note.body),
       html: markup(renderMarkdown(note, notes, files, sanitizers), note),
       previewHtml: markup(renderPreview(note, notes, files, sanitizers), note),
       outgoing: [...new Set(note.links.map(link => resolveNote(link, notes, note.path)?.path).filter((value): value is string => !!value))],

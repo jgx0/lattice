@@ -2,7 +2,8 @@
   "vault": "./vault",
   "base": "/",
   "site": {
-    "title": "Notes",
+    "title": "Lattice",
+    "description": "Publish an Obsidian vault with real themes, connected notes, and static output.",
     "home": "Welcome.md",
     "theme": "system",
     "readable": true,

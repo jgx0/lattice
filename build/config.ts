@@ -45,6 +45,18 @@ function cssReference(value: string, root: string): string {
   return /(?:[/\\]|\.css$)/i.test(value) ? path.resolve(root, value) : value;
 }
 
+export function normalizeBase(value: string): string {
+  let decoded: string;
+  try { decoded = decodeURIComponent(value); } catch { throw new Error('base contains invalid URL encoding.'); }
+  // Bases are URL pathnames, not HTML, authorities, or encoded path separators.
+  if (!value.startsWith('/') || value.startsWith('//') || /[\u0000-\u0020\u007f?#\\<>"']/.test(value) ||
+    /[\u0000-\u001f\u007f?#\\<>"']/.test(decoded) || /%2f|%5c/i.test(value) ||
+    decoded.split('/').some(part => part === '..' || part === '.') || value.includes('//')) {
+    throw new Error('base must be a rooted URL pathname without query, fragment, controls, encoded separators, or traversal (for example /notes/).');
+  }
+  return value.replace(/\/+$/, '') + '/';
+}
+
 /** Read configuration only from disk. Relative overrides are resolved from root. */
 export async function loadConfig(root = process.cwd()): Promise<BuildConfig> {
   root = await realpath(path.resolve(root));
@@ -74,10 +86,7 @@ export async function loadConfig(root = process.cwd()): Promise<BuildConfig> {
   for (const key of ['navigation', 'hiddenPaths'] as const) if (site[key] !== undefined) settings[key] = strings(site[key], `site.${key}`).map(item => vaultRelative(item, `site.${key}`));
   if (site.navigationFolders !== undefined) settings.navigationFolders = Object.fromEntries(Object.entries(object(site.navigationFolders, 'site.navigationFolders')).map(([key, value]) => [vaultRelative(key, 'navigationFolders key'), string(value, `navigationFolders.${key}`)]));
   if (settings.accent && !/^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(settings.accent)) throw new Error('site.accent must be empty or a #RGB/#RRGGBB color.');
-  const base = raw.base === undefined ? '/' : string(raw.base, 'base');
-  let decodedBase: string;
-  try { decodedBase = decodeURIComponent(base); } catch { throw new Error('base contains invalid URL encoding.'); }
-  if (!base.startsWith('/') || base.startsWith('//') || /[?#\\\s]/.test(base) || /[?#\\]/.test(decodedBase) || decodedBase.split('/').some(part => part === '..' || part === '.')) throw new Error('base must be a rooted URL pathname without query, fragment, or traversal (for example /notes/).');
+  const base = normalizeBase(raw.base === undefined ? '/' : string(raw.base, 'base'));
   const theme = raw.theme === undefined ? undefined : cssReference(string(raw.theme, 'theme'), configRoot);
   const snippets = raw.snippets === undefined ? undefined : strings(raw.snippets, 'snippets').map(value => cssReference(value, configRoot));
   const css = raw.css === undefined ? [] : strings(raw.css, 'css').map(value => path.resolve(configRoot, value));

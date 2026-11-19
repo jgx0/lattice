@@ -1,7 +1,7 @@
 ---
 title: A season of small bets
 aliases: [The autumn experiments]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: project
 date: 2026-11-12

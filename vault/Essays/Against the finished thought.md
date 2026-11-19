@@ -1,7 +1,7 @@
 ---
 title: Against the finished thought
 aliases: [An honest unfinishedness]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: essay
 date: 2026-11-03
@@ -18,10 +18,10 @@ A public draft should say what question it is trying to answer. It should separa
 
 These obligations do not require a finished argument. They require an edited encounter. A reader should be able to tell whether they are looking at a field observation, a proposal, or a claim supported by wider evidence. My frontmatter categories are modest signals toward that distinction, not substitutes for making it clear in the prose.
 
-> [!quote] A sentence from my notebook
-> “Leave the door open, but put a floor under the visitor.”
+> [!quote] An illustrative reminder
+> “Leave room for a question, and give the reader enough context to explore it.”
 >
-> — Alex Morgan, private notebook, October 2026
+> — Demo note
 
 ## Revision without erasure
 

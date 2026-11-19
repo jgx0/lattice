@@ -1,32 +1,35 @@
 ---
 title: Lattice
 aliases: [Why Lattice, The garden interface]
-author: Alex Morgan
-status: growing
 category: project
-date: 2026-11-18
-tags: [lattice, design, publishing]
+tags: [lattice, publishing]
+description: A filesystem-driven static publisher for connected Obsidian notes.
 ---
 
-**Lattice** is a place to publish connected notes without pretending they are all articles. The name describes a light structure that supports growth without dictating every branch.
+**Lattice** publishes an Obsidian vault as a static site with a restrained, note-native reader. Notes remain notes: no injected author cards, reading-time labels, maturity badges, product attribution, or decorative footers.
 
-## The feeling
+## What it does
 
-An editorial knowledge garden: warm paper, clear ink, generous reading measure, and a restrained violet accent. The familiar vocabulary of linked notes stays close to Obsidian, but the public page should feel like a well-kept reading room rather than an exposed control panel.
+Markdown, YAML properties, wikilinks, transclusions, Bases, and theme assets are compiled locally at build time. Each published note has its own semantic HTML page. The browser adds navigation, search, hover previews, graphs, sortable tables, and optional stacked pages to already-rendered content.
 
-## The promise
+Use the actual theme installed in your vault, its enabled snippets, and `publish.css`; the reader exposes familiar Obsidian classes and CSS variables. Obsidian plugins are not executed.
 
-A visitor can start at [[Welcome]], hover for context, follow a connection, and understand where they have arrived. Headings, properties, backlinks, and a local graph offer different ways to orient. None should compete with the sentence being read.
+## Start here
 
-> [!todo] The next reading pass
-> Test a route from the home page to a book, then a field note, using only the keyboard. Check that the same route makes sense on a narrow screen.
+- [[About/Documentation|Documentation]] — the complete guide.
+- [[About/Quick start|Quick start]] — run the demo, select a vault, and build.
+- [[About/Configuration|Configuration]] — site settings and publishing boundaries.
+- [[About/Deployment|Deployment]] — review and host the static output.
+- [[About/Architecture|Architecture]] — the build-time/compiler and browser boundary.
 
-## What this garden demonstrates
+## What this vault demonstrates
 
-The [[Library/The reading room|reading room]] turns book properties into a useful collection. [[Field Notes/Digital gardens]] scopes related notes to its own category. [[Atlas/Maps of meaning]] uses one small diagram rather than a decorative hero image. [[Atlas/Media cabinet]] keeps media optional and offline.
+The [[Library/The reading room|reading room]] turns sample book properties into a sortable collection. [[Field Notes/Digital gardens]] scopes a related-note Base to the host note. [[Atlas/Maps of meaning]] embeds a local SVG; [[Atlas/Media cabinet]] keeps media optional and offline.
 
-## What it refuses
+Sample notes are illustrative fixtures for rendering and navigation.
 
-No autoplay, no tracking scripts, no requirement to read chronologically. A reader who finds a useful idea and leaves has completed a good visit. [[Essays/A quieter internet]] explains that boundary; [[Essays/Enough is a design constraint]] helps keep it practical.
+## Boundaries
 
-The design question is not “How much knowledge can a screen display?” It is “What helps this person make a meaningful next connection?”
+Lattice is not Obsidian Sync, a plugin runtime, an editing environment, a collaboration service, or an authentication layer. Bases supports a bounded expression subset, not Obsidian's complete runtime. External themes and embeds remain author-controlled trust decisions; see [[About/Security and privacy]].
+
+Independent project; not affiliated with Obsidian. See [[About/Maintainer|the maintainer]] and [[About/Contributing|contribution guidelines]] for project maintenance.

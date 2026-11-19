@@ -1,7 +1,7 @@
 ---
 title: The monthly letter
 aliases: [Letters from the garden]
-author: Alex Morgan
+provenance: Demo content
 status: seedling
 category: project
 date: 2026-11-13

@@ -1,7 +1,7 @@
 ---
 title: People and influences
 aliases: [The source trail]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: atlas
 date: 2026-11-06

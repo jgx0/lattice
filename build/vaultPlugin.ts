@@ -1,7 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, realpath, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
-import { loadConfig } from "./config";
+import { loadConfig, normalizeBase } from "./config";
 import { compileVault } from "./compile";
 import {
   absoluteShellReferences,
@@ -9,6 +11,8 @@ import {
   homeNote,
   publishedPageFile,
   renderPublishedPage,
+  renderNotFoundPage,
+  validatePublishedRoutes,
 } from "./staticPages";
 
 export const PUBLISHED_SITE_ID = "virtual:published-site";
@@ -40,7 +44,47 @@ const MIME: Record<string, string> = {
   ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
   ".pdf": "application/pdf", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".ogg": "audio/ogg", ".wav": "audio/wav",
   ".mp4": "video/mp4", ".webm": "video/webm", ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf", ".otf": "font/otf",
+  ".bmp": "image/bmp", ".flac": "audio/flac", ".mov": "video/quicktime", ".eot": "application/vnd.ms-fontobject",
 };
+
+function sendAsset(request: IncomingMessage, response: ServerResponse, asset: Uint8Array, pathname: string): void {
+  const etag = `"${createHash('sha256').update(asset).digest('hex')}"`;
+  response.setHeader('Content-Type', MIME[path.extname(pathname).toLowerCase()] ?? 'application/octet-stream');
+  response.setHeader('Cache-Control', 'no-cache');
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('Accept-Ranges', 'bytes');
+  response.setHeader('ETag', etag);
+  if (request.headers['if-none-match']?.split(',').some(value => value.trim().replace(/^W\//, '') === etag || value.trim() === '*')) {
+    response.statusCode = 304; response.end(); return;
+  }
+  let start = 0, end = asset.byteLength - 1;
+  const range = request.method === 'GET' && (!request.headers['if-range'] || request.headers['if-range'] === etag) ? request.headers.range : undefined;
+  // Multiple/unknown ranges are ignored; valid single byte ranges support media seeking.
+  if (range && /^bytes=\d*-\d*$/.test(range) && range !== 'bytes=-') {
+    const [first, last] = range.slice(6).split('-');
+    start = first ? Number(first) : Math.max(0, asset.byteLength - Number(last));
+    end = first && last ? Math.min(Number(last), end) : end;
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= asset.byteLength || !first && Number(last) === 0) {
+      response.statusCode = 416;
+      response.setHeader('Content-Range', `bytes */${asset.byteLength}`);
+      response.setHeader('Content-Length', 0);
+      response.end(); return;
+    }
+    response.statusCode = 206;
+    response.setHeader('Content-Range', `bytes ${start}-${end}/${asset.byteLength}`);
+  } else response.statusCode = 200;
+  response.setHeader('Content-Length', asset.byteLength === 0 ? 0 : end - start + 1);
+  response.end(request.method === 'HEAD' ? undefined : Buffer.from(asset.subarray(start, end + 1)));
+}
+
+function sendHtml(request: IncomingMessage, response: ServerResponse, html: string, status = 200): void {
+  response.statusCode = status;
+  response.setHeader('Content-Type', 'text/html; charset=utf-8');
+  response.setHeader('Cache-Control', 'no-cache');
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('Content-Length', Buffer.byteLength(html));
+  response.end(request.method === 'HEAD' ? undefined : html);
+}
 
 /** A build-time vault compiler, with atomic, debounced snapshots in development. */
 export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
@@ -57,6 +101,30 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
   let cleanup: (() => void) | undefined;
   const watched = new Set<string>();
   const debounceMs = Math.max(0, options.debounceMs ?? 80);
+  let publicFiles: string[] = [];
+
+  async function validateDeploymentInputs(config: BuildConfig): Promise<void> {
+    if (!resolved) return;
+    const output = await realpath(path.resolve(resolved.root, resolved.build.outDir)).catch(() => path.resolve(resolved.root, resolved.build.outDir));
+    if (within(output, config.vaultPath) || within(config.vaultPath, output) || within(config.configPath, output)) {
+      throw new Error('Build output overlaps the vault or publish configuration; choose a separate output directory.');
+    }
+    publicFiles = [];
+    if (!resolved.publicDir || !resolved.build.copyPublicDir) return;
+    const seen = new Set<string>();
+    const visit = async (file: string, relative = ''): Promise<void> => {
+      const canonical = await realpath(file);
+      if (within(canonical, config.vaultPath) || canonical === config.configPath) throw new Error(`Vite publicDir would expose a vault/config source: ${file}`);
+      const info = await stat(canonical);
+      if (info.isDirectory()) {
+        if (seen.has(canonical)) throw new Error(`Circular or aliased public directory: ${file}`);
+        seen.add(canonical);
+        for (const entry of await readdir(file)) await visit(path.join(file, entry), relative ? `${relative}/${entry}` : entry);
+      } else if (info.isFile()) publicFiles.push(relative);
+    };
+    try { await visit(resolved.publicDir); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+  }
 
   function registerDependencies(config: BuildConfig, dependencies: string[]) {
     const optionalCss = [config.theme, ...(config.snippets ?? []), ...config.css].filter((file): file is string => !!file && path.isAbsolute(file));
@@ -78,10 +146,11 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
         const config = await loadConfig(projectRoot);
         // Watch roots even when compilation fails, so the next edit can recover.
         registerDependencies(config, []);
+        await validateDeploymentInputs(config);
         const candidate = await compileVault(config);
         if (disposed) return;
         for (const key of candidate.assets.keys()) assetFile(key);
-        for (const note of candidate.site.notes) publishedPageFile(note.url, config.base);
+        validatePublishedRoutes(candidate.site.notes, config.base);
         registerDependencies(config, candidate.dependencies);
         if (started !== revision) continue;
         configuration = config;
@@ -137,15 +206,13 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
         const outDir = path.resolve(projectRoot, config.build?.outDir ?? "dist");
         try {
           const manifest = JSON.parse(await readFile(path.join(outDir, BASE_MANIFEST), "utf8"));
-          if (typeof manifest.base === "string" && manifest.base.startsWith("/") && !manifest.base.startsWith("//") && !/[\\\0?#]/.test(manifest.base)) {
-            return { base: manifest.base };
-          }
+          if (typeof manifest.base === "string") return { base: normalizeBase(manifest.base), appType: 'mpa' };
         } catch { /* Older outputs can still use an explicitly supplied Vite base. */ }
-        return;
+        return { base: normalizeBase(config.base ?? '/'), appType: 'mpa' };
       }
       configuration = await loadConfig(projectRoot);
       // All note URLs and bundle references use the same absolute deployment base.
-      return { base: configuration.base };
+      return { base: configuration.base, appType: 'mpa' };
     },
     configResolved(config) { resolved = config; },
     async buildStart() {
@@ -164,8 +231,8 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
       async handler(html, context) {
         const current = await currentSnapshot();
         const requested = (context.originalUrl ?? context.path).split("?")[0];
-        const note = findPublishedNote(current.site, requested) ?? homeNote(current.site);
-        return renderPublishedPage(html, current.site, note);
+        const note = context.bundle ? homeNote(current.site) : findPublishedNote(current.site, requested);
+        return note ? renderPublishedPage(html, current.site, note) : renderNotFoundPage(html, current.site);
       },
     },
     configureServer(devServer) {
@@ -191,23 +258,22 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
         }
         try {
           const current = await currentSnapshot();
-          const base = configuration.base;
+          const base = decodeURIComponent(configuration.base);
           const unbased = base !== "/" && pathname.startsWith(base) ? "/" + pathname.slice(base.length) : pathname;
           const diskPath = unbased.startsWith("/@fs/") ? path.resolve(unbased.slice("/@fs".length)) : path.resolve(projectRoot, "." + unbased);
-          if (within(diskPath, configuration.vaultPath)) {
+          const canonical = await realpath(diskPath).catch(() => diskPath);
+          const canonicalConfig = await realpath(configuration.configPath).catch(() => configuration.configPath);
+          const publicPath = resolved.publicDir ? await realpath(path.resolve(resolved.publicDir, '.' + unbased)).catch(() => '') : '';
+          if (within(diskPath, configuration.vaultPath) || within(canonical, configuration.vaultPath) || canonical === canonicalConfig ||
+            publicPath && (within(publicPath, configuration.vaultPath) || publicPath === canonicalConfig)) {
             response.statusCode = 403;
-            response.end("Vault source files are not served. Use published note and asset URLs.");
+            response.end("Vault and configuration source files are not served. Use published note and asset URLs.");
             return;
           }
           if (pathname.startsWith(base)) {
             const asset = current.assets.get(pathname.slice(base.length));
             if (asset) {
-              response.statusCode = 200;
-              response.setHeader("Content-Type", MIME[path.extname(pathname).toLowerCase()] ?? "application/octet-stream");
-              response.setHeader("Content-Length", asset.byteLength);
-              response.setHeader("Cache-Control", "no-cache");
-              response.setHeader("X-Content-Type-Options", "nosniff");
-              response.end(request.method === "HEAD" ? undefined : Buffer.from(asset));
+              sendAsset(request, response, asset, pathname);
               return;
             }
           }
@@ -216,10 +282,17 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
           const template = await readFile(path.join(projectRoot, "index.html"), "utf8");
           const transformed = await server!.transformIndexHtml(request.url ?? "/", template);
           const html = renderPublishedPage(transformed, current.site, note);
-          response.statusCode = 200;
-          response.setHeader("Content-Type", "text/html; charset=utf-8");
-          response.setHeader("Cache-Control", "no-cache");
-          response.end(request.method === "HEAD" ? undefined : html);
+          sendHtml(request, response, html);
+        } catch (error) { next(error); }
+      });
+      // Run after Vite's module/static handlers so missing resources cannot become home.
+      return () => server!.middlewares.use(async (request, response, next) => {
+        if (request.method !== 'GET' && request.method !== 'HEAD') return next();
+        try {
+          const current = await currentSnapshot();
+          const template = await readFile(path.join(projectRoot, 'index.html'), 'utf8');
+          const transformed = await server!.transformIndexHtml(request.url ?? '/', template);
+          sendHtml(request, response, renderNotFoundPage(transformed, current.site), 404);
         } catch (error) { next(error); }
       });
     },
@@ -235,10 +308,15 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
         catch { return next(); }
         try {
           const html = await readFile(path.resolve(resolved.root, resolved.build.outDir, fileName), "utf8");
-          response.statusCode = 200;
-          response.setHeader("Content-Type", "text/html; charset=utf-8");
-          response.end(request.method === "HEAD" ? undefined : html);
-        } catch { next(); }
+          sendHtml(request, response, html);
+        } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT' || (error as NodeJS.ErrnoException).code === 'ENOTDIR') next(); else next(error); }
+      });
+      return () => previewServer.middlewares.use(async (request, response, next) => {
+        if (request.method !== 'GET' && request.method !== 'HEAD') return next();
+        try {
+          const html = await readFile(path.resolve(resolved.root, resolved.build.outDir, '404.html'), 'utf8');
+          sendHtml(request, response, html, 404);
+        } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') next(); else next(error); }
       });
     },
     generateBundle: {
@@ -248,7 +326,31 @@ export function vaultPlugin(options: VaultPluginOptions = {}): Plugin {
         const index = bundle["index.html"];
         if (!index || index.type !== "asset") this.error("The published build requires Vite's emitted index.html shell.");
         const shell = absoluteShellReferences(typeof index.source === "string" ? index.source : Buffer.from(index.source).toString("utf8"), configuration.base);
+        // Reserve all outputs before emitting. Rollup may rename duplicate emitFile names;
+        // file/directory conflicts and publicDir overwrites must instead fail visibly.
+        const outputs = new Map<string, string>();
+        const reserve = (file: string, owner: string) => {
+          assetFile(file);
+          const key = file.normalize('NFC').toLowerCase();
+          for (const [existing, previous] of outputs) {
+            if (key === existing || key.startsWith(existing + '/') || existing.startsWith(key + '/')) {
+              this.error(`Published output collision: ${owner} (${file}) conflicts with ${previous}`);
+            }
+          }
+          outputs.set(key, owner);
+        };
+        for (const file of Object.keys(bundle)) reserve(file, `bundle ${file}`);
+        for (const file of publicFiles) reserve(file, `publicDir ${file}`);
+        reserve(BASE_MANIFEST, 'deployment base manifest');
+        reserve('404.html', 'missing-page shell');
+        for (const key of current.assets.keys()) reserve(key, `vault asset ${key}`);
+        for (const note of current.site.notes) {
+          const file = publishedPageFile(note.url, configuration.base);
+          if (file === 'index.html' && note.path === homeNote(current.site)?.path) continue;
+          reserve(file, `note ${note.path}`);
+        }
         index.source = renderPublishedPage(shell, current.site, homeNote(current.site));
+        this.emitFile({ type: 'asset', fileName: '404.html', source: renderNotFoundPage(shell, current.site) });
         this.emitFile({ type: "asset", fileName: BASE_MANIFEST, source: JSON.stringify({ version: 1, base: configuration.base }) });
         for (const [key, source] of current.assets) {
           const fileName = assetFile(key);

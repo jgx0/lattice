@@ -1,7 +1,7 @@
 ---
 title: Attention is a material
 aliases: [The shape of attention]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: field-note
 date: 2026-11-10

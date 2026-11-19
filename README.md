@@ -1,28 +1,52 @@
-# Obsidian vault publishing
+<h1 align="center">Lattice</h1>
+<p align="center"><strong>Publish connected notes. Keep your Obsidian theme. Own the output.</strong></p>
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#real-obsidian-themes">Themes</a> ·
+  <a href="#production-deployment">Deployment</a> ·
+  <a href="vault/About/Documentation.md">Documentation</a>
+</p>
 
-A filesystem-driven static site generator with an Obsidian-style reader. Markdown, properties, links, transclusions, Bases, search metadata and theme assets are compiled **on the server at build time**. The public browser only handles navigation, hover previews, graph interactions, sorting and reader preferences.
+Lattice is a filesystem-driven alternative to Obsidian Publish. It compiles Markdown, properties, wikilinks, transclusions, Bases, and theme assets **at build time**. The public browser only handles reading, navigation, previews, graphs, table sorting, and reader preferences.
 
-## Run
+No vault uploads. No browser-side site builds. No subscription or injected page branding.
 
-Requires Node.js 22.12 or newer.
+## At a glance
+
+|                       |                                                                                              |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| **Connected reading** | Hover previews, backlinks, heading outlines, local/global graphs, stacked pages.             |
+| **Obsidian syntax**   | Wikilinks, aliases, heading/block references, note embeds, callouts, tasks, math, footnotes. |
+| **Real themes**       | Original theme CSS, enabled snippets, `publish.css`, fonts and local CSS imports.            |
+| **Static publishing** | Individual HTML pages, separate attachments, clean URLs, no-JavaScript content.              |
+| **Local workflow**    | Watch the vault during development; deploy only `dist/`.                                     |
+
+
+
+## Quick start
+
+Requires **Node.js 22.12 or newer**. `.nvmrc` selects Node 22.
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
-Open http://localhost:5173. The live server watches notes, attachments, `.obsidian` appearance/theme/snippet files, `publish.css`, and configuration. A successful edit recompiles the vault and refreshes connected readers. If an edit fails compilation, the server reports it and retains the last successful snapshot.
+Open **http://localhost:5173**. The checked-in `vault/` contains Lattice documentation and illustrative notes that demonstrate the reader. Replace the sample notes with your own vault when you are ready to publish.
+
+The live server watches notes, attachments, themes, snippets, `publish.css`, and configuration. Successful edits recompile the whole vault and reload the reader. Compilation errors keep the last successful snapshot available and report the problem.
 
 ```sh
-npm run build    # Compile the vault and write deployable HTML/assets to dist/
-npm run preview  # Serve the production output at http://localhost:4173
+npm run build    # Write the static site to dist/
+npm run preview  # Inspect the built site at http://localhost:4173
+npm run check    # Typecheck, run tests, and build
 ```
 
-Deploy `dist/` to any static host. Each published note has its own semantic HTML file under its clean URL, so note content, navigation, outlines and backlinks are present before JavaScript runs. Attachments are separate files; no upload or browser ZIP generation is involved.
+Development and preview bind to loopback by default. For trusted LAN testing, explicitly use `npm run dev -- --host 0.0.0.0`. Neither Vite development nor Vite preview is a production web server.
 
-## Your vault
+## Point it at your vault
 
-Edit `publish.config.json`:
+Edit [`publish.config.json`](publish.config.json):
 
 ```json
 {
@@ -44,16 +68,16 @@ Edit `publish.config.json`:
 }
 ```
 
-The checked-in `vault/` is a filesystem demo vault, not a browser-bundled upload. Any note can be the homepage. Other notes get sanitized, URL-encoded slugs. Set `base` to `/notes/` when deploying under a subdirectory.
+Any note can be the homepage. Other notes receive sanitized, URL-encoded slugs. Use a rooted `base`, such as `/notes/`, for subdirectory deployments.
 
-Environment overrides are supported:
+Environment overrides:
 
 ```sh
 OBSIDIAN_VAULT="/path/to/Your Vault" npm run dev
 PUBLISH_CONFIG="/path/to/publish.config.json" npm run build
 ```
 
-`site.navigation` orders folders and full note paths. `site.navigationFolders` can map a note path to a different public folder without moving the source file:
+`site.navigation` orders folders and full note paths. `site.navigationFolders` remaps a note's public folder without moving its source:
 
 ```json
 {
@@ -65,16 +89,18 @@ PUBLISH_CONFIG="/path/to/publish.config.json" npm run build
 }
 ```
 
+See [Configuration](vault/About/Configuration.md) for the full guide.
+
 ## Real Obsidian themes
 
-The generator reads the vault's `.obsidian/appearance.json`:
+Lattice reads your vault's `.obsidian/appearance.json`:
 
 - `cssTheme` selects `.obsidian/themes/<theme>/theme.css`.
 - `enabledCssSnippets` selects `.obsidian/snippets/<snippet>.css`.
-- `accentColor`, text/monospace fonts and text size are applied when configured.
-- The vault's `publish.css` is loaded afterward.
+- Configured accent, text size, and font preferences are applied.
+- The vault's `publish.css` and additional configured CSS are included.
 
-Use the actual theme installed in Obsidian—there is no imitation-theme selector. The demo vault includes the original **Minimal** theme and its license, verified against the reader; the default appearance remains Obsidian's baseline. Set `cssTheme` to `"Minimal"` in the demo's `.obsidian/appearance.json`, or override the selected theme in build configuration:
+The demo includes the original **Minimal** theme with its license. Set `cssTheme` to `"Minimal"` to try it; the default demo uses the Obsidian-style baseline. You can also override the theme at build time:
 
 ```json
 {
@@ -91,50 +117,136 @@ Use the actual theme installed in Obsidian—there is no imitation-theme selecto
 }
 ```
 
-Top-level `theme` is a community theme name or a CSS file path; `site.theme` is the reader's light/dark/system color mode. Set top-level `theme` to `"default"` to ignore a vault theme, or `snippets` to `[]` to ignore enabled vault snippets. Additional CSS paths are relative to the config file. Relative CSS imports, fonts and images are collected at build time and their URLs are rewritten to emitted assets. Remote CSS URLs remain remote and need connectivity.
+Top-level `theme` names the community theme or CSS path; `site.theme` selects light, dark, or system mode. Use `theme: "default"` to ignore the vault theme, or `snippets: []` to ignore enabled snippets.
 
-The reader uses Obsidian's `.theme-light`/`.theme-dark`, workspace, file tree, `.markdown-preview-view`, `.markdown-rendered`, callout, metadata and hover-popover classes, plus native CSS variables such as `--background-primary`, `--text-normal`, `--font-text`, `--file-line-width` and `--h1-size`. Baseline rules have low specificity and theme CSS loads afterward. No author names, reading times, maturity labels, product attribution or decorative page footers are injected.
+Theme CSS is not replaced with an imitation. The reader uses Obsidian workspace/file-tree/Markdown/callout/popover classes and native CSS variables. Local imports, fonts, and images are collected and rewritten to emitted assets. Remote CSS resources remain remote.
 
-**Compatibility limit:** Obsidian is an Electron application. Themes that style plugin-only controls, editing panes or Style Settings plugin state cannot reproduce those features on a published page. Their reader CSS and native variables work where matching elements exist. Use snippets, `publish.css`, or `bodyClasses` for theme-specific settings; theme plugins are not executed.
+**Compatibility boundary:** Electron/editor-only features, plugin controls, and Style Settings plugin execution cannot run on a static reader. Matching reading styles and native variables work; use `bodyClasses`, snippets, or `publish.css` for theme-specific settings.
 
-## Reader features
+See [Obsidian themes](vault/About/Obsidian%20themes.md).
 
-- Collapsible nested file navigation, inline global search, clean note URLs and browser back/forward navigation.
-- Hover previews, backlinks, automatically generated outlines, local/global graphs, and horizontal stacked pages.
-- Wikilinks and aliases, Markdown links, heading/block anchors, and note/heading/block transclusions.
-- YAML properties, native-style callouts, disabled tasks, footnotes, highlighting, fenced code and bundled LaTeX output.
-- Images, audio, video, inline PDFs and sanitized HTML/iframes. Native playback depends on browser support.
-- `.base` embeds with table/list/cards views, filters/formulas, configured sort/limits and clickable column sorting.
-- Bases `this.file` context uses the host note, including `this.file.properties`, for related-note filters.
+## Markdown, media, and Bases
 
-Bases implements a bounded, no-eval expression subset, not Obsidian's entire evolving runtime. Unsupported expressions fail visibly. Plugin execution, Dataview, Canvas editing, Sync, collaboration, account services and password-protected hosting are not included.
+Supported reading features include internal links and aliases; heading/block anchors; note, heading and block transclusions; YAML properties; collapsible callouts; read-only tasks; footnotes; highlighting; code; and bundled KaTeX LaTeX output. Images, audio, video, inline PDFs, and sanitized HTML/HTTP(S) iframes are supported. Playback depends on browser/codec support.
 
-## Privacy and safety
+Bases supports table/list/cards views, properties, configured filters/formulas, sorting and limits. Embedded `this.file` references use the **host note**, including `this.file.properties`. Column headers are sortable in the reader.
 
-Notes under `hiddenPaths` and notes with frontmatter `publish: false` are filtered **before rendering**, so they cannot enter transclusions, Bases rows, previews, search or graph data. Assets and `.obsidian` source files are not blindly copied into the output. Symlinked vault files/directories are skipped; filesystem and CSS import boundaries are checked.
+This is a **bounded, no-eval compatibility subset**, not all of Obsidian's evolving Bases runtime. Unsupported expressions fail visibly. Plugin execution, Dataview, Canvas editing, Sync, collaboration, hosted accounts, and password-protected hosting are not included.
 
-HTML is sanitized at compilation with a window-bound DOMPurify instance. Scripts, handlers, dangerous URLs and raw `srcdoc` are removed. External frames are sandboxed; generated PDF frames retain restrictive sandboxing. CSS files are trusted author input: only use themes/snippets you trust.
+See [Markdown and Bases](vault/About/Markdown%20and%20Bases.md).
 
-The vault is read locally. Neither the build nor live server uploads it. A publicly deployed site is public; review output and source embeds before deployment.
+## Production deployment
 
-## Verification
+<p>
+  <a href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages"><img src="docs/assets/cloudflare-pages-button.svg" alt="Set up Cloudflare Pages" height="40" /></a>
+  <a href="https://vercel.com/new"><img src="docs/assets/vercel-button.svg" alt="Deploy with Vercel" height="40" /></a>
+</p>
+
+These buttons open provider setup. Select your pushed repository; they do not upload the vault or deploy anything automatically. A repository-specific clone button can be added once the public repository URL exists.
 
 ```sh
+npm ci
+npm run check
+```
+
+Deploy **only `dist/`**. The builder needs development dependencies; the static site needs no Node runtime, source vault, configuration, or `.obsidian` directory.
+
+- **Netlify:** [`netlify.toml`](netlify.toml) supplies the build/output settings and conservative response headers. Connect the repository yourself; nothing is automatically deployed.
+- **Cloudflare Pages:** [`wrangler.jsonc`](wrangler.jsonc) configures the static `dist/` output; [`public/_headers`](public/_headers) adds response headers and hashed-asset caching.
+- **Vercel:** [`vercel.json`](vercel.json) selects a static build, installs build dependencies, and publishes `dist/` without an SPA fallback.
+- **GitHub Pages:** set `base` to your repository subpath before building, then publish `dist/` using your own Pages deployment workflow. Do not add an SPA rewrite to `index.html`.
+- **Self-hosting:** use a static web server with directory-index resolution and a real 404 fallback. Serve HTML with revalidation, and content-hashed assets with long cache lifetimes. Use HTTPS.
+
+### Cloudflare Pages
+
+Use **Workers & Pages → Create → Pages → Connect to Git** and select the repository. Configure:
+
+| Setting                | Value                                       |
+| ---------------------- | ------------------------------------------- |
+| Framework preset       | None                                        |
+| Build command          | `npm run build`                             |
+| Build output directory | `dist`                                      |
+| Environment            | `NODE_VERSION=22`, `NPM_CONFIG_INCLUDE=dev` |
+
+The included `wrangler.jsonc` names the Pages project `lattice` and sets `pages_build_output_dir` to `./dist`. Change the project name to one available in your account. The compatibility date is pinned; this static deployment does not require Pages Functions. Review the provider's [Wrangler configuration guidance](https://developers.cloudflare.com/pages/functions/wrangler-configuration/) when moving dashboard settings into the file.
+
+For an already-built site, you can also deploy manually with Wrangler:
+
+```sh
+npm ci --include=dev
+npm run build
+npx wrangler pages project create lattice
+npx wrangler pages deploy dist --project-name=lattice
+```
+
+Create the project only once; omit that step for an existing Pages project. These commands authenticate with Cloudflare and publish the output when **you** run them. `public/_headers` is copied to `dist/` for Pages. The emitted top-level `404.html` disables a blanket SPA fallback and provides the missing-page document.
+
+### Vercel
+
+Use **Add New → Project → Import Git Repository**. The included `vercel.json` configures:
+
+| Setting          | Value                     |
+| ---------------- | ------------------------- |
+| Framework preset | Other (`framework: null`) |
+| Install command  | `npm ci --include=dev`    |
+| Build command    | `npm run build`           |
+| Output directory | `dist`                    |
+
+Choose Node.js 22 or newer in the project's settings. `cleanUrls` enables extensionless HTML URLs; generated note-directory indexes remain the route source. There is deliberately **no** catch-all rewrite to `index.html`, so missing pages remain missing. Header rules cover security defaults and content-hashed assets.
+
+You can deploy through the Vercel CLI after pushing or preparing the project:
+
+```sh
+npx vercel
+npx vercel --prod
+```
+
+The first command creates a preview deployment; the second publishes to production. Both require your own authentication and explicit execution. See the provider's [project configuration reference](https://vercel.com/docs/project-configuration/vercel-json).
+
+Provider configuration and cache-header paths assume the default `base: "/"`. Review base paths and headers if hosting under a subdirectory; do not turn the site into an SPA to work around a wrong base.
+
+Each note is a semantic HTML document under its clean URL. Content, navigation, outlines and backlinks exist before JavaScript. Attachments are separate files. The generated `404.html` is an error page, not a redirect to the homepage; configure your host to return **HTTP 404**, not a soft-404/200 response.
+
+Check at least a nested note URL, a heading anchor, an attachment, and a missing URL on the deployed host. Review output for private information. There is no authentication layer: a published site is public.
+
+See [Deployment](vault/About/Deployment.md) and [Security and privacy](vault/About/Security%20and%20privacy.md).
+
+## Project documentation
+
+The documentation lives **inside the demo vault** and is published through the same pipeline as notes:
+
+- [Documentation](vault/About/Documentation.md) — start here.
+- [Quick start](vault/About/Quick%20start.md).
+- [Configuration](vault/About/Configuration.md).
+- [Obsidian themes](vault/About/Obsidian%20themes.md).
+- [Markdown and Bases](vault/About/Markdown%20and%20Bases.md).
+- [Deployment](vault/About/Deployment.md).
+- [Architecture](vault/About/Architecture.md).
+- [Security and privacy](vault/About/Security%20and%20privacy.md).
+- [Troubleshooting](vault/About/Troubleshooting.md).
+- [Contributing](vault/About/Contributing.md).
+
+## Safety and verification
+
+Private notes are filtered before rendering, so they cannot enter embeds, Bases rows, previews, search or graph data. Invalid publication metadata fails the build rather than silently publishing a private note. Vault symlinks are skipped, source/output boundaries are checked, and raw vault/config access is blocked by the live server.
+
+The reader receives public note text and properties as part of its search data. Non-literal Obsidian `%% comments %%` are removed and the original raw note file is not included. Literal comments inside code remain visible. Hiding properties in the UI does **not** make those properties private; exclude the note or remove sensitive metadata before publishing.
+
+HTML is sanitized in an isolated DOM. Scripts, event handlers, dangerous URLs and raw `srcdoc` are removed. Frames are sandboxed. Themes and snippets are **trusted author CSS**—only install sources you trust. This is defense in depth, not a security certification or access-control system.
+
+```sh
+npm run typecheck
 npm test
 npm run build
 npm audit
 ```
 
-Tests cover rendering/link/search/Bases behavior, true Node compilation without browser globals, themes/CSS assets, privacy filtering, static clean-route HTML, preview serving, live-watcher error recovery and React reader interactions.
+The included [CI workflow](.github/workflows/verify.yml) verifies tests and build on Node 22 and 24. It does **not** deploy or publish anything. Build/rendering, real-theme assets, privacy rules, static routes, watcher recovery, and reader behavior have regression tests.
 
-## Code structure
+## Contributing
 
-- `build/config.ts`: validated build configuration.
-- `build/compile.ts`: filesystem vault loading, theme ingestion and rendering.
-- `build/vaultPlugin.ts`: virtual compiled-site module, live watching and output emission.
-- `build/staticPages.ts`: semantic no-JavaScript note pages.
-- `src/App.tsx`: public reader; no source-vault processing.
-- `src/SidebarTree.tsx`, `src/GraphView.tsx`, `src/MarkdownContent.tsx`: reader components.
-- `src/lib/`: build-time note model, safe Markdown/Bases rendering and client-only search.
+Keep changes small and include regressions for rendering, privacy, URLs, or themes. Run `npm run check` before submitting. Third-party theme licenses remain with their assets. This repository currently makes no blanket open-source license grant for project code; do not infer one from the bundled Minimal theme license.
 
-Independent project; not affiliated with Obsidian.
+## Credits
+
+Lattice is independent and is not affiliated with or endorsed by Obsidian. It uses React, Vite, Markdown-it, YAML, DOMPurify, jsdom, KaTeX, and Lucide. The demo's Minimal theme is by kepano; its original license is included. README illustrations are original project assets. AI was used in the development of this project.

@@ -8,7 +8,7 @@ const gardenSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="5
   </defs>
   <rect width="960" height="520" rx="24" fill="#faf8f4"/>
   <text x="48" y="58" font-family="Georgia,serif" font-size="28" fill="#302a3d">Nothing grows in isolation.</text>
-  <text x="48" y="88" font-family="Arial,sans-serif" font-size="15" fill="#68616f">A working map of Alex Morgan’s knowledge garden · Lattice</text>
+  <text x="48" y="88" font-family="Arial,sans-serif" font-size="15" fill="#68616f">A connected-note publishing map · Lattice</text>
   <g fill="none" stroke="#8065da" stroke-width="2.5" marker-end="url(#arrow)">
     <path d="M260 192H340"/><path d="M550 192H630"/>
     <path d="M735 232V312"/><path d="M630 352H550"/>
@@ -69,58 +69,63 @@ const chimeData = makeChimeData();
 const landscapeData = 'data:video/mp4;base64,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';
 
 export const demoVault: Vault = {
-  name: 'Lattice — Alex Morgan',
+  name: 'Lattice demo vault',
   files: [
     {
       path: 'Welcome.md',
       kind: 'note',
       content: `---
-title: A place for connected ideas
+title: Welcome to Lattice
 aliases: [Home, Start here]
-author: Alex Morgan
-status: evergreen
-category: garden
-date: 2026-11-18
-tags: [garden, index, welcome]
+category: documentation
+tags: [lattice, documentation, welcome]
+description: Publish connected Obsidian notes with Lattice, and explore the documentation and demo vault.
 ---
 
-I'm Alex. This is my corner of **Lattice**: a notebook for noticing, reading, and making things with a little more care. Some ideas are well rooted; others are still finding their shape. You're welcome to wander.
+**Lattice** turns an Obsidian vault into a static website with a note-native reader. Publish connected notes, keep your vault's theme, and give readers search, hover previews, backlinks, graphs, and optional stacked pages.
+
+## Get started
+
+- [[About/Documentation|Documentation]] — the complete product guide.
+- [[About/Quick start|Quick start]] — run the demo, choose a vault, and build your site.
+- [[About/Obsidian themes|Obsidian themes]] — use an installed theme, enabled snippets, and \`publish.css\`.
+- [[About/Deployment|Deployment]] — review the static output and deploy to Cloudflare Pages, Vercel, or Netlify.
+
+## How publishing works
+
+Markdown, properties, wikilinks, transclusions, and supported Bases are compiled before the site is served. Every published note has its own semantic HTML page; the browser adds reader interactions to already-rendered content. There is no browser-side vault upload or Obsidian plugin execution.
+
+Set the source vault and site options in \`publish.config.json\`. The development server watches notes, attachments, and theme inputs. Only deliberately published content and referenced assets belong in the generated \`dist/\` directory; review [[About/Configuration]] and [[About/Security and privacy]] before sharing it.
+
+## Explore the demo
+
+Sample notes are illustrative fixtures for linked-note publishing.
+
+- [[Library/The reading room|The reading room]] — a sortable Base built from book properties.
+- [[Field Notes/Digital gardens|Digital gardens]] — note links, section anchors, and a host-relative related-note Base.
+- [[Atlas/Maps of meaning|Maps of meaning]] — a local SVG and block transclusion.
+- [[Atlas/Media cabinet|Media cabinet]] — optional offline audio and video.
+- [[Projects/Lattice|Lattice overview]] — features and implementation boundaries.
 
 > [!tip] There is no correct route
-> Follow a link that catches your eye. Hover over [[Field Notes/Digital gardens|digital gardens]] for a little context, or start with [[Library/The reading room|the reading room]]. A return visit often reveals a different path.
+> Follow a link that catches your eye. Hover over [[Field Notes/Digital gardens|digital gardens]] for a little context, or start with [[Library/The reading room|the reading room]].
 
 ## Follow a thread
 
 - **Pay attention** → [[Field Notes/Attention is a material|Attention is a material]] → [[Field Notes/Walking as research|Walking as research]] → [[Projects/A neighborhood atlas|A neighborhood atlas]].
-- **Make room for unfinished work** → [[Field Notes/Digital gardens|Digital gardens]] → [[Essays/Against the finished thought|Against the finished thought]] → [[Projects/Lattice|Why Lattice]].
+- **Make room for unfinished work** → [[Field Notes/Digital gardens|Digital gardens]] → [[Essays/Against the finished thought|Against the finished thought]] → [[Projects/Lattice|Lattice]].
 - **Build for the long view** → [[Field Notes/Small bets & long horizons|Small bets & long horizons]] → [[Essays/Enough is a design constraint|Enough is a design constraint]] → [[Projects/A season of small bets|A season of small bets]].
-
-If you prefer a map, [[Atlas/Maps of meaning|Maps of meaning]] gathers the crossroads. For the person behind the notes, meet [[About/Alex Morgan|Alex Morgan]].
 
 ## Recently tended
 
-| Note | What changed | Tended |
+This example table demonstrates note links and heading anchors.
+
+| Note | Example change | Tended |
 | --- | --- | --- |
 | [[Field Notes/Digital gardens#A link should carry a thought|Digital gardens]] | A better test for meaningful links | Nov 18 |
 | [[Projects/A neighborhood atlas#What the first walks taught me|A neighborhood atlas]] | Resting places matter more than routes | Nov 16 |
-| [[Essays/A quieter internet|A quieter internet]] | A distinction between invitation and interruption | Nov 14 |
+| [[Essays/A quieter internet|A quieter internet]] | Invitation and interruption | Nov 14 |
 | [[Field Notes/Small bets & long horizons#The two clocks|Small bets & long horizons]] | A weekly rhythm inside a seasonal commitment | Nov 12 |
-
-## A living collection
-
-These books keep escaping their shelves and turning up in other notes. The [[Library/The reading room|reading room]] has the full, sortable collection.
-
-| Book | Author | A thought worth keeping |
-| --- | --- | --- |
-| [[Library/Books/A Pattern Language|A Pattern Language]] | Christopher Alexander and collaborators | Describe the conditions for life, not just the shape of a room. |
-| [[Library/Books/How to Do Nothing|How to Do Nothing]] | Jenny Odell | Attention is a relationship with a place, not only a personal resource. |
-| [[Library/Books/Braiding Sweetgrass|Braiding Sweetgrass]] | Robin Wall Kimmerer | Receiving something well includes asking what reciprocity requires. |
-
-The working agreement is simple: keep the source, name the uncertainty, and leave something useful for the next person. See [[Essays/Against the finished thought#What I owe a reader|what I owe a reader]] for the longer version.
-
-*Last tended 18 November 2026 · A personal knowledge garden, not a feed.*
-
-#garden #reading #slow-web
 `,
     },
     {
@@ -129,7 +134,7 @@ The working agreement is simple: keep the source, name the uncertainty, and leav
       content: `---
 title: Digital gardens
 aliases: [Working in public, Garden notes]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: field-note
 date: 2026-11-18
@@ -183,7 +188,7 @@ This embedded Base uses this note's category and excludes this file. It is a sma
       content: `---
 title: Small bets & long horizons
 aliases: [Small bets, The two clocks]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: field-note
 date: 2026-11-12
@@ -234,7 +239,7 @@ The current checklist lives in [[Projects/A season of small bets]]. When I lose 
       content: `---
 title: Attention is a material
 aliases: [The shape of attention]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: field-note
 date: 2026-11-10
@@ -275,7 +280,7 @@ Calling attention a material could make it sound like something a designer owns 
       content: `---
 title: Walking as research
 aliases: [The place gets a vote]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: field-note
 date: 2026-11-08
@@ -312,7 +317,7 @@ See [[Field Notes/Small bets & long horizons]] for the rhythm that keeps this pr
       content: `---
 title: The useful edge
 aliases: [Productive boundaries]
-author: Alex Morgan
+provenance: Demo content
 status: seedling
 category: field-note
 date: 2026-10-29
@@ -344,7 +349,7 @@ For [[Projects/A neighborhood atlas]], sketch three thresholds where people actu
       content: `---
 title: A quieter internet
 aliases: [Invitation, not interruption]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: essay
 date: 2026-11-14
@@ -393,7 +398,7 @@ These are not nostalgic gestures toward an earlier web. They are present-tense d
       content: `---
 title: Against the finished thought
 aliases: [An honest unfinishedness]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: essay
 date: 2026-11-03
@@ -410,10 +415,10 @@ A public draft should say what question it is trying to answer. It should separa
 
 These obligations do not require a finished argument. They require an edited encounter. A reader should be able to tell whether they are looking at a field observation, a proposal, or a claim supported by wider evidence. My frontmatter categories are modest signals toward that distinction, not substitutes for making it clear in the prose.
 
-> [!quote] A sentence from my notebook
-> “Leave the door open, but put a floor under the visitor.”
+> [!quote] An illustrative reminder
+> “Leave room for a question, and give the reader enough context to explore it.”
 >
-> — Alex Morgan, private notebook, October 2026
+> — Demo note
 
 ## Revision without erasure
 
@@ -442,7 +447,7 @@ An unfinished thought is worth sharing when it offers something complete enough 
       content: `---
 title: Enough is a design constraint
 aliases: [The shape of enough]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: essay
 date: 2026-10-25
@@ -479,7 +484,7 @@ Instead of “What else could we add?”, I ask “What is still difficult for t
       content: `---
 title: The reading room
 aliases: [Reading room, Bookshelf]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: library
 date: 2026-11-17
@@ -523,7 +528,7 @@ title: A Pattern Language
 aliases: [Alexander on patterns]
 author: Christopher Alexander, Sara Ishikawa, and Murray Silverstein
 contributors: [Max Jacobson, Ingrid Fiksdahl-King, Shlomo Angel]
-curator: Alex Morgan
+provenance: Demo content
 status: rereading
 category: book
 date: 2026-11-16
@@ -562,7 +567,7 @@ For [[Projects/A neighborhood atlas]], I want captions that say what a place per
 title: How to Do Nothing
 aliases: [Odell on attention]
 author: Jenny Odell
-curator: Alex Morgan
+provenance: Demo content
 status: read
 category: book
 date: 2026-11-10
@@ -601,7 +606,7 @@ Once a week I walk the same route without listening to anything. This is not a t
 title: Braiding Sweetgrass
 aliases: [Kimmerer on reciprocity]
 author: Robin Wall Kimmerer
-curator: Alex Morgan
+provenance: Demo content
 status: read
 category: book
 date: 2026-10-30
@@ -641,7 +646,7 @@ title: The Practice of Everyday Life
 aliases: [De Certeau on everyday life]
 author: Michel de Certeau
 translator: Steven Rendall
-curator: Alex Morgan
+provenance: Demo content
 status: reading
 category: book
 date: 2026-11-07
@@ -678,7 +683,7 @@ I am not yet confident enough to compress the distinction between strategies and
 title: The Art of Noticing
 aliases: [A practice of noticing]
 author: Rob Walker
-curator: Alex Morgan
+provenance: Demo content
 status: read
 category: book
 date: 2026-10-21
@@ -714,35 +719,38 @@ On the next atlas walk, record repairs rather than damage. Ask what the repairs 
       content: `---
 title: Lattice
 aliases: [Why Lattice, The garden interface]
-author: Alex Morgan
-status: growing
 category: project
-date: 2026-11-18
-tags: [lattice, design, publishing]
+tags: [lattice, publishing]
+description: A filesystem-driven static publisher for connected Obsidian notes.
 ---
 
-**Lattice** is a place to publish connected notes without pretending they are all articles. The name describes a light structure that supports growth without dictating every branch.
+**Lattice** publishes an Obsidian vault as a static site with a restrained, note-native reader. Notes remain notes: no injected author cards, reading-time labels, maturity badges, product attribution, or decorative footers.
 
-## The feeling
+## What it does
 
-An editorial knowledge garden: warm paper, clear ink, generous reading measure, and a restrained violet accent. The familiar vocabulary of linked notes stays close to Obsidian, but the public page should feel like a well-kept reading room rather than an exposed control panel.
+Markdown, YAML properties, wikilinks, transclusions, Bases, and theme assets are compiled locally at build time. Each published note has its own semantic HTML page. The browser adds navigation, search, hover previews, graphs, sortable tables, and optional stacked pages to already-rendered content.
 
-## The promise
+Use the actual theme installed in your vault, its enabled snippets, and \`publish.css\`; the reader exposes familiar Obsidian classes and CSS variables. Obsidian plugins are not executed.
 
-A visitor can start at [[Welcome]], hover for context, follow a connection, and understand where they have arrived. Headings, properties, backlinks, and a local graph offer different ways to orient. None should compete with the sentence being read.
+## Start here
 
-> [!todo] The next reading pass
-> Test a route from the home page to a book, then a field note, using only the keyboard. Check that the same route makes sense on a narrow screen.
+- [[About/Documentation|Documentation]] — the complete guide.
+- [[About/Quick start|Quick start]] — run the demo, select a vault, and build.
+- [[About/Configuration|Configuration]] — site settings and publishing boundaries.
+- [[About/Deployment|Deployment]] — review and host the static output.
+- [[About/Architecture|Architecture]] — the build-time/compiler and browser boundary.
 
-## What this garden demonstrates
+## What this vault demonstrates
 
-The [[Library/The reading room|reading room]] turns book properties into a useful collection. [[Field Notes/Digital gardens]] scopes related notes to its own category. [[Atlas/Maps of meaning]] uses one small diagram rather than a decorative hero image. [[Atlas/Media cabinet]] keeps media optional and offline.
+The [[Library/The reading room|reading room]] turns sample book properties into a sortable collection. [[Field Notes/Digital gardens]] scopes a related-note Base to the host note. [[Atlas/Maps of meaning]] embeds a local SVG; [[Atlas/Media cabinet]] keeps media optional and offline.
 
-## What it refuses
+Sample notes are illustrative fixtures for rendering and navigation.
 
-No autoplay, no tracking scripts, no requirement to read chronologically. A reader who finds a useful idea and leaves has completed a good visit. [[Essays/A quieter internet]] explains that boundary; [[Essays/Enough is a design constraint]] helps keep it practical.
+## Boundaries
 
-The design question is not “How much knowledge can a screen display?” It is “What helps this person make a meaningful next connection?”
+Lattice is not Obsidian Sync, a plugin runtime, an editing environment, a collaboration service, or an authentication layer. Bases supports a bounded expression subset, not Obsidian's complete runtime. External themes and embeds remain author-controlled trust decisions; see [[About/Security and privacy]].
+
+Independent project; not affiliated with Obsidian. See [[About/Maintainer|the maintainer]] and [[About/Contributing|contribution guidelines]] for project maintenance.
 `,
     },
     {
@@ -751,7 +759,7 @@ The design question is not “How much knowledge can a screen display?” It is 
       content: `---
 title: A neighborhood atlas
 aliases: [The neighborhood project]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: project
 date: 2026-11-16
@@ -792,7 +800,7 @@ The weekly experiments live in [[Projects/A season of small bets]]. The larger m
       content: `---
 title: The monthly letter
 aliases: [Letters from the garden]
-author: Alex Morgan
+provenance: Demo content
 status: seedling
 category: project
 date: 2026-11-13
@@ -828,7 +836,7 @@ That sentence belongs beside [[Essays/A quieter internet]]. Publishing can offer
       content: `---
 title: A season of small bets
 aliases: [The autumn experiments]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: project
 date: 2026-11-12
@@ -869,7 +877,7 @@ The result returns to [[Projects/A neighborhood atlas]]. The pattern question re
       content: `---
 title: Maps of meaning
 aliases: [The garden map, Crossroads]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: atlas
 date: 2026-11-15
@@ -904,7 +912,7 @@ The diagram is one responsive SVG with a descriptive title and text; it is a wor
 
 The block above is embedded from the original note, so the reminder has one place to be tended. A good map should reduce duplication as well as confusion.
 
-For an account of the people behind these connections, see [[Atlas/People and influences]]. For the garden's keeper, see [[About/Alex Morgan]].
+For the authors and ideas connected by these sample notes, see [[Atlas/People and influences]].
 `,
     },
     {
@@ -913,7 +921,7 @@ For an account of the people behind these connections, see [[Atlas/People and in
       content: `---
 title: Patterns and places
 aliases: [The lived place]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: atlas
 date: 2026-11-09
@@ -959,7 +967,7 @@ The full note below is embedded from its own page. It keeps the questions, cauti
       content: `---
 title: People and influences
 aliases: [The source trail]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: atlas
 date: 2026-11-06
@@ -995,7 +1003,7 @@ The reader-facing standard lives in [[Essays/Against the finished thought#What I
       content: `---
 title: Media cabinet
 aliases: [A quiet media shelf]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: atlas
 date: 2026-11-11
@@ -1046,35 +1054,761 @@ This is a template, not a working video address: add a reviewed video identifier
 `,
     },
     {
-      path: 'About/Alex Morgan.md',
+      path: 'About/Maintainer.md',
       kind: 'note',
       content: `---
-title: Alex Morgan
-aliases: [About Alex, The garden keeper]
-author: Alex Morgan
-status: evergreen
+title: Maintainer
 category: about
-date: 2026-11-18
-tags: [about, garden, practice]
+tags: [lattice, maintainer]
+description: Lattice maintenance and contribution information.
 ---
 
-I'm Alex Morgan, a designer, reader, and habitual walker. I like work that gets clearer when it is placed beside something from another field: a page beside a porch, a map beside a lived route, a design decision beside a book that asks a harder question.
+Lattice is maintained by [jgx0](https://github.com/jgx0).
 
-## What I keep here
+See [[About/Documentation|Documentation]] for the product guide and [[About/Contributing|Contributing]] for development and contribution guidelines.
+`,
+    },
+    {
+      path: 'About/Architecture.md',
+      kind: 'note',
+      content: `---
+title: Architecture
+category: documentation
+tags: [lattice, documentation, architecture]
+description: Lattice's filesystem compiler, static-page generator, and browser reader boundary.
+---
 
-Notes that I expect to return to. Not everything I know, not a daily record, and not a finished philosophy. [[Welcome]] is the front door; [[Atlas/Maps of meaning]] is a map of the current connections.
+Lattice separates the **source vault**, the **compiled public site**, and the **browser reader**. Markdown processing and theme ingestion happen on the build machine. Reader interactions operate on compiled public data.
 
-I read with a pencil and often write the first draft after a walk. [[Library/The reading room]] gathers the books that keep turning up in those drafts. [[Field Notes/Digital gardens]] explains the tending practice.
+## Build pipeline
 
-## What I am making
+1. \`build/config.ts\` reads and validates disk configuration and environment overrides.
+2. \`build/compile.ts\` scans allowed vault files, skips hidden paths and symlinks, validates publication frontmatter with fail-closed errors, and filters private notes before building the note model.
+3. \`src/lib/model.ts\` extracts titles, properties, headings, links, tags, and slugs.
+4. \`src/lib/render.ts\` and \`src/lib/bases.ts\` render Markdown, transclusions, media, and supported Bases views. Sanitization uses an isolated JSDOM window and window-bound DOMPurify helpers from \`src/lib/sanitize.ts\`.
+5. The compiler rewrites internal links and local asset references to deployment URLs, ingests selected theme/snippet CSS, and collects referenced assets.
+6. \`build/vaultPlugin.ts\` integrates compilation with Vite and emits assets, per-note pages, and \`404.html\`. \`build/staticPages.ts\` creates semantic note HTML around the application shell and a missing-page shell that does not mount the reader. Route/output collisions and source/output overlap fail the build rather than overwriting pages or the vault.
 
-A modest [[Projects/A neighborhood atlas|neighborhood atlas]], a possible [[Projects/The monthly letter|monthly letter]], and a clearer account of what a generous publishing interface should do in [[Projects/Lattice]]. The projects are small enough to meet the world before they harden into plans.
+The compiler closes its isolated DOM after a compilation. It does not depend on browser globals, fetch remote CSS, or upload the vault.
 
-## A note about this place
+## Output boundary
 
-This is a fictional but fully connected demonstration garden for **Lattice**. The books and authors are real; the personal observations and projects are written for the demo. There are no real contact details, participant records, or mailing-list integrations.
+\`dist/\` contains semantic note HTML, the reader bundle, compiled public metadata/search data, and emitted assets. The browser payload does not include each original complete Markdown file: \`PublishedNote.content\` is empty, and its searchable \`body\` omits nonliteral Obsidian comments. Literal \`%%\` examples inside fenced or inline code are preserved. Published note text, properties, HTML, and previews remain public; a hidden panel does not make them confidential. Private notes, unselected \`.obsidian\` source files, and arbitrary unreferenced vault attachments are not blindly copied.
 
-The agreement I want to model is genuine: keep sources visible, make uncertainty legible, and respect a visitor's time. If one connection helps you ask a better question in your own work, the garden has done enough.
+Public metadata is still public: YAML properties, search information, previews, and links for surviving notes may be available even if a panel hides them. The privacy boundary is **exclusion before compilation**, not a visual control in the reader.
+
+Each published note has a URL and directory \`index.html\`; its text, navigation, outline, and backlinks exist before JavaScript. The browser receives precompiled published pages and a public search index, and adds interactions without uploading or processing local vault files.
+
+## Browser reader
+
+- \`src/App.tsx\` coordinates navigation, browser history, preferences, optional panes, and the compiled site.
+- \`src/SidebarTree.tsx\` renders nested file navigation.
+- \`src/MarkdownContent.tsx\` handles interactions with already-rendered note content.
+- \`src/GraphView.tsx\` presents local/global connections.
+- \`src/lib/search.ts\` searches public compiled note information.
+
+Reader preferences are local presentation state, not an account, synchronized vault, or authorization mechanism. Obsidian plugins and theme plugins do not execute in this layer.
+
+## Local development
+
+The Vite plugin watches vault roots, configuration, appearance settings, CSS inputs, and dependencies discovered during compilation. It debounces edits and publishes only a complete successful snapshot. If a new edit fails, the previous snapshot stays available and the error is reported; a later successful edit can recover.
+
+The development middleware serves compiled notes and emitted assets and blocks direct requests for vault source files, including source requests through Vite's filesystem route. This is useful defense in depth, not a reason to deploy a development server publicly.
+
+## Tests and fixtures
+
+\`src/demo.ts\` is an in-memory sample fixture for integration and reader tests, not the production vault loader. Production reads the configured filesystem vault. Keep fixture links and sample note content synchronized when editing the checked-in demo; do not replace the build pipeline with browser-side file processing.
+
+See [[About/Contributing]] for regression checks, [[About/Security and privacy]] for trust boundaries, and [[About/Deployment]] for static hosting.
+
+[[About/Documentation|Documentation index]].
+`,
+    },
+    {
+      path: 'About/Configuration.md',
+      kind: 'note',
+      content: `---
+title: Configuration
+category: documentation
+tags: [lattice, documentation, configuration]
+description: Vault paths, site options, navigation, themes, and configuration precedence.
+---
+
+Lattice reads \`publish.config.json\` from the project root. Configuration is validated: unknown top-level fields and unknown \`site\` settings are errors, not silently accepted extensions.
+
+## Source and deployment paths
+
+| Field | Meaning |
+| --- | --- |
+| \`vault\` | Source directory; defaults to \`./vault\`. Relative paths resolve beside the config file. |
+| \`base\` | Rooted public URL pathname; defaults to \`/\`. Use \`/notes/\` for a subdirectory deployment. |
+| \`site.home\` | Existing public homepage note, preferably its full vault-relative path. If omitted, the first compiled note is used. |
+
+\`base\` is a path, not a full domain URL. Query strings, fragments, traversal segments, and protocol-relative paths are rejected. Internal links, theme assets, attachments, and the application bundle share this base. Rebuild when it changes.
+
+\`\`\`sh
+PUBLISH_CONFIG="/absolute/path/to/publish.config.json" npm run build
+OBSIDIAN_VAULT="/absolute/path/to/Your Vault" npm run build
+\`\`\`
+
+A relative \`PUBLISH_CONFIG\` resolves from the project root. \`OBSIDIAN_VAULT\` overrides \`vault\`; a relative environment vault path resolves from the project root rather than from the config file.
+
+## Reader settings
+
+| \`site\` setting | Default | Purpose |
+| --- | --- | --- |
+| \`title\` | \`Notes\` | Site name. |
+| \`description\` | Empty | Fallback HTML description; a note's \`description\` property takes precedence. |
+| \`theme\` | \`system\` | Reader color mode: \`light\`, \`dark\`, or \`system\`. Not a community theme name. |
+| \`accent\` | Empty | Optional \`#RGB\` or \`#RRGGBB\`; otherwise a valid vault accent can apply. |
+| \`readable\` | \`true\` | Restrained reading width. |
+| \`showProperties\` | \`true\` | Display YAML properties; hiding this panel does not make properties private. |
+| \`showToc\` | \`true\` | Heading outline. |
+| \`showBacklinks\` | \`true\` | Incoming note links. |
+| \`showGraph\` | \`true\` | Graph panel. |
+| \`stacked\` | \`false\` | Horizontal stacked-page reading. |
+| \`navigation\` | \`[]\` | Order folders and full note paths. |
+| \`hiddenPaths\` | \`[]\` | Exclude matching vault-relative files or whole folders before rendering. |
+
+The demo deliberately sets \`showProperties: false\`. Reader controls can change presentation locally; they are not an authoring or access-control interface.
+
+## Navigation is not privacy
+
+\`navigation\` orders entries; it does not restrict what is published. \`navigationFolders\` moves a note to another public navigation folder without moving its source:
+
+\`\`\`json
+{
+  "site": {
+    "navigation": ["About", "Projects", "Notes"],
+    "navigationFolders": {
+      "Research/Methods.md": "Guides/Research"
+    },
+    "hiddenPaths": ["Private", "Templates"]
+  }
+}
+\`\`\`
+
+Paths in \`navigation\` and \`hiddenPaths\` must be vault-relative, non-empty, and without \`..\`. Use full note paths to avoid ambiguous filenames. See [[About/Security and privacy]] for explicit note-level exclusion.
+
+## Appearance inputs
+
+Top-level \`theme\` selects an installed community theme name or CSS file path. \`snippets\` selects CSS snippet names or paths; omit it to follow Obsidian, or use \`[]\` to disable snippets. \`css\` lists additional CSS paths. \`bodyClasses\` adds individual class names, without whitespace inside a name.
+
+\`site.communityTheme\` is a fallback when no explicit theme or vault \`cssTheme\` is selected. \`site.customCss\` accepts inline trusted CSS; prefer a versioned \`publish.css\` or CSS file for maintainability. These are not a plugin runtime.
+
+See [[About/Obsidian themes]] for precedence, assets, and compatibility limits; [[About/Deployment]] covers host paths.
+
+[[About/Documentation|Documentation index]].
+`,
+    },
+    {
+      path: 'About/Contributing.md',
+      kind: 'note',
+      content: `---
+title: Contributing
+category: documentation
+tags: [lattice, documentation, contributing]
+description: Maintain Lattice with focused changes, regression tests, and truthful demo provenance.
+---
+
+Make focused changes that preserve the build/browser boundary, note-native presentation, and privacy filtering. See [[About/Maintainer|the maintainer]] for project maintenance information. This page does not assume a particular public repository or contribution service exists.
+
+## Set up and verify
+
+From the project root, using Node.js 22.12 or newer:
+
+\`\`\`sh
+npm ci --include=dev
+npm run check
+npm audit
+\`\`\`
+
+\`npm run check\` runs type checking, the complete test suite, and the production build. The build also runs TypeScript checks and compiles the filesystem demo. The checked-in GitHub Actions workflow verifies Node.js 22 and 24; it does not deploy a site. Tests cover note/link/search/Bases behavior, sanitization, true Node compilation without browser globals, themes and CSS assets, privacy filtering, static HTML, preview serving, watcher recovery, and React reader interactions.
+
+For a demo-content change, a focused regression command is:
+
+\`\`\`sh
+npm test -- src/lib/integration.test.ts src/App.test.ts build/compile.test.ts
+\`\`\`
+
+Run the full suite before treating a cross-cutting change as complete. Audit results need investigation; do not claim a clean audit without running it.
+
+## Find the right layer
+
+| Area | Primary files |
+| --- | --- |
+| Configuration validation | \`build/config.ts\` |
+| Filesystem compilation and theme assets | \`build/compile.ts\` |
+| Vite integration, watcher, static emission | \`build/vaultPlugin.ts\` |
+| Semantic note pages | \`build/staticPages.ts\` |
+| Note model, links, Markdown/Bases, sanitization | \`src/lib/\` |
+| Reader state and navigation | \`src/App.tsx\` |
+| Reader components | \`src/SidebarTree.tsx\`, \`src/GraphView.tsx\`, \`src/MarkdownContent.tsx\` |
+| Filesystem demo | \`vault/\` |
+| In-memory regression fixture | \`src/demo.ts\` |
+
+Read [[About/Architecture]] before moving logic between these layers. Public reader code should consume compiled data, not load private source files or parse vaults at runtime.
+
+## Keep the demo truthful
+
+Sample notes are illustrative fixtures. Keep their observations, book ratings, and example project histories labeled as demo content, and preserve genuine bibliographic author names.
+
+When renaming a demo note, update wikilinks, transclusion targets, fixtures, and relevant regressions. Prefer exact vault-relative links. Documentation pages use frontmatter titles without a duplicate top-level body heading.
+
+Do not modify third-party theme vendor files casually. Preserve their licenses and provenance; use snippets or \`publish.css\` for site-level overrides.
+
+## Review changes as a reader
+
+Check a narrow screen, keyboard navigation, both color modes, direct URLs, heading links, previews, optional panels, and no-JavaScript note content. Look for unresolved links, embed limits, Base errors, and unexpectedly exposed metadata.
+
+For privacy or asset changes, add a regression that proves excluded material cannot enter public HTML, transclusions, previews, Bases, or metadata. Test failure cases, not only successful rendering.
+
+## Share an issue or proposed change
+
+Use a minimal, non-sensitive reproduction and explain expected versus actual behavior. Include commands and version information. Avoid publishing a full private vault, screenshots with personal data, or configuration containing secrets.
+
+See [[About/Troubleshooting]] for diagnosis and [[About/Security and privacy]] for the safety review.
+
+[[About/Documentation|Documentation index]].
+`,
+    },
+    {
+      path: 'About/Deployment.md',
+      kind: 'note',
+      content: `---
+title: Deployment
+category: documentation
+tags: [lattice, documentation, deployment]
+description: Build, inspect, and deploy only Lattice's static output to a production host.
+---
+
+Deploy **the generated \`dist/\` directory**, not the project checkout or the source vault. Lattice produces static HTML, application assets, referenced attachments, and theme assets; a production host does not need access to your notes or a running compiler.
+
+## Build on your machine or in CI
+
+Use Node.js 22.12 or newer. From the project root:
+
+\`\`\`sh
+npm ci --include=dev
+npm run check
+npm run preview
+\`\`\`
+
+\`npm run check\` runs type checking, all tests, and the production build. The build requires development dependencies: TypeScript, Vite, and build-time JSDOM are installed there. Do not use a production-only install such as \`npm ci --omit=dev\` for the builder. \`--include=dev\` is explicit so CI environments with \`NODE_ENV=production\` still install the toolchain.
+
+\`preview\` serves the already-built output, normally at \`http://localhost:4173\`. It is a **local verification tool**, not a hardened production service. Likewise, the live development server is not the public deployment target.
+
+## Review before upload
+
+- Open the homepage and a deep note URL directly, including after a reload.
+- Check links, heading anchors, navigation, and static note content with JavaScript disabled.
+- Test images, audio, video, PDFs, and local theme assets where used.
+- Inspect \`dist/\` for secrets, unwanted properties, copied quotations, and private details.
+- Confirm there are no unresolved links or visible Base/embed errors on the routes you intend to share.
+- Remove old deployment output when replacing a site; excluded notes must not survive as stale files on the host.
+
+A successful build validates compilation, not the appropriateness of making every surviving sentence public. Follow [[About/Security and privacy]] for source exclusion and external-resource review.
+
+## Static host requirements
+
+Configure your host to serve \`dist/\` as the site's document root. Note routes are emitted as directory \`index.html\` files, so the host should serve directory indexes and preserve encoded URL paths. Each note's semantic HTML includes its content, navigation, outline, and backlinks before JavaScript runs.
+
+Do not rely on a blanket single-page-app fallback that serves the homepage for every unknown URL; it can hide missing routes. The build emits \`404.html\`, and local development/preview return an actual 404 status for missing pages without mounting the reader over the error page. Configure the static host to use that missing-page document with a 404 status, then test a URL that does not exist. Configure HTTPS, caching, and any desired security headers on the host. There is no built-in login or password gate; private access requires separate hosting infrastructure.
+
+## Cloudflare Pages
+
+The root \`wrangler.jsonc\` identifies the Pages project with \`name: "lattice"\`, sets \`pages_build_output_dir: "./dist"\`, and pins a \`compatibility_date\`. These are Pages settings, not a Worker entry point. Change the project name if you use a different Pages project.
+
+### Git integration
+
+Open the [Cloudflare Pages setup dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages), create a **Pages** project, and connect a Git repository that you control. Select the project root and configure:
+
+| Setting | Value |
+| --- | --- |
+| Framework preset | None |
+| Build command | \`npm run build\` |
+| Build output directory | \`dist\` |
+| Node.js | 22.12 or newer in the Node 22 release line (\`NODE_VERSION=22\`) |
+| Install dependencies | Set \`NPM_CONFIG_INCLUDE=dev\`; use \`npm ci --include=dev\` where an install command is configurable |
+
+If the dashboard uses an automatic dependency install, ensure its environment does not omit development dependencies. With a custom install step, skip the automatic install if needed and run \`npm ci --include=dev\` before \`npm run build\`. The repository's Node version file selects Node 22, but verify the version reported in the build log.
+
+### CLI upload
+
+First create the Pages project in your Cloudflare account, using the dashboard or \`npx wrangler pages project create lattice\`. Then, from the project root:
+
+\`\`\`sh
+npm ci --include=dev
+npm run build
+npx wrangler pages deploy dist --project-name=lattice
+\`\`\`
+
+Wrangler requires authentication and an existing project named \`lattice\`; the commands above do not provide credentials. Choose Git integration or direct uploads when setting up the project, rather than assuming an existing project supports switching workflows.
+
+\`public/_headers\` is copied into \`dist/\` for Cloudflare Pages static responses. It configures baseline security headers and immutable caching for hashed application, attachment, and theme assets. Review it alongside your theme and embed choices; headers do not add authentication or make published notes private.
+
+## Vercel
+
+The root \`vercel.json\` selects a static build with \`framework: null\`, \`cleanUrls: true\`, \`outputDirectory: "dist"\`, \`installCommand: "npm ci --include=dev"\`, and \`buildCommand: "npm run build"\`. It also defines security and hashed-asset cache headers without a blanket SPA rewrite. Use Node.js 22.12 or newer in the Node 22 release line in the project's dashboard settings.
+
+Open the [Vercel dashboard](https://vercel.com/new), import a Git repository you control, and keep the root directory at this project's root. Verify the framework is **Other**, the install command includes development dependencies, the build command is \`npm run build\`, and the output directory is \`dist\` before deploying. Only the static output is served; the source vault is a build input.
+
+No public repository URL is configured for this checkout. The dashboard link is a setup entry point, not a one-click clone/deploy button. Git-triggered deployments require a connected repository and a push to its configured deployment branch. If the source exists only locally, create and connect your own remote repository first; importing a dashboard project does not push this checkout for you.
+
+## Netlify and continuous verification
+
+The checked-in \`netlify.toml\` uses Node.js 22, runs \`npm run build\`, and publishes \`dist\`. It configures \`nosniff\`, referrer/permissions policies, and long-lived immutable caching for hashed application, attachment, and theme assets. It intentionally has no blanket SPA redirect. Ensure dependency installation includes the development toolchain.
+
+The GitHub Actions verification workflow installs dependencies and runs \`npm run check\` on Node.js 22 and 24. It verifies the project but does not deploy it or provision hosting credentials. These host configurations are starting points, not a security certification or a private-access mechanism; no hosting account or live deployment is provisioned by the configuration files.
+
+## Deploy under a subdirectory
+
+Start with the default root \`base: "/"\` for the Cloudflare Pages, Vercel, and Netlify setups above. If you later host at a path such as \`/notes/\`, configure:
+
+\`\`\`json
+{
+  "vault": "./vault",
+  "base": "/notes/",
+  "site": { "title": "My notes", "home": "Welcome.md" }
+}
+\`\`\`
+
+Rebuild, then mount the **contents** of \`dist/\` at \`/notes/\` on the host. The base prefixes public URLs; it does not add a nested \`notes/\` directory to the output. Preview reads the emitted base manifest, so visit its printed base URL when checking the build.
+
+Changing a domain alone does not require changing \`base\`; changing the mount path does. A correct base must reach note pages, the application bundle, \`_assets/\`, and \`_theme/\` consistently. Revisit host routing and the path patterns in \`public/_headers\`, \`vercel.json\`, and \`netlify.toml\` when moving away from \`/\`; the checked-in hashed-asset cache rules assume a root deployment.
+
+## Updating the site
+
+Edit locally, rerun the checks and build, and replace the deployment with the new output. Prefer atomic deployments or a host that versions releases, especially when note names or privacy settings change. Keep the source vault and its \`.obsidian\` settings on the build side; only deliberately emitted public files belong on the host.
+
+[[About/Configuration|Configuration]] covers path overrides; [[About/Troubleshooting]] covers deep-link and asset failures.
+
+[[About/Documentation|Documentation index]].
+`,
+    },
+    {
+      path: 'About/Documentation.md',
+      kind: 'note',
+      content: `---
+title: Documentation
+aliases: [Lattice documentation]
+category: documentation
+tags: [lattice, documentation]
+description: Setup, configuration, themes, Markdown, deployment, and safety for Lattice.
+---
+
+**Lattice** is a filesystem-driven static publisher for Obsidian vaults. You choose a local vault, compile its public notes and assets, and deploy the resulting \`dist/\` directory. The [[Projects/Lattice|project overview]] explains the note-native reader and its features.
+
+## Publish a vault
+
+1. [[About/Quick start|Quick start]] — prerequisites, local development, and your first build.
+2. [[About/Configuration|Configuration]] — choose a vault, homepage, navigation, and hidden paths.
+3. [[About/Obsidian themes|Obsidian themes]] — use the installed theme, snippets, and CSS assets.
+4. [[About/Markdown and Bases|Markdown and Bases]] — supported note syntax, transclusions, and data views.
+5. [[About/Security and privacy|Security and privacy]] — decide what may become public.
+6. [[About/Deployment|Deployment]] — verify output and publish to a static host.
+
+## Understand and maintain it
+
+- [[About/Architecture|Architecture]] — what happens during compilation versus in the browser.
+- [[About/Troubleshooting|Troubleshooting]] — configuration errors, missing links, themes, and deployment paths.
+- [[About/Contributing|Contributing]] — code locations, regression checks, and demo-content standards.
+
+## A useful boundary
+
+This is a **publisher**, not an Obsidian plugin host or a private workspace service. There is no plugin execution, Dataview runtime, Canvas editing, Sync, collaboration, account system, or password protection. Bases is a supported subset, not a promise of compatibility with every Obsidian expression.
+
+Sample notes are illustrative fixtures for rendering, navigation, and linked collections. Use them to explore the reader, then replace them with the notes you intend to publish.
+
+[[Welcome|Return to Welcome]].
+`,
+    },
+    {
+      path: 'About/Markdown and Bases.md',
+      kind: 'note',
+      content: `---
+title: Markdown and Bases
+category: documentation
+tags: [lattice, documentation, markdown]
+description: Supported Markdown, wikilinks, transclusions, media, and the bounded Bases runtime.
+---
+
+Lattice compiles notes on the build machine. Ordinary Markdown and supported Obsidian syntax become sanitized HTML. The browser receives rendered public pages and searchable note text/properties, not the original complete Markdown files. Nonliteral Obsidian comments are omitted from the searchable body; literal \`%%\` examples inside fenced or inline code are preserved. The browser does not upload or process local vault files or run Obsidian plugins.
+
+## Note titles and properties
+
+Put the page title in YAML frontmatter. The reader supplies the page heading, so avoid repeating it as a top-level heading in the body.
+
+\`\`\`markdown
+---
+title: My note
+aliases: [Another name]
+tags: [research]
+description: A short description for this page.
+---
+
+An opening paragraph.
+
+## A useful section
+
+The note continues here.
+\`\`\`
+
+Properties can drive Bases and are part of public compiled data even if the properties panel is hidden. Use unquoted YAML booleans for privacy flags, not strings; see [[About/Security and privacy]].
+
+## Links and transclusions
+
+Use vault-relative wikilinks when filenames could be ambiguous. Aliases change displayed text without changing the target.
+
+\`\`\`markdown
+[[Field Notes/Digital gardens]]
+[[Field Notes/Digital gardens|Digital gardens]]
+[[Field Notes/Digital gardens#A link should carry a thought]]
+[[Field Notes/Digital gardens#^link-test]]
+
+![[Field Notes/Digital gardens#^link-test]]
+![[Field Notes/Walking as research#A detail to return to]]
+![[Field Notes/The useful edge]]
+\`\`\`
+
+These examples point to existing sample notes. A block identifier such as \`^link-test\` marks the source block. Whole-note, heading, and block embeds are supported; recursion is bounded, so cyclic or excessively nested embeds are not an unlimited expansion mechanism.
+
+Markdown links and heading/block anchors also work. The build rewrites resolved internal links to published URLs. Renaming a file can change its route; update incoming links before rebuilding.
+
+## Reader syntax and media
+
+Supported forms include tables, native-style callouts, disabled task checkboxes, footnotes, highlighting, fenced code, and bundled LaTeX output. Tasks are rendered for reading, not synchronized back to the source. Fenced code is displayed, not executed.
+
+\`\`\`markdown
+> [!note] A useful boundary
+> Keep the source visible and name the uncertainty.
+
+- [ ] An illustrative task
+
+Inline math: $E = mc^2$.
+\`\`\`
+
+Local images, audio, video, and PDFs are supported, including wiki asset embeds and sanitized HTML media. Native playback depends on the browser and codec. Keep controls and text equivalents visible; [[Atlas/Media cabinet]] demonstrates offline SVG/audio/video. Remote frames are a separate trust and privacy decision, not a free extension of the local-media model.
+
+## Bases
+
+Embed a \`.base\` file from a note. The [[Library/The reading room|reading room]] uses \`Data/Reading.base\`; [[Field Notes/Digital gardens]] uses \`Data/Related.base\`.
+
+\`\`\`markdown
+![[Data/Reading.base]]
+\`\`\`
+
+A minimal Base file can select public notes and order a table:
+
+\`\`\`yaml
+filters:
+  and:
+    - 'file.inFolder("Library/Books")'
+    - 'category == "book"'
+views:
+  - type: table
+    name: Books
+    order: [file.name, note.author, note.rating]
+    sort:
+      - property: note.rating
+        direction: DESC
+    limit: 10
+\`\`\`
+
+Supported views are \`table\`, \`list\`, and \`cards\`. View-level filters combine with base-level filters; \`order\` chooses fields, \`sort\` defines initial sorting, and \`limit\` bounds displayed rows. A table's columns can also be sorted in the reader. Multiple configured views are rendered as sections, not an Obsidian editing interface.
+
+## Expression context and limits
+
+\`file\` describes the candidate row; \`note\` and bare property names access its frontmatter. \`this.file\` describes the **host note**, not the \`.base\` source file. For example, \`collection == this.file.properties.collection\` selects books for the reading room, while \`file.path != this.file.path\` excludes the host from related rows.
+
+The evaluator supports a bounded, no-eval subset: property access, comparisons, Boolean/arithmetic operators, lists, conditionals, formulas, and selected helpers such as \`contains\`, \`length\`, \`if\`, \`number\`, \`string\`, and \`file.inFolder\`. Supported list/string methods include \`contains\`, \`join\`, \`split\`, \`unique\`, \`map\`, and \`filter\`; this is not general JavaScript or every Obsidian Bases function. Formula cycles, excessive complexity, and unsupported expressions produce visible Base errors.
+
+Only filtered public notes can become rows. A missing property usually means an empty value or no matching row, not an automatic inferred value. See [[About/Troubleshooting]] for diagnosing Base errors.
+
+[[About/Documentation|Documentation index]].
+`,
+    },
+    {
+      path: 'About/Obsidian themes.md',
+      kind: 'note',
+      content: `---
+title: Obsidian themes
+category: documentation
+tags: [lattice, documentation, themes]
+description: Publish with actual Obsidian theme CSS, enabled snippets, and local assets.
+---
+
+Lattice uses **actual installed Obsidian CSS**, not approximations selected from a theme gallery. It reads your vault's \`.obsidian/appearance.json\` and loads the corresponding files at build time.
+
+## Follow the vault
+
+\`\`\`json
+{
+  "cssTheme": "Minimal",
+  "enabledCssSnippets": ["typography", "tables"],
+  "accentColor": "#8065da",
+  "baseFontSize": 18,
+  "textFontFamily": "Inter",
+  "monospaceFontFamily": "JetBrains Mono"
+}
+\`\`\`
+
+This example expects \`.obsidian/themes/Minimal/theme.css\` and \`.obsidian/snippets/typography.css\` and \`tables.css\` to exist. The demo includes the original Minimal theme and its license, but its baseline appearance does not require selecting Minimal. Install and select any other theme in your own Obsidian vault before publishing it.
+
+Fonts named in appearance settings must be available in the browser or supplied through trusted CSS; naming a font does not download it. Text size applies for numeric values from 8 to 72 pixels. A configured site accent takes precedence over the vault accent.
+
+## Override deliberately
+
+In \`publish.config.json\`:
+
+\`\`\`json
+{
+  "vault": "./vault",
+  "theme": "Minimal",
+  "snippets": [],
+  "css": ["./site-overrides.css"],
+  "bodyClasses": ["minimal-style-default"],
+  "site": { "theme": "system", "showProperties": false }
+}
+\`\`\`
+
+Top-level \`theme\` chooses the community theme; \`site.theme\` chooses light/dark/system mode. Set top-level \`theme\` to \`"default"\` to ignore the vault's selected theme. Omitted \`snippets\` follows \`enabledCssSnippets\`; an empty array disables them.
+
+Theme/snippet names resolve inside \`.obsidian\`. Explicit CSS paths and additional \`css\` entries resolve beside the configuration file. Files named by explicit settings must exist; unavailable selected themes or snippets fail compilation rather than silently switching styles.
+
+## Loading order and assets
+
+Reader baseline CSS is followed by the compiled theme layer. Within that layer, Lattice loads:
+
+1. The selected community theme.
+2. Selected snippets, in their listed order.
+3. Optional vault-root \`publish.css\`.
+4. Additional top-level \`css\` files.
+5. Appearance-derived variables and optional \`site.customCss\`.
+
+Local CSS imports are processed recursively. Supported local fonts and images are emitted with rewritten URLs under the configured deployment base. Import cycles, unsupported asset types, and references outside a file's allowed boundary are build errors. A named theme's assets must stay within that theme directory; a snippet or explicit CSS file's assets stay within its directory. Vault-root \`publish.css\` can reference allowed assets within the vault, but not hidden assets.
+
+Remote imports and remote \`url(...)\` references remain remote. The build does not fetch them; readers need connectivity and may contact third-party servers. Only use CSS you trust.
+
+## Matching Obsidian, not running Obsidian
+
+The reader exposes \`.theme-light\`, \`.theme-dark\`, workspace/file-tree classes, \`.markdown-preview-view\`, \`.markdown-rendered\`, callouts, metadata, and hover-popover classes. Native variables include \`--background-primary\`, \`--text-normal\`, \`--font-text\`, and \`--file-line-width\`. Homepage \`cssclasses\` can contribute body classes alongside configured \`bodyClasses\`.
+
+Obsidian is an Electron application. Plugin-only controls, editing panes, and Style Settings plugin state are not reproduced or executed. Use reviewed snippets, \`publish.css\`, or body classes for matching reader styles, and test both color modes and narrow screens.
+
+See [[About/Troubleshooting]] for missing CSS and [[About/Security and privacy]] for the trust boundary.
+
+[[About/Documentation|Documentation index]].
+`,
+    },
+    {
+      path: 'About/Quick start.md',
+      kind: 'note',
+      content: `---
+title: Quick start
+category: documentation
+tags: [lattice, documentation, setup]
+description: Run Lattice locally, choose an Obsidian vault, and build static output.
+---
+
+Start with the project checkout and **Node.js 22.12 or newer**, plus npm. Commands below run from the project root, not from inside your vault.
+
+## Run the included demo
+
+\`\`\`sh
+npm ci
+npm run dev
+\`\`\`
+
+Open \`http://localhost:5173\` or the URL printed by Vite. The scripts bind to \`127.0.0.1\` by default; \`npm start\` is an alias for the local development command. The checked-in \`vault/\` is the source demo; there is no browser upload step. Binding to loopback keeps local testing on your machine rather than exposing the development server to your network.
+
+Edit a note and save it. The development server watches notes, attachments, \`.obsidian\` appearance/theme/snippet files, \`publish.css\`, and configuration. A successful compilation refreshes connected readers. A failed edit reports an error and retains the last successful snapshot; fix the reported cause before trusting the preview.
+
+## Select your vault
+
+Edit \`publish.config.json\` to identify the source directory and an existing public homepage:
+
+\`\`\`json
+{
+  "vault": "/absolute/path/to/Your Vault",
+  "base": "/",
+  "site": {
+    "title": "My notes",
+    "home": "Home.md",
+    "theme": "system",
+    "showProperties": false,
+    "hiddenPaths": ["Private", "Templates"]
+  }
+}
+\`\`\`
+
+The homepage is a vault-relative note path. A relative \`vault\` path resolves from the configuration file's directory. Create the homepage in your own vault before starting, and read [[About/Security and privacy]] before selecting a personal notebook.
+
+For a temporary source override:
+
+\`\`\`sh
+OBSIDIAN_VAULT="/absolute/path/to/Your Vault" npm run dev
+\`\`\`
+
+See [[About/Configuration]] for settings and configuration-file overrides.
+
+## Build and inspect
+
+\`\`\`sh
+npm run build
+npm run preview
+\`\`\`
+
+Open \`http://localhost:4173\` or Vite's printed URL. \`build\` first runs TypeScript checks, then compiles the vault and writes HTML and assets to \`dist/\`. \`preview\` serves that existing output for local inspection; it is not a hardened production server.
+
+Follow an internal link, open that note's URL directly, test an attachment, and verify that private material is absent from the output. Deploy **only \`dist/\`**, as described in [[About/Deployment]].
+
+## Next
+
+Use [[About/Obsidian themes]] to preserve your vault's appearance, [[About/Markdown and Bases]] to check supported syntax, and [[About/Troubleshooting]] if a build or link does not behave as expected.
+
+[[About/Documentation|Documentation index]].
+`,
+    },
+    {
+      path: 'About/Security and privacy.md',
+      kind: 'note',
+      content: `---
+title: Security and privacy
+category: documentation
+tags: [lattice, documentation, privacy]
+description: Exclude private notes before compilation and review public data, CSS, and embeds.
+---
+
+A published Lattice site is **public** unless your host separately restricts access. Lattice has no accounts, authorization service, or password protection. The build reads the vault locally and does not upload it; deploying the output is the step that makes the compiled material available to readers.
+
+## Exclude, do not merely hide
+
+Use \`site.hiddenPaths\` in configuration to exclude whole files or folders:
+
+\`\`\`json
+{
+  "site": { "hiddenPaths": ["Private", "Templates", "People/Contact details.md"] }
+}
+\`\`\`
+
+Or use actual YAML booleans in a note:
+
+\`\`\`yaml
+---
+publish: false
+---
+\`\`\`
+
+\`private: true\` also excludes a Markdown note. Do not quote these booleans. Publication fails closed: malformed or unterminated frontmatter, non-object metadata, duplicate YAML keys, and non-Boolean \`publish\`/\`private\` values stop compilation rather than publishing a note with ignored privacy flags. Fix the reported error before deploying.
+
+Dot-prefixed paths and vault symlinks are skipped during scanning. Private/hidden notes are filtered **before rendering**, so they cannot enter note transclusions, Bases rows, hover previews, search, or graph data. A private homepage is a build error rather than a publishable fallback.
+
+\`showProperties: false\`, collapsed folders, and navigation ordering are **not** privacy controls. Published note text, properties, rendered HTML, and previews remain accessible through public pages and compiled reader/search data. The original complete Markdown file is not included in the browser payload: its \`content\` is empty, and nonliteral Obsidian comments are removed from the searchable body. Literal \`%%\` examples in fenced or inline code remain public. Keep secrets out of public prose, properties, and code examples; if a secret has already been copied into another public note, excluding its original source does not remove the copy.
+
+## Files and assets
+
+The builder does not blindly copy the vault, \`.obsidian\` source, or every attachment into output. Referenced permitted assets are emitted separately; selected trusted CSS and its supported local dependencies are included. Filesystem and CSS-import boundaries are checked, and hidden vault assets cannot be included through CSS references.
+
+Vite's \`public/\` directory is a separate intentional static-asset input. Keep it reviewed: files placed there can be copied to the deployed output. The build rejects public-directory inputs that resolve into the vault/configuration, overlapping source/output directories, and conflicting published output paths; these checks do not classify arbitrary manually copied public files as non-sensitive.
+
+Direct development requests for vault sources are blocked. Nevertheless, keep local development bound to loopback when possible, and deploy only \`dist/\` to a static host, never the checkout or source vault.
+
+## HTML sanitization
+
+Rendered HTML is sanitized at compilation with DOMPurify. Scripts, event handlers, dangerous URLs, and raw \`srcdoc\` are removed. SVG assets are sanitized. External iframes are sandboxed, while generated PDF frames retain restrictive sandboxing.
+
+Sanitization is not an assurance that an external service is private, benign, or appropriate. A permitted remote frame can still execute scripts in its frame and contact its provider. Review the actual destination, permissions, and user-facing explanation; a plain link is often the safer choice. [[Atlas/Media cabinet]] demonstrates offline examples and shows a remote embed only as unexecuted code.
+
+## CSS is trusted input
+
+Themes, snippets, \`publish.css\`, and configured CSS are trusted author input, not sanitized untrusted content. Use sources you trust and respect their licenses. Local imports are bounded and cycle-checked; remote CSS imports and remote asset URLs remain remote and can make requests from readers' browsers.
+
+The build does not fetch those remote resources, so offline compilation does not imply an offline published page. Check themes for remote fonts, images, and imports if avoiding third-party contact matters.
+
+## Pre-publication review
+
+1. Keep secrets outside the publishing vault where practical; use explicit exclusions as defense in depth.
+2. Check configuration and valid frontmatter, then run tests and build.
+3. Inspect the generated output, including properties, previews, assets, and transcluded content.
+4. Review contact details, quoted conversations, permissions, and external embeds manually.
+5. Replace previous deployment files so newly excluded pages cannot remain available as stale output.
+
+Sample notes are illustrative fixtures. Review any replacement notes and assets independently before publishing them.
+
+[[About/Deployment|Deployment]] covers hosting boundaries. [[About/Documentation|Documentation index]].
+`,
+    },
+    {
+      path: 'About/Troubleshooting.md',
+      kind: 'note',
+      content: `---
+title: Troubleshooting
+category: documentation
+tags: [lattice, documentation, troubleshooting]
+description: Diagnose configuration, link, Base, CSS, watcher, and static-host problems.
+---
+
+Begin with the **first reported build or development error**. The live server preserves the last successful compilation, so a readable page after an error may be an older snapshot rather than proof that the edit worked.
+
+## Installation or compilation fails
+
+- Check Node.js is 22.12 or newer.
+- Run \`npm ci --include=dev\` from the project root; the builder needs TypeScript, Vite, and JSDOM from development dependencies.
+- Verify the vault and configuration file exist and are readable.
+- Unknown configuration fields are rejected; do not add unsupported options hoping they will take effect.
+- Malformed or unterminated frontmatter and quoted/non-Boolean privacy flags fail compilation. Repair the YAML rather than removing a needed exclusion.
+- Published-route collisions are build errors; rename conflicting note paths rather than relying on one page to overwrite another.
+- Run \`npm run build\` to reproduce the error outside the watcher.
+
+See [[About/Quick start]] and [[About/Configuration]] for working examples.
+
+## Homepage missing or no published notes
+
+\`site.home\` must resolve to an existing public Markdown note. Check spelling, folder path, extension, \`hiddenPaths\`, and privacy frontmatter. If all notes are excluded, compilation cannot create a site. Do not weaken privacy settings merely to make an error disappear; choose a genuinely public homepage.
+
+## A link or transclusion is unresolved
+
+Use an exact vault-relative path, especially when several folders contain the same filename. Check the heading text or block identifier as well as the note name. A link cannot reveal a filtered private note. Update incoming links after renaming a source file.
+
+A cyclic or overly nested embed can reach the renderer's limit. Prefer a direct link or a smaller heading/block embed rather than an endless whole-note chain. [[About/Markdown and Bases]] shows valid targets from this vault.
+
+## A Base is empty or reports an error
+
+An empty view can be correct: no public notes match its filters. Check property names, YAML value types, folder paths, and the host note's properties. \`this.file\` means the host Markdown note; it is not the \`.base\` file.
+
+A visible “Unable to render Base” message indicates invalid YAML, an unsupported view/expression, a circular formula, or an evaluator limit. Reduce the expression to supported operations and verify the result on a small collection. Obsidian's complete Bases runtime and general JavaScript are not supported.
+
+## A theme or CSS asset fails
+
+- Check \`.obsidian/appearance.json\` is valid JSON.
+- Verify the selected theme's \`theme.css\` and enabled snippet files exist.
+- Distinguish top-level \`theme\` from \`site.theme\` color mode.
+- Set top-level \`theme: "default"\` and \`snippets: []\` temporarily to isolate a CSS issue, then restore the intended configuration.
+- Check local import/asset paths, supported extensions, allowed directories, and import cycles.
+- Check connectivity for remote CSS resources; the build leaves their URLs remote.
+
+Style Settings plugin state, editing controls, and plugin-only components cannot appear merely by loading their CSS. See [[About/Obsidian themes]] for the compatibility boundary.
+
+## Saved edits do not appear
+
+Read terminal and browser error output first. A failed edit intentionally leaves the previous snapshot live. Fix the cause and save again; a successful compile refreshes readers. If changes involve configuration base paths, verify the new URL and restart the local command if needed. \`npm run preview\` does not watch or compile source changes; rerun \`npm run build\` before previewing.
+
+## Deep links or assets fail after deployment
+
+Verify the configured \`base\` equals the host's mount path, then rebuild. Mount \`dist/\` contents there, including \`_assets/\`, \`_theme/\`, and application assets. The host must serve note-directory \`index.html\` files. Test a direct note URL and a nonexistent URL rather than relying only on client-side clicks or a universal homepage fallback.
+
+If renamed or excluded pages remain available, replace or clean the old deployment. Local output changes do not delete stale files from a remote host. [[About/Deployment]] provides the complete checklist.
+
+## Media will not play
+
+Check the emitted file URL, browser codec support, and visible playback controls. Development serves generated assets with single-byte-range responses for media seeking and ETags for conditional requests; the production static host must provide appropriate file-serving behavior. No autoplay is required by the offline examples. A working file does not guarantee every browser can decode its format; provide a useful text description or download link.
+
+## Reporting a reproducible issue
+
+Include the command, Node/npm versions, minimal configuration, exact error, expected behavior, and a non-sensitive sample note/Base/CSS file. Never attach a private vault or unredacted secrets. See [[About/Contributing]] for tests and source locations.
+
+[[About/Documentation|Documentation index]].
 `,
     },
     {
@@ -1170,8 +1904,8 @@ views:
 
 export const defaultSettings: SiteSettings = {
   home: 'Welcome.md',
-  title: 'Alex’s digital garden',
-  description: 'Notes, connections, and things worth keeping.',
+  title: 'Lattice',
+  description: 'Publish connected Obsidian notes with a static, note-native reader.',
   accent: '#8065da',
   theme: 'light',
   communityTheme: 'default',

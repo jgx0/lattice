@@ -1,7 +1,7 @@
 ---
 title: Enough is a design constraint
 aliases: [The shape of enough]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: essay
 date: 2026-10-25

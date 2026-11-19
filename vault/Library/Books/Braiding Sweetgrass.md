@@ -2,7 +2,7 @@
 title: Braiding Sweetgrass
 aliases: [Kimmerer on reciprocity]
 author: Robin Wall Kimmerer
-curator: Alex Morgan
+provenance: Demo content
 status: read
 category: book
 date: 2026-10-30

@@ -1,7 +1,7 @@
 ---
 title: The reading room
 aliases: [Reading room, Bookshelf]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: library
 date: 2026-11-17

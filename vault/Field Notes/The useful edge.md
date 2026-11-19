@@ -1,7 +1,7 @@
 ---
 title: The useful edge
 aliases: [Productive boundaries]
-author: Alex Morgan
+provenance: Demo content
 status: seedling
 category: field-note
 date: 2026-10-29

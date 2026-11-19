@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, mkdir, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { JSDOM } from "jsdom";
@@ -9,7 +9,7 @@ import type { CompiledSite, PublishedNote } from "../src/types";
 import { loadConfig, type BuildConfig } from "./config";
 import { compileVault } from "./compile";
 import { vaultPlugin } from "./vaultPlugin";
-import { absoluteShellReferences, findPublishedNote, publishedPageFile, renderPublishedPage } from "./staticPages";
+import { absoluteShellReferences, findPublishedNote, publishedPageFile, renderPublishedPage, renderNotFoundPage, validatePublishedRoutes } from "./staticPages";
 
 vi.mock("./compile", () => ({ compileVault: vi.fn() }));
 const compiler = vi.mocked(compileVault);
@@ -132,6 +132,29 @@ describe("semantic published pages", () => {
     expect(document.querySelector(".page-header-title")?.textContent).toBe(target.title);
   });
 
+  it('renders a semantic, no-app-script missing page with navigation and stylesheet shell', async () => {
+    const { root } = await fixture('/project/');
+    const { site } = await fakeCompile(await loadConfig(root));
+    const template = await readFile(path.join(root, 'index.html'), 'utf8');
+    const document = new JSDOM(renderNotFoundPage(template.replace('</head>', '<link rel="stylesheet" href="/project/assets/app.css"><link rel="modulepreload" href="/project/assets/app.js"></head>'), site)).window.document;
+    expect(document.title).toBe('Page not found · Fixture site');
+    expect(document.querySelector('h1')?.textContent).toBe('Page not found');
+    expect(document.querySelector('.markdown-body')?.textContent).not.toContain('Original home');
+    expect(document.querySelector('.markdown-body a')?.getAttribute('href')).toBe('/project/');
+    expect(document.querySelector('meta[name=robots]')?.getAttribute('content')).toBe('noindex');
+    expect(document.querySelectorAll('script,link[rel=modulepreload]')).toHaveLength(0);
+    expect(document.querySelector('link[rel=stylesheet]')).not.toBeNull();
+    expect(document.querySelector('.vault-navigation a')).not.toBeNull();
+  });
+
+  it('rejects canonical route aliases and escapes absolutized shell query attributes', () => {
+    expect(() => validatePublishedRoutes([{ path: 'Home.md', url: '/project/' }, { path: 'Alias.md', url: '/project/index.html' }], '/project/')).toThrow('route collision');
+    for (const route of ['/project/x%2fy', '/project/x//y', '/project/%00']) expect(() => publishedPageFile(route, '/project/')).toThrow('Unsafe');
+    const document = new JSDOM(absoluteShellReferences('<a href="assets/x?a=1&b=2\' onclick=\'evil">x</a>', '/project/')).window.document;
+    expect(document.querySelector('a')?.hasAttribute('onclick')).toBe(false);
+    expect(document.querySelector('a')?.getAttribute('href')).toContain('/project/assets/x?a=1&b=2');
+  });
+
   it("matches only actual routes and maps safe clean URLs under a deployment base", async () => {
     const { root } = await fixture("/project/");
     const { site } = await fakeCompile(await loadConfig(root));
@@ -181,7 +204,101 @@ describe("Vite vault integration", () => {
     const cleanPage = await fetch(`http://127.0.0.1:${address.port}/project/field-notes/digital-gardens`);
     expect(cleanPage.status).toBe(200);
     expect(await cleanPage.text()).toContain("Digital Gardens · Fixture site");
+    const origin = `http://127.0.0.1:${address.port}`;
+    for (const route of ['/project/missing-note', '/project/removed/deep/page/', '/project/_assets/missing.png']) {
+      const missing = await fetch(origin + route);
+      expect(missing.status).toBe(404);
+      const document = new JSDOM(await missing.text()).window.document;
+      expect(document.querySelector('h1')?.textContent).toBe('Page not found');
+      expect(document.querySelectorAll('script')).toHaveLength(0);
+      expect(document.querySelector('.markdown-body')?.textContent).not.toContain('Original home');
+    }
+    const missingHead = await fetch(origin + '/project/missing-note', { method: 'HEAD' });
+    expect(missingHead.status).toBe(404);
+    expect(await missingHead.text()).toBe('');
+    const imageHead = await fetch(origin + '/project/_assets/image.png', { method: 'HEAD' });
+    expect(imageHead.headers.get('content-type')).toBe('image/png');
+    expect(imageHead.headers.get('content-length')).toBe('3');
+    const imageRange = await fetch(origin + '/project/_assets/image.png', { headers: { Range: 'bytes=1-2' } });
+    expect(imageRange.status).toBe(206);
+    expect([...new Uint8Array(await imageRange.arrayBuffer())]).toEqual([2, 3]);
   }, 15000);
+
+  it('returns true semantic 404s for missing dev routes and resources without swallowing Vite modules', async () => {
+    const { root } = await fixture('/project/');
+    const { origin } = await start(root);
+    for (const route of ['/project/missing', '/project/removed/deep/page', '/project/_assets/missing.png']) {
+      const response = await fetch(origin + route);
+      expect(response.status).toBe(404);
+      const document = new JSDOM(await response.text()).window.document;
+      expect(document.querySelector('h1')?.textContent).toBe('Page not found');
+      expect(document.querySelectorAll('script')).toHaveLength(0);
+      expect(document.querySelector('.markdown-body')?.textContent).not.toContain('Original home');
+    }
+    const head = await fetch(origin + '/project/missing', { method: 'HEAD' });
+    expect(head.status).toBe(404);
+    expect(await head.text()).toBe('');
+    expect((await fetch(origin + '/project/@vite/client')).status).toBe(200);
+    expect((await fetch(origin + '/project/main.js')).status).toBe(200);
+  });
+
+  it('serves published media beneath an explicitly encoded deployment base', async () => {
+    const { root } = await fixture('/caf%C3%A9/');
+    const { origin } = await start(root);
+    const asset = await fetch(origin + '/caf%C3%A9/_assets/image.png');
+    expect(asset.status).toBe(200);
+    expect(asset.headers.get('content-type')).toBe('image/png');
+    expect([...new Uint8Array(await asset.arrayBuffer())]).toEqual([1, 2, 3]);
+    expect((await fetch(origin + '/caf%C3%A9/')).status).toBe(200);
+  });
+
+  it('serves every supported media MIME with correct HEAD, validators and single byte ranges', async () => {
+    const { root } = await fixture('/project/');
+    compiler.mockImplementation(async config => {
+      const result = await fakeCompile(config);
+      for (const ext of ['bmp', 'flac', 'mov', 'eot']) result.assets.set(`_assets/media.${ext}`, new Uint8Array([1, 2, 3, 4, 5]));
+      return result;
+    });
+    const { origin } = await start(root);
+    for (const [ext, mime] of [['bmp', 'image/bmp'], ['flac', 'audio/flac'], ['mov', 'video/quicktime'], ['eot', 'application/vnd.ms-fontobject']]) {
+      const head = await fetch(`${origin}/project/_assets/media.${ext}`, { method: 'HEAD', headers: { Range: 'bytes=1-2' } });
+      expect(head.status).toBe(200);
+      expect(head.headers.get('content-type')).toBe(mime);
+      expect(head.headers.get('content-length')).toBe('5');
+      expect(head.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(await head.text()).toBe('');
+    }
+    const url = origin + '/project/_assets/media.mov';
+    const all = await fetch(url);
+    const etag = all.headers.get('etag')!;
+    expect((await fetch(url, { headers: { 'If-None-Match': etag } })).status).toBe(304);
+    for (const [range, bytes, contentRange] of [
+      ['bytes=1-2', [2, 3], 'bytes 1-2/5'], ['bytes=3-', [4, 5], 'bytes 3-4/5'], ['bytes=-2', [4, 5], 'bytes 3-4/5'],
+    ] as const) {
+      const response = await fetch(url, { headers: { Range: range } });
+      expect(response.status).toBe(206);
+      expect(response.headers.get('content-range')).toBe(contentRange);
+      expect([...new Uint8Array(await response.arrayBuffer())]).toEqual(bytes);
+    }
+    for (const range of ['bytes=9-', 'bytes=3-1', 'bytes=-0']) {
+      const response = await fetch(url, { headers: { Range: range } });
+      expect(response.status).toBe(416);
+      expect(response.headers.get('content-range')).toBe('bytes */5');
+    }
+    expect((await fetch(url, { headers: { Range: 'bytes=1-2', 'If-Range': '"stale"' } })).status).toBe(200);
+  });
+
+  it('blocks configuration and realpath vault aliases while preserving compiled routes', async () => {
+    const { root, vault } = await fixture();
+    await symlink(vault, path.join(root, 'vault-alias'));
+    const { origin } = await start(root);
+    for (const route of ['/publish.config.json', '/publish.config.json?raw', '/@fs' + root + '/publish.config.json', '/vault-alias/Home.md?raw']) {
+      const response = await fetch(origin + route);
+      expect(response.status).toBe(403);
+      expect(await response.text()).not.toContain('Original home');
+    }
+    expect((await fetch(origin + '/')).status).toBe(200);
+  });
 
   it("watches an external vault, serves matched dev pages/assets and atomically recovers from failed edits", async () => {
     const { root, vault, configPath, raw } = await fixture("/project/");
@@ -269,6 +386,34 @@ describe("Vite vault integration", () => {
     await vi.waitFor(async () => expect(await (await fetch(origin + "/")).text()).toContain("Final latest snapshot"), { timeout: 6000 });
     const site = (await server.ssrLoadModule("virtual:published-site")).default as CompiledSite;
     expect(site.notes.find(candidate => candidate.path === "Home.md")?.body).toBe("Final latest snapshot");
+  });
+
+  it('rejects publicDir copies of vault/config inputs and overlapping output directories', async () => {
+    const { root, vault } = await fixture();
+    for (const options of [{ publicDir: vault }, { build: { outDir: vault } }, { build: { outDir: '.' } }]) {
+      await expect(build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: 'silent', ...options })).rejects.toThrow(/expose|overlaps/);
+    }
+    await mkdir(path.join(root, 'public'));
+    await symlink(path.join(root, 'publish.config.json'), path.join(root, 'public', 'leak.json'));
+    await expect(build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: 'silent' })).rejects.toThrow(/expose/);
+  });
+
+  it('rejects page/asset/public output and file-directory collisions rather than silently renaming pages', async () => {
+    const { root } = await fixture();
+    for (const asset of ['field-notes/digital-gardens/index.html', 'field-notes', '404.html']) {
+      compiler.mockImplementation(async config => ({ ...(await fakeCompile(config)), assets: new Map([[asset, new Uint8Array([1])]]) }));
+      await expect(build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: 'silent' })).rejects.toThrow('output collision');
+    }
+    compiler.mockImplementation(async config => {
+      const result = await fakeCompile(config);
+      result.site.notes.push(note('Alias.md', config.base + 'index.html'));
+      return result;
+    });
+    await expect(build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: 'silent' })).rejects.toThrow('route collision');
+    compiler.mockImplementation(fakeCompile);
+    await mkdir(path.join(root, 'public'));
+    await writeFile(path.join(root, 'public', '404.html'), 'private override');
+    await expect(build({ configFile: false, root, plugins: [vaultPlugin()], logLevel: 'silent' })).rejects.toThrow('output collision');
   });
 
   it("rejects unsafe compiler asset outputs before publishing any bundle", async () => {

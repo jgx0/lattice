@@ -21,17 +21,35 @@ import MarkdownContent from "./MarkdownContent";
 import GraphView from "./GraphView";
 
 function normalizeRoute(value: string) {
+  const trim = (path: string) => path.replace(/\/index\.html\/?$/, "/").replace(/\/+$/, "") || "/";
   try {
-    return decodeURIComponent(value).replace(/\/+$/, "") || "/";
+    return trim(decodeURIComponent(value));
   } catch {
-    return value.replace(/\/+$/, "") || "/";
+    return trim(value);
   }
 }
 function readPreferences() {
   try {
-    return JSON.parse(
+    const parsed: unknown = JSON.parse(
       localStorage.getItem("publish-reader-preferences") || "{}",
-    ) as Partial<SiteSettings>;
+    );
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return {};
+    const values = parsed as Record<string, unknown>;
+    const preferences: Partial<SiteSettings> = {};
+    if (["light", "dark", "system"].includes(String(values.theme)))
+      preferences.theme = values.theme as SiteSettings["theme"];
+    for (const key of [
+      "readable",
+      "showProperties",
+      "showToc",
+      "showGraph",
+      "showBacklinks",
+      "stacked",
+    ] as const) {
+      if (typeof values[key] === "boolean") preferences[key] = values[key];
+    }
+    return preferences;
   } catch {
     return {};
   }
@@ -74,7 +92,8 @@ export default function App({ site }: { site: CompiledSite }) {
   });
   const reader = useRef<HTMLDivElement>(null),
     searchInput = useRef<HTMLInputElement>(null),
-    timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    timer = useRef<ReturnType<typeof setTimeout> | null>(null),
+    settingsDialog = useRef<HTMLElement>(null);
   const current = notes.find((note) => note.path === path) || initialNote(site);
   const searchResults = useMemo(
     () => searchNotes(query, notes),
@@ -147,6 +166,35 @@ export default function App({ site }: { site: CompiledSite }) {
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, [query]);
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    settingsDialog.current
+      ?.querySelector<HTMLElement>("button, select")
+      ?.focus();
+    const containFocus = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const targets = Array.from(
+        settingsDialog.current?.querySelectorAll<HTMLElement>(
+          "button:not([disabled]), select:not([disabled]), a[href], input:not([disabled])",
+        ) || [],
+      );
+      const first = targets[0],
+        last = targets[targets.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", containFocus);
+    return () => {
+      document.removeEventListener("keydown", containFocus);
+      previouslyFocused?.focus();
+    };
+  }, [settingsOpen]);
   const scrollTo = useCallback(
     (note: PublishedNote, anchor = "") => {
       setTimeout(() => {
@@ -768,6 +816,7 @@ export default function App({ site }: { site: CompiledSite }) {
         >
           <section
             className="modal"
+            ref={settingsDialog}
             role="dialog"
             aria-modal="true"
             aria-label="Reader settings"

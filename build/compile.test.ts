@@ -49,6 +49,8 @@ describe('filesystem build configuration', () => {
     const { root, put } = await fixture();
     for (const config of [
       { base: 'https://example.com/' }, { base: '/%2e%2e/' }, { base: '/x?y' },
+      { base: '/%2f%2fevil/' }, { base: '/%00/' }, { base: '/%0a/' }, { base: '/a\\u0001b/' },
+      { base: '/a//b/' }, { base: '/quote"/' }, { base: '/%3cscript%3e/' },
       { site: { theme: 'Minimal' } }, { site: { showGraph: 'yes' } },
       { site: { hiddenPaths: ['../private'] } }, { site: { accent: 'red; color: blue' } },
     ]) {
@@ -172,6 +174,36 @@ describe('Node vault compiler', () => {
     expect(result.dependencies).toContain(imported);
     await put('vault/.obsidian/themes/Imports/parts/two.css', '@import "../theme.css";');
     await expect(compileVault(await loadConfig(root))).rejects.toThrow(/Circular CSS import/);
+  });
+
+  it('omits source Markdown and invisible Obsidian comments from public reader/search payloads', async () => {
+    const { root, put } = await fixture();
+    await put('vault/Welcome.md', '---\nlabel: "Public %%metadata%%"\n---\n# Welcome\nPublic prose %%SECRET_COMMENT_TOKEN%% retained.\n\n%%\nSECRET_MULTILINE_TOKEN\n%%\n\n`%% literal inline %%`\n\n```text\n%% literal fenced %%\n```');
+    const { site } = await compileVault(await loadConfig(root));
+    expect(JSON.stringify(site)).not.toContain('SECRET_COMMENT_TOKEN');
+    expect(JSON.stringify(site)).not.toContain('SECRET_MULTILINE_TOKEN');
+    const welcome = site.notes[0];
+    expect(welcome.content).toBe('');
+    expect(welcome.body).toContain('Public prose');
+    expect(welcome.body).toContain('%% literal inline %%');
+    expect(welcome.body).toContain('%% literal fenced %%');
+    expect(welcome.properties.label).toBe('Public %%metadata%%');
+    expect(welcome.html).toContain('literal fenced');
+    expect(welcome.previewHtml).toContain('Public prose');
+  });
+
+  it('fails closed on malformed/unterminated publication metadata and ambiguous privacy flags', async () => {
+    const { root, put } = await fixture();
+    for (const frontmatter of ['private: true\nbroken: [', 'publish: false\nprivate: true\nprivate: false', 'private: "true"', 'publish: "false"', '- private: true']) {
+      await put('vault/Secret.md', `---\n${frontmatter}\n---\nSECRET_PRIVATE_BODY`);
+      await expect(compileVault(await loadConfig(root))).rejects.toThrow(/Invalid publication frontmatter in Secret.md/);
+    }
+    await put('vault/Secret.md', '---\nprivate: true\nSECRET_PRIVATE_BODY');
+    await expect(compileVault(await loadConfig(root))).rejects.toThrow(/Unterminated frontmatter/);
+    await put('vault/Secret.md', '---\nprivate: true\n---\nSECRET_PRIVATE_BODY');
+    await put('vault/Empty.md', '---\n---\n# Empty metadata');
+    expect((await compileVault(await loadConfig(root))).site.notes.some(note => note.path === 'Empty.md')).toBe(true);
+    expect(JSON.stringify((await compileVault(await loadConfig(root))).site)).not.toContain('SECRET_PRIVATE_BODY');
   });
 
   it('never follows vault symlinks or emits hidden assets and fails for a private home', async () => {

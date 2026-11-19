@@ -2,7 +2,7 @@
 title: The Art of Noticing
 aliases: [A practice of noticing]
 author: Rob Walker
-curator: Alex Morgan
+provenance: Demo content
 status: read
 category: book
 date: 2026-10-21

@@ -1,7 +1,7 @@
 ---
 title: Digital gardens
 aliases: [Working in public, Garden notes]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: field-note
 date: 2026-11-18

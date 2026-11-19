@@ -1,7 +1,7 @@
 ---
 title: Maps of meaning
 aliases: [The garden map, Crossroads]
-author: Alex Morgan
+provenance: Demo content
 status: evergreen
 category: atlas
 date: 2026-11-15
@@ -36,4 +36,4 @@ The diagram is one responsive SVG with a descriptive title and text; it is a wor
 
 The block above is embedded from the original note, so the reminder has one place to be tended. A good map should reduce duplication as well as confusion.
 
-For an account of the people behind these connections, see [[Atlas/People and influences]]. For the garden's keeper, see [[About/Alex Morgan]].
+For the authors and ideas connected by these sample notes, see [[Atlas/People and influences]].

@@ -1,7 +1,7 @@
 ---
 title: A neighborhood atlas
 aliases: [The neighborhood project]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: project
 date: 2026-11-16

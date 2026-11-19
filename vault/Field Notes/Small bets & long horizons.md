@@ -1,7 +1,7 @@
 ---
 title: Small bets & long horizons
 aliases: [Small bets, The two clocks]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: field-note
 date: 2026-11-12

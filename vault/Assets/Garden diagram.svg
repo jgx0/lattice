@@ -6,7 +6,7 @@
   </defs>
   <rect width="960" height="520" rx="24" fill="#faf8f4"/>
   <text x="48" y="58" font-family="Georgia,serif" font-size="28" fill="#302a3d">Nothing grows in isolation.</text>
-  <text x="48" y="88" font-family="Arial,sans-serif" font-size="15" fill="#68616f">A working map of Alex Morgan’s knowledge garden · Lattice</text>
+  <text x="48" y="88" font-family="Arial,sans-serif" font-size="15" fill="#68616f">A connected-note publishing map · Lattice</text>
   <g fill="none" stroke="#8065da" stroke-width="2.5" marker-end="url(#arrow)">
     <path d="M260 192H340"/><path d="M550 192H630"/>
     <path d="M735 232V312"/><path d="M630 352H550"/>

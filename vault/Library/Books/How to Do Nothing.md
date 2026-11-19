@@ -2,7 +2,7 @@
 title: How to Do Nothing
 aliases: [Odell on attention]
 author: Jenny Odell
-curator: Alex Morgan
+provenance: Demo content
 status: read
 category: book
 date: 2026-11-10

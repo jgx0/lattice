@@ -1,7 +1,7 @@
 ---
 title: Walking as research
 aliases: [The place gets a vote]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: field-note
 date: 2026-11-08

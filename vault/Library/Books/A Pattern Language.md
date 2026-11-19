@@ -3,7 +3,7 @@ title: A Pattern Language
 aliases: [Alexander on patterns]
 author: Christopher Alexander, Sara Ishikawa, and Murray Silverstein
 contributors: [Max Jacobson, Ingrid Fiksdahl-King, Shlomo Angel]
-curator: Alex Morgan
+provenance: Demo content
 status: rereading
 category: book
 date: 2026-11-16

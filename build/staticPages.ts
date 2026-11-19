@@ -9,16 +9,29 @@ export function escapeHtml(value: unknown): string {
   })[character]!);
 }
 
+function normalizeRoute(value: string): string | undefined {
+  try { value = decodeURIComponent(value); } catch { return undefined; }
+  if (/[\\\u0000-\u001f\u007f]/.test(value) || value.split('/').some(part => part === '.' || part === '..')) return undefined;
+  return value.replace(/\/index\.html$/, '/').replace(/\/+$/, '') || '/';
+}
+
 /** Match only published URLs; never infer a vault path from a request. */
 export function findPublishedNote(site: CompiledSite, pathname: string): PublishedNote | undefined {
-  const normalize = (value: string) => {
-    try { value = decodeURIComponent(value); } catch { return undefined; }
-    if (value.includes("\\") || value.includes("\0") || value.split("/").some(part => part === "." || part === "..")) return undefined;
-    return value.replace(/\/index\.html$/, "/").replace(/\/+$/, "") || "/";
-  };
-  const requested = normalize(pathname);
+  const requested = normalizeRoute(pathname);
   if (requested === undefined) return undefined;
-  return site.notes.find(note => normalize(note.url) === requested);
+  return site.notes.find(note => normalizeRoute(note.url) === requested);
+}
+
+export function validatePublishedRoutes(notes: ReadonlyArray<{ path: string; url: string }>, base: string): void {
+  const routes = new Map<string, string>();
+  for (const note of notes) {
+    publishedPageFile(note.url, base);
+    const route = normalizeRoute(note.url);
+    if (route === undefined) throw new Error(`Unsafe published route: ${note.url}`);
+    const previous = routes.get(route);
+    if (previous) throw new Error(`Published route collision: ${previous} and ${note.path} share ${note.url}`);
+    routes.set(route, note.path);
+  }
 }
 
 export function homeNote(site: CompiledSite): PublishedNote | undefined {
@@ -31,7 +44,7 @@ export function publishedPageFile(url: string, base = "/"): string {
   const route = url.slice(base.length).replace(/^\/+|\/+$/g, "");
   let decoded: string;
   try { decoded = decodeURIComponent(route); } catch { throw new Error(`Invalid published URL: ${url}`); }
-  if (/[\\\0?#]/.test(decoded) || decoded.split("/").some(part => part === "." || part === "..")) {
+  if (/[\\\u0000-\u001f\u007f?#]/.test(decoded) || /%2f|%5c/i.test(route) || (decoded !== "" && decoded.split("/").some(part => !part || part === "." || part === ".."))) {
     throw new Error(`Unsafe published URL: ${url}`);
   }
   return decoded ? `${decoded}/index.html` : "index.html";
@@ -79,7 +92,7 @@ function navigation(site: CompiledSite, current?: PublishedNote): string {
   return tree(root);
 }
 
-function initialContent(site: CompiledSite, note?: PublishedNote): string {
+function initialContent(site: CompiledSite, note?: PublishedNote | null): string {
   const home = homeNote(site);
   const headings = note?.headings.filter(heading => heading.level > 1 && heading.level < 5) ?? [];
   const backlinks = (note?.backlinks ?? []).map(path => site.notes.find(candidate => candidate.path === path)).filter((candidate): candidate is PublishedNote => !!candidate);
@@ -87,15 +100,15 @@ function initialContent(site: CompiledSite, note?: PublishedNote): string {
   const mentions = site.settings.showBacklinks ? `<section class="backlinks"><div class="aside-heading"><span>Linked mentions</span><span class="aside-count">${backlinks.length}</span></div>${backlinks.map(backlink => `<a class="backlink" href="${escapeHtml(backlink.url)}"><span>${escapeHtml(backlink.title)}</span></a>`).join("") || '<p class="empty-hint">No linked mentions.</p>'}</section>` : "";
   const classes = Array.isArray(note?.properties.cssclasses) ? note.properties.cssclasses : typeof note?.properties.cssclasses === "string" ? note.properties.cssclasses.split(/\s+/) : [];
   return `<main id="static-content" class="app-shell published-container">
-  <aside class="sidebar site-body-left-column" aria-label="Site navigation"><div class="workspace-leaf-content" data-type="file-explorer"><header class="site-header"><a class="site-name" href="${escapeHtml(home?.url ?? "/")}">${escapeHtml(site.settings.title || site.name)}</a></header><nav class="vault-navigation nav-files-container" aria-label="Notes">${navigation(site, note)}</nav></div></aside>
-  <div class="main-shell site-body-center-column"><div class="reading-layout"><div class="reader"><article class="note-page markdown-preview-view${note?.path === home?.path ? " home-page" : ""}${site.settings.readable ? " readable-line-width" : " wide-page"}"><div class="markdown-preview-section"><header class="page-header"><h1 class="page-header-title">${escapeHtml(note?.title ?? site.settings.title)}</h1></header><div class="markdown-body markdown-rendered ${escapeHtml(classes.join(" "))}">${note?.html ?? '<p>No published notes.</p>'}</div></div></article></div><aside class="right-sidebar site-body-right-column" aria-label="Page information">${toc}${mentions}</aside></div></div>
+  <aside class="sidebar site-body-left-column" aria-label="Site navigation"><div class="workspace-leaf-content" data-type="file-explorer"><header class="site-header"><a class="site-name" href="${escapeHtml(home?.url ?? "/")}">${escapeHtml(site.settings.title || site.name)}</a></header><nav class="vault-navigation nav-files-container" aria-label="Notes">${navigation(site, note ?? undefined)}</nav></div></aside>
+  <div class="main-shell site-body-center-column"><div class="reading-layout"><div class="reader"><article class="note-page markdown-preview-view${note?.path === home?.path ? " home-page" : ""}${site.settings.readable ? " readable-line-width" : " wide-page"}"><div class="markdown-preview-section"><header class="page-header"><h1 class="page-header-title">${escapeHtml(note?.title ?? (note === null ? "Page not found" : site.settings.title))}</h1></header><div class="markdown-body markdown-rendered ${escapeHtml(classes.join(" "))}">${note?.html ?? (note === null ? `<p>The requested page is not published or has moved.</p><p><a href="${escapeHtml(home?.url ?? "/")}">Return to the home page</a> or choose a note from the navigation.</p>` : '<p>No published notes.</p>')}</div></div></article></div><aside class="right-sidebar site-body-right-column" aria-label="Page information">${note === null ? "" : toc + mentions}</aside></div></div>
 </main>`;
 }
 
 /** Keep Vite's transformed script/CSS shell, replacing only managed page content. */
-export function renderPublishedPage(template: string, site: CompiledSite, note: PublishedNote | undefined = homeNote(site)): string {
-  const title = note ? `${note.title} · ${site.settings.title || site.name}` : site.settings.title || site.name;
-  const description = String(note?.properties.description ?? site.settings.description ?? "");
+export function renderPublishedPage(template: string, site: CompiledSite, note: PublishedNote | null | undefined = homeNote(site)): string {
+  const title = `${note === null ? 'Page not found' : note?.title ?? site.settings.title} · ${site.settings.title || site.name}`;
+  const description = note === null ? '' : String(note?.properties.description ?? site.settings.description ?? '');
   const theme = site.settings.theme === "dark" ? "dark" : "light";
   let html = template.replace(/<title\b[^>]*>[\s\S]*?<\/title\s*>/gi, "");
   html = html.replace(/<meta\b[^>]*>/gi, tag => {
@@ -126,11 +139,22 @@ export function renderPublishedPage(template: string, site: CompiledSite, note: 
   return html;
 }
 
+/** The error shell must not mount the SPA, which would replace a missing page with home. */
+export function renderNotFoundPage(template: string, site: CompiledSite): string {
+  const shell = template.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '').replace(/<link\b[^>]*>/gi, tag => {
+    const rel = attributes(tag).get('rel')?.toLowerCase();
+    return rel === 'modulepreload' || rel === 'preload' && attributes(tag).get('as') === 'script' ? '' : tag;
+  });
+  return renderPublishedPage(shell, site, null).replace(/<\/head\s*>/i, '<meta name="robots" content="noindex"></head>');
+}
+
 /** Relative Vite base paths break when the same shell is nested under note routes. */
 export function absoluteShellReferences(template: string, base = "/"): string {
-  return template.replace(/\b(src|href)\s*=\s*(["'])([^"']+)\2/gi, (match, attribute: string, quote: string, value: string) => {
+  return template.replace(/\b(src|href)\s*=\s*(?:"([^"]+)"|'([^']+)')/gi, (match, attribute: string, double: string | undefined, single: string | undefined) => {
+    const quote = double === undefined ? "'" : '"';
+    const value = (double ?? single)!;
     if (/^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(value)) return match;
     const resolved = new URL(value, `https://published.invalid${base}`);
-    return `${attribute}=${quote}${resolved.pathname}${resolved.search}${resolved.hash}${quote}`;
+    return `${attribute}=${quote}${escapeHtml(resolved.pathname + resolved.search + resolved.hash)}${quote}`;
   });
 }

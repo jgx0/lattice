@@ -1,7 +1,7 @@
 ---
 title: A quieter internet
 aliases: [Invitation, not interruption]
-author: Alex Morgan
+provenance: Demo content
 status: growing
 category: essay
 date: 2026-11-14
