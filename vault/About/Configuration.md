@@ -52,9 +52,12 @@ A relative `PUBLISH_CONFIG` resolves from the project root. `OBSIDIAN_VAULT` ove
 | `quickSwitcher` | `true` | Command/Ctrl+K file picker; readers can disable it in settings. |
 | `allowThemeSwitching` | `false` | Let readers choose included Obsidian themes in settings. |
 | `navigation` | `[]` | Order folders and full note paths. |
+| `navigationFolders` | Unset | Place notes in custom navigation folders without moving source files. |
 | `hiddenPaths` | `[]` | Exclude matching vault-relative files or whole folders before rendering. |
+| `communityTheme` | `default` | Fallback CSS theme when no top-level theme or vault selection applies. |
+| `customCss` | Empty | Inline trusted CSS applied after other appearance inputs. |
 
-The demo deliberately sets `showProperties: false`. Reader controls can change presentation locally; they are not an authoring or access-control interface.
+The demo deliberately sets `showProperties: false` and `allowThemeSwitching: true`; these are not the defaults. Saved browser preferences override the corresponding reader defaults, including `quickSwitcher`. Reader controls change presentation, not source notes or access permissions.
 
 Press **Command+K** (macOS) or **Ctrl+K** to open the quick switcher. It searches published file titles, names, paths, and aliases. Use Up/Down and Enter to choose a note; Escape dismisses it. **Reader settings → Quick switcher** turns the popup on or off and remembers the choice locally. With it disabled, the same shortcut focuses sidebar search.
 
@@ -74,11 +77,13 @@ Press **Command+K** (macOS) or **Ctrl+K** to open the quick switcher. It searche
 }
 ```
 
-Paths in `navigation` and `hiddenPaths` must be vault-relative, non-empty, and without `..`. Use full note paths to avoid ambiguous filenames. See [[About/Security and privacy]] for explicit note-level exclusion.
+Paths in `navigation` and `hiddenPaths` must be vault-relative, non-empty, and without `..`. Use full note filenames, including folders and `.md`, rather than frontmatter titles or published URLs. Unlisted entries remain visible in alphabetical order: folders by name, notes by title. See [[About/Security and privacy]] for explicit note-level exclusion.
+
+Folder expansion/collapse is remembered in this browser for the site, independently of the note being viewed. Rebuilds do not reset it or write it into your vault. Removed or renamed folder paths are discarded, new folders start open, and folding a parent preserves its children's fold choices. Custom navigation folders use their displayed folder paths. If storage is blocked, changes still work for the current session but do not survive a reload. This does not persist the button that hides the entire sidebar.
 
 ## Appearance inputs
 
-Top-level `theme` selects an installed community theme name or CSS file path. When `site.allowThemeSwitching` is enabled, optional top-level `themes` limits the reader's choices to listed theme names or CSS paths; otherwise installed themes are discovered automatically. See [[About/Obsidian themes#Let readers switch themes|the theme-picker guide]]. `snippets` selects CSS snippet names or paths; omit it to follow Obsidian, or use `[]` to disable snippets. `css` lists additional CSS paths. `bodyClasses` adds individual class names, without whitespace inside a name.
+Top-level `theme` selects `"default"`, `"publish-theme"`, an installed community theme name, or a CSS file path. Omit it to follow the vault's selected theme, falling back to Default (Obsidian). When `site.allowThemeSwitching` is enabled, optional top-level `themes` limits the installed/custom choices; Default, Publish, and the selected site theme always remain available. Omit `themes` to discover installed themes, or use `[]` to disable that discovery. See [[About/Obsidian themes#Let readers switch themes|the theme-picker guide]]. `snippets` selects CSS snippet names or paths; omit it to follow Obsidian, or use `[]` to disable snippets. `css` lists additional CSS paths. `bodyClasses` adds individual class names, without whitespace inside a name.
 
 `site.communityTheme` is a fallback when no explicit theme or vault `cssTheme` is selected. `site.customCss` accepts inline trusted CSS; prefer a versioned `publish.css` or CSS file for maintainability. These are not a plugin runtime.
 

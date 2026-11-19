@@ -7,9 +7,11 @@ description: Publish with actual Obsidian theme CSS, enabled snippets, and local
 
 Lattice uses **actual installed Obsidian CSS**, not approximations selected from a theme gallery. It reads your vault's `.obsidian/appearance.json` and loads the corresponding files at build time.
 
+**Default (Obsidian)** is the built-in baseline when neither configuration nor the vault selects another theme. The demo explicitly sets top-level `"theme": "default"`, so it starts there even though Minimal is installed. Omit that override for your own vault if you want to follow its selected theme.
+
 ## Built-in Publish theme
 
-The demo starts with **Default (Obsidian)**; Publish remains available in Reader settings. Lattice includes `publish-theme`, a built-in reader style based on the public Obsidian Publish layout: one reading scrollbar, a restrained file tree, a sticky page-context column, compact graph icons with a local-graph popover, hierarchical outlines, and Publish-sized titles.
+Lattice also includes `publish-theme`, a built-in reader style based on the public Obsidian Publish layout: one reading scrollbar, a restrained file tree, a sticky page-context column, compact graph icons with a local-graph popover, hierarchical outlines, and Publish-sized titles. Choose it explicitly:
 
 ```json
 {
@@ -22,6 +24,8 @@ The demo starts with **Default (Obsidian)**; Publish remains available in Reader
 This theme ships with Lattice, so it does not need to exist in `.obsidian/themes`. It still respects your light/dark choice and loads snippets, `publish.css`, extra CSS, and configured appearance variables afterward. Use a real installed theme instead when you want that theme's original design.
 
 ## Follow the vault
+
+For example, in `.obsidian/appearance.json`:
 
 ```json
 {
@@ -68,7 +72,7 @@ To show an **Obsidian theme** picker in Reader settings, enable it in `publish.c
 }
 ```
 
-Lattice includes Default (Obsidian) and the themes installed in `.obsidian/themes`. The reader can switch immediately without rebuilding or changing your vault. The choice is saved in that browser; light/dark/system color mode remains a separate setting.
+Lattice includes Default (Obsidian), Publish, the site's selected theme, and discovered themes installed in `.obsidian/themes`. The reader can switch without rebuilding or changing your vault. The choice is saved in that browser; light/dark/system color mode remains a separate setting.
 
 Want to offer only a few themes? Add a top-level allowlist:
 
@@ -80,9 +84,11 @@ Want to offer only a few themes? Add a top-level allowlist:
 }
 ```
 
-Only list themes already installed in your vault, or explicit CSS file paths. Default and the site's selected theme remain available. Use `themes: []` to offer only those two. Theme switching is disabled by default, so other theme files are not bundled unless you enable it.
+Only list themes already installed in your vault, or explicit CSS file paths. Default, Publish, and the site's selected theme remain available regardless of the allowlist. Use `themes: []` to skip installed-theme discovery and offer only those choices; the selected theme may already be one of the two built-ins. Theme switching is disabled by default, so other themes are not bundled unless you enable it.
 
-Theme styles are served as local CSS assets and fetched only when selected. Snippets, `publish.css`, and your other site overrides still apply afterward. If a theme cannot be loaded, the reader keeps the current appearance and shows an error. This does not install themes or execute Obsidian plugins.
+Theme styles are served as local CSS assets. The site's default CSS is included in each page; other theme layers are fetched when selected and cached in memory for the current reader session. Snippets, `publish.css`, and your other site overrides still apply afterward. A failed switch keeps the current appearance and shows an error. This does not install themes or execute Obsidian plugins.
+
+On a fresh page load, an early script applies the saved or configured color mode and restores an available saved theme before revealing the content. Startup loading waits at most **four seconds**, then falls back to the site's default theme if the request fails or is too slow; the page is not hidden indefinitely. Blocked browser storage uses site defaults and makes new preferences session-only. Without JavaScript, the static content remains available with the site's default theme, but saved reader choices cannot be restored.
 
 ## Loading order and assets
 

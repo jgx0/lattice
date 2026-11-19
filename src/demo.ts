@@ -1100,14 +1100,16 @@ The compiler closes its isolated DOM after a compilation. It does not depend on 
 
 \`dist/\` contains semantic note HTML, the reader bundle, compiled public metadata/search data, and emitted assets. The browser payload does not include each original complete Markdown file: \`PublishedNote.content\` is empty, and its searchable \`body\` omits nonliteral Obsidian comments. Literal \`%%\` examples inside fenced or inline code are preserved. Published note text, properties, HTML, and previews remain public; a hidden panel does not make them confidential. Private notes, unselected \`.obsidian\` source files, and arbitrary unreferenced vault attachments are not blindly copied.
 
-Public metadata is still public: YAML properties, search information, previews, and links for surviving notes may be available even if a panel hides them. The privacy boundary is **exclusion before compilation**, not a visual control in the reader.
+The privacy boundary is **exclusion before compilation**, not a visual control in the reader.
 
 Each published note has a URL and directory \`index.html\`; its text, navigation, outline, and backlinks exist before JavaScript. The browser receives precompiled published pages and a public search index, and adds interactions without uploading or processing local vault files.
 
 ## Browser reader
 
 - \`src/App.tsx\` coordinates navigation, browser history, preferences, optional panes, and the compiled site.
-- \`src/SidebarTree.tsx\` renders nested file navigation.
+- \`src/SidebarTree.tsx\` renders nested file navigation; \`src/useFolderState.ts\` remembers valid collapsed navigation paths in browser storage, scoped to the site's mount path and homepage file.
+- \`src/QuickSwitcher.tsx\` provides the optional keyboard file picker.
+- \`build/appearanceBootstrap.ts\` applies the initial color mode and restores a saved local theme with a four-second startup fallback; \`src/usePublishedTheme.ts\` owns subsequent theme switches.
 - \`src/MarkdownContent.tsx\` handles interactions with already-rendered note content.
 - \`src/GraphView.tsx\` presents local/global connections.
 - \`src/lib/search.ts\` searches public compiled note information.
@@ -1186,9 +1188,12 @@ A relative \`PUBLISH_CONFIG\` resolves from the project root. \`OBSIDIAN_VAULT\`
 | \`quickSwitcher\` | \`true\` | Command/Ctrl+K file picker; readers can disable it in settings. |
 | \`allowThemeSwitching\` | \`false\` | Let readers choose included Obsidian themes in settings. |
 | \`navigation\` | \`[]\` | Order folders and full note paths. |
+| \`navigationFolders\` | Unset | Place notes in custom navigation folders without moving source files. |
 | \`hiddenPaths\` | \`[]\` | Exclude matching vault-relative files or whole folders before rendering. |
+| \`communityTheme\` | \`default\` | Fallback CSS theme when no top-level theme or vault selection applies. |
+| \`customCss\` | Empty | Inline trusted CSS applied after other appearance inputs. |
 
-The demo deliberately sets \`showProperties: false\`. Reader controls can change presentation locally; they are not an authoring or access-control interface.
+The demo deliberately sets \`showProperties: false\` and \`allowThemeSwitching: true\`; these are not the defaults. Saved browser preferences override the corresponding reader defaults, including \`quickSwitcher\`. Reader controls change presentation, not source notes or access permissions.
 
 Press **Command+K** (macOS) or **Ctrl+K** to open the quick switcher. It searches published file titles, names, paths, and aliases. Use Up/Down and Enter to choose a note; Escape dismisses it. **Reader settings → Quick switcher** turns the popup on or off and remembers the choice locally. With it disabled, the same shortcut focuses sidebar search.
 
@@ -1208,11 +1213,13 @@ Press **Command+K** (macOS) or **Ctrl+K** to open the quick switcher. It searche
 }
 \`\`\`
 
-Paths in \`navigation\` and \`hiddenPaths\` must be vault-relative, non-empty, and without \`..\`. Use full note paths to avoid ambiguous filenames. See [[About/Security and privacy]] for explicit note-level exclusion.
+Paths in \`navigation\` and \`hiddenPaths\` must be vault-relative, non-empty, and without \`..\`. Use full note filenames, including folders and \`.md\`, rather than frontmatter titles or published URLs. Unlisted entries remain visible in alphabetical order: folders by name, notes by title. See [[About/Security and privacy]] for explicit note-level exclusion.
+
+Folder expansion/collapse is remembered in this browser for the site, independently of the note being viewed. Rebuilds do not reset it or write it into your vault. Removed or renamed folder paths are discarded, new folders start open, and folding a parent preserves its children's fold choices. Custom navigation folders use their displayed folder paths. If storage is blocked, changes still work for the current session but do not survive a reload. This does not persist the button that hides the entire sidebar.
 
 ## Appearance inputs
 
-Top-level \`theme\` selects an installed community theme name or CSS file path. When \`site.allowThemeSwitching\` is enabled, optional top-level \`themes\` limits the reader's choices to listed theme names or CSS paths; otherwise installed themes are discovered automatically. See [[About/Obsidian themes#Let readers switch themes|the theme-picker guide]]. \`snippets\` selects CSS snippet names or paths; omit it to follow Obsidian, or use \`[]\` to disable snippets. \`css\` lists additional CSS paths. \`bodyClasses\` adds individual class names, without whitespace inside a name.
+Top-level \`theme\` selects \`"default"\`, \`"publish-theme"\`, an installed community theme name, or a CSS file path. Omit it to follow the vault's selected theme, falling back to Default (Obsidian). When \`site.allowThemeSwitching\` is enabled, optional top-level \`themes\` limits the installed/custom choices; Default, Publish, and the selected site theme always remain available. Omit \`themes\` to discover installed themes, or use \`[]\` to disable that discovery. See [[About/Obsidian themes#Let readers switch themes|the theme-picker guide]]. \`snippets\` selects CSS snippet names or paths; omit it to follow Obsidian, or use \`[]\` to disable snippets. \`css\` lists additional CSS paths. \`bodyClasses\` adds individual class names, without whitespace inside a name.
 
 \`site.communityTheme\` is a fallback when no explicit theme or vault \`cssTheme\` is selected. \`site.customCss\` accepts inline trusted CSS; prefer a versioned \`publish.css\` or CSS file for maintainability. These are not a plugin runtime.
 
@@ -1250,7 +1257,7 @@ npm audit
 For a demo-content change, a focused regression command is:
 
 \`\`\`sh
-npm test -- src/lib/integration.test.ts src/App.test.ts build/compile.test.ts
+npm test -- src/lib/integration.test.ts src/App.test.ts build/compile.test.ts build/readme.test.ts
 \`\`\`
 
 Run the full suite before treating a cross-cutting change as complete. Audit results need investigation; do not claim a clean audit without running it.
@@ -1275,7 +1282,7 @@ Read [[About/Architecture]] before moving logic between these layers. Public rea
 
 Sample notes are illustrative fixtures. Keep their observations, book ratings, and example project histories labeled as demo content, and preserve genuine bibliographic author names.
 
-When renaming a demo note, update wikilinks, transclusion targets, fixtures, and relevant regressions. Prefer exact vault-relative links. Documentation pages use frontmatter titles without a duplicate top-level body heading.
+When editing or renaming a demo note, synchronize its content in \`src/demo.ts\` and update wikilinks, transclusion targets, and relevant regressions. Prefer exact vault-relative links. Documentation pages use frontmatter titles without a duplicate top-level body heading.
 
 Do not modify third-party theme vendor files casually. Preserve their licenses and provenance; use snippets or \`publish.css\` for site-level overrides.
 
@@ -1506,7 +1513,7 @@ Use vault-relative wikilinks when filenames could be ambiguous. Aliases change d
 
 These examples point to existing sample notes. A block identifier such as \`^link-test\` marks the source block. Whole-note, heading, and block embeds are supported; recursion is bounded, so cyclic or excessively nested embeds are not an unlimited expansion mechanism.
 
-Markdown links and heading/block anchors also work. The build rewrites resolved internal links to published URLs. Renaming a file can change its route; update incoming links before rebuilding.
+Markdown links and heading/block anchors also work. For a relative Markdown link from an About note, use \`[Digital gardens](../Field%20Notes/Digital%20gardens.md)\`; keep the \`.md\` filename and encode spaces. The build rewrites resolved internal links to published URLs. Filenames and folders determine routes, while frontmatter \`title\` changes the displayed heading. Renaming a file can change its route; update incoming links before rebuilding. Paths to project code such as \`src/App.tsx\` are not vault notes—write them as inline code, not local note links.
 
 ## Reader syntax and media
 
@@ -1566,7 +1573,7 @@ views:
 \`\`\`
 \`\`\`\`
 
-This renders a table of public notes that link to the current note, with the most recently modified first. \`this.file\` is the note containing the block. Property wikilinks count too. \`file.mtime\` comes from the source file's filesystem modification time; \`file.ctime\` uses its creation time where available. A copied or freshly cloned vault may have different timestamps from the original vault.
+This renders a table of public notes that link to the current note, with the most recently modified first. \`this.file\` is the note containing the block. Property wikilinks count too. \`file.mtime\` is the source file's filesystem modification timestamp in milliseconds; \`file.ctime\` uses creation time where available, otherwise filesystem change time. These are not frontmatter \`date\` values or revision history. Copying or freshly cloning a vault can change timestamps and therefore this ordering; use an explicit note property when you need dates preserved across machines.
 
 Inline Bases use the same views and filters as embedded \`.base\` files. A fence labeled \`yaml\` is just a code example; label it \`base\` to render the view. Invalid configurations produce a visible Base error.
 
@@ -1576,7 +1583,7 @@ Supported views are \`table\`, \`list\`, and \`cards\`. View-level filters combi
 
 \`file\` describes the candidate row; \`note\` and bare property names access its frontmatter. \`this.file\` describes the **host note**, not the \`.base\` source file. For example, \`collection == this.file.properties.collection\` selects books for the reading room, while \`file.path != this.file.path\` excludes the host from related rows.
 
-\`file.hasLink("Field Notes/Digital gardens")\` tests whether a row links to a note, including links in its properties. \`file.hasLink(this.file)\` and \`file.links.contains(this.file)\` select notes that link to the host. String, \`link(...)\`, and \`file.link\` targets can resolve aliases and heading/block references. \`file.hasTag("research")\` includes nested tags such as \`research/methods\`, and supported values can use \`toString()\` for display.
+\`file.hasLink("Field Notes/Digital gardens")\` tests whether a row links to a note, including links in its properties. \`file.hasLink(this.file)\` and \`file.links.contains(this.file)\` select notes that link to the host. String, \`link(...)\`, and \`file.link\` targets can resolve aliases and heading/block references. \`file.hasTag("research")\` matches tags case-insensitively, accepts an optional leading \`#\`, and includes nested tags such as \`research/methods\`. \`toString()\` converts supported values for display; for example, \`link("Field Notes/Digital gardens").toString()\` produces a wikilink string.
 
 The evaluator supports a bounded, no-eval subset: property access, comparisons, Boolean/arithmetic operators, lists, conditionals, formulas, and selected helpers such as \`contains\`, \`length\`, \`if\`, \`number\`, \`string\`, and \`file.inFolder\`. Supported list/string methods include \`contains\`, \`join\`, \`split\`, \`unique\`, \`map\`, and \`filter\`; this is not general JavaScript or every Obsidian Bases function. Formula cycles, excessive complexity, and unsupported expressions produce visible Base errors.
 
@@ -1597,9 +1604,11 @@ description: Publish with actual Obsidian theme CSS, enabled snippets, and local
 
 Lattice uses **actual installed Obsidian CSS**, not approximations selected from a theme gallery. It reads your vault's \`.obsidian/appearance.json\` and loads the corresponding files at build time.
 
+**Default (Obsidian)** is the built-in baseline when neither configuration nor the vault selects another theme. The demo explicitly sets top-level \`"theme": "default"\`, so it starts there even though Minimal is installed. Omit that override for your own vault if you want to follow its selected theme.
+
 ## Built-in Publish theme
 
-The demo starts with **Default (Obsidian)**; Publish remains available in Reader settings. Lattice includes \`publish-theme\`, a built-in reader style based on the public Obsidian Publish layout: one reading scrollbar, a restrained file tree, a sticky page-context column, compact graph icons with a local-graph popover, hierarchical outlines, and Publish-sized titles.
+Lattice also includes \`publish-theme\`, a built-in reader style based on the public Obsidian Publish layout: one reading scrollbar, a restrained file tree, a sticky page-context column, compact graph icons with a local-graph popover, hierarchical outlines, and Publish-sized titles. Choose it explicitly:
 
 \`\`\`json
 {
@@ -1612,6 +1621,8 @@ The demo starts with **Default (Obsidian)**; Publish remains available in Reader
 This theme ships with Lattice, so it does not need to exist in \`.obsidian/themes\`. It still respects your light/dark choice and loads snippets, \`publish.css\`, extra CSS, and configured appearance variables afterward. Use a real installed theme instead when you want that theme's original design.
 
 ## Follow the vault
+
+For example, in \`.obsidian/appearance.json\`:
 
 \`\`\`json
 {
@@ -1658,7 +1669,7 @@ To show an **Obsidian theme** picker in Reader settings, enable it in \`publish.
 }
 \`\`\`
 
-Lattice includes Default (Obsidian) and the themes installed in \`.obsidian/themes\`. The reader can switch immediately without rebuilding or changing your vault. The choice is saved in that browser; light/dark/system color mode remains a separate setting.
+Lattice includes Default (Obsidian), Publish, the site's selected theme, and discovered themes installed in \`.obsidian/themes\`. The reader can switch without rebuilding or changing your vault. The choice is saved in that browser; light/dark/system color mode remains a separate setting.
 
 Want to offer only a few themes? Add a top-level allowlist:
 
@@ -1670,9 +1681,11 @@ Want to offer only a few themes? Add a top-level allowlist:
 }
 \`\`\`
 
-Only list themes already installed in your vault, or explicit CSS file paths. Default and the site's selected theme remain available. Use \`themes: []\` to offer only those two. Theme switching is disabled by default, so other theme files are not bundled unless you enable it.
+Only list themes already installed in your vault, or explicit CSS file paths. Default, Publish, and the site's selected theme remain available regardless of the allowlist. Use \`themes: []\` to skip installed-theme discovery and offer only those choices; the selected theme may already be one of the two built-ins. Theme switching is disabled by default, so other themes are not bundled unless you enable it.
 
-Theme styles are served as local CSS assets and fetched only when selected. Snippets, \`publish.css\`, and your other site overrides still apply afterward. If a theme cannot be loaded, the reader keeps the current appearance and shows an error. This does not install themes or execute Obsidian plugins.
+Theme styles are served as local CSS assets. The site's default CSS is included in each page; other theme layers are fetched when selected and cached in memory for the current reader session. Snippets, \`publish.css\`, and your other site overrides still apply afterward. A failed switch keeps the current appearance and shows an error. This does not install themes or execute Obsidian plugins.
+
+On a fresh page load, an early script applies the saved or configured color mode and restores an available saved theme before revealing the content. Startup loading waits at most **four seconds**, then falls back to the site's default theme if the request fails or is too slow; the page is not hidden indefinitely. Blocked browser storage uses site defaults and makes new preferences session-only. Without JavaScript, the static content remains available with the site's default theme, but saved reader choices cannot be restored.
 
 ## Loading order and assets
 
@@ -1759,7 +1772,7 @@ Open **\`publish.config.json\`** in the \`lattice\` folder. Replace its contents
 
 That's the only configuration you need to start. If your folder has a different name, change \`./my-vault\` to match it. Lattice uses the other settings' defaults and picks a note as the homepage.
 
-If you want a specific homepage, add \`"home": "Home.md"\` inside \`site\`, using the name of a note that actually exists in your vault. See [[About/Configuration]] for optional settings—you do not need them to get started.
+If you want a specific homepage, add \`"home": "Home.md"\` inside \`site\`, using an existing note's full vault-relative filename, such as \`Notes/Home.md\`. This is a file path, not its frontmatter title or published URL. See [[About/Configuration]] for optional settings—you do not need them to get started.
 
 ## 4. Start your site
 
@@ -1817,7 +1830,7 @@ A published Lattice site is **public** unless your host separately restricts acc
 
 ## Exclude, do not merely hide
 
-Use \`site.hiddenPaths\` in configuration to exclude whole files or folders:
+Use \`site.hiddenPaths\` in configuration to exclude whole files or folders. **All surviving notes are published in full**; \`publish: true\` is not required. This is not a selection of only the notes linked from your homepage.
 
 \`\`\`json
 {
@@ -1867,7 +1880,7 @@ The build does not fetch those remote resources, so offline compilation does not
 4. Review contact details, quoted conversations, permissions, and external embeds manually.
 5. Replace previous deployment files so newly excluded pages cannot remain available as stale output.
 
-Sample notes are illustrative fixtures. Review any replacement notes and assets independently before publishing them.
+Sample notes are illustrative fixtures. Review any replacement notes and assets independently before publishing them. Keep a personal vault folder out of Git before committing; adding it to \`.gitignore\` does not remove files already tracked or erase an earlier public copy.
 
 [[About/Deployment|Deployment]] covers hosting boundaries. [[About/Documentation|Documentation index]].
 `,
@@ -1908,7 +1921,7 @@ A cyclic or overly nested embed can reach the renderer's limit. Prefer a direct 
 
 ## A Base is empty or reports an error
 
-An empty view can be correct: no public notes match its filters. Check property names, YAML value types, folder paths, and the host note's properties. \`this.file\` means the host Markdown note; it is not the \`.base\` file.
+An empty view can be correct: no public notes match its filters. Check property names, YAML value types, folder paths, and the host note's properties. \`this.file\` means the host Markdown note; it is not the \`.base\` file. For inline views, the fence must be labeled \`base\`, not \`yaml\`. If modification-date order changed after a copy or clone, check the source filesystem timestamps; \`file.mtime\` is not a frontmatter date.
 
 A visible “Unable to render Base” message indicates invalid YAML, an unsupported view/expression, a circular formula, or an evaluator limit. Reduce the expression to supported operations and verify the result on a small collection. Obsidian's complete Bases runtime and general JavaScript are not supported.
 
@@ -1922,6 +1935,12 @@ A visible “Unable to render Base” message indicates invalid YAML, an unsuppo
 - Check connectivity for remote CSS resources; the build leaves their URLs remote.
 
 Style Settings plugin state, editing controls, and plugin-only components cannot appear merely by loading their CSS. See [[About/Obsidian themes]] for the compatibility boundary.
+
+## Reader choices do not match configuration
+
+Saved browser preferences take precedence over reader defaults. Check **Reader settings** for color mode, the selected theme, and Quick switcher; when the switcher is disabled, Command/Ctrl+K focuses sidebar search instead. Clear this site's browser storage to start from defaults, noting that this also resets other saved reader choices.
+
+Folder folds survive reloads and rebuilds for the same site. Removed or renamed folder paths are discarded, and new folders start open. Moving the deployment base or changing the homepage file starts a separate folder preference set. If browser storage is blocked, controls still work during the session but their choices cannot survive a reload. This state never changes your source notes or their publication status.
 
 ## Saved edits do not appear
 

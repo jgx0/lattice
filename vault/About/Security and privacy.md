@@ -9,7 +9,7 @@ A published Lattice site is **public** unless your host separately restricts acc
 
 ## Exclude, do not merely hide
 
-Use `site.hiddenPaths` in configuration to exclude whole files or folders:
+Use `site.hiddenPaths` in configuration to exclude whole files or folders. **All surviving notes are published in full**; `publish: true` is not required. This is not a selection of only the notes linked from your homepage.
 
 ```json
 {
@@ -59,6 +59,6 @@ The build does not fetch those remote resources, so offline compilation does not
 4. Review contact details, quoted conversations, permissions, and external embeds manually.
 5. Replace previous deployment files so newly excluded pages cannot remain available as stale output.
 
-Sample notes are illustrative fixtures. Review any replacement notes and assets independently before publishing them.
+Sample notes are illustrative fixtures. Review any replacement notes and assets independently before publishing them. Keep a personal vault folder out of Git before committing; adding it to `.gitignore` does not remove files already tracked or erase an earlier public copy.
 
 [[About/Deployment|Deployment]] covers hosting boundaries. [[About/Documentation|Documentation index]].

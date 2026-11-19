@@ -24,7 +24,7 @@ npm audit
 For a demo-content change, a focused regression command is:
 
 ```sh
-npm test -- src/lib/integration.test.ts src/App.test.ts build/compile.test.ts
+npm test -- src/lib/integration.test.ts src/App.test.ts build/compile.test.ts build/readme.test.ts
 ```
 
 Run the full suite before treating a cross-cutting change as complete. Audit results need investigation; do not claim a clean audit without running it.
@@ -49,7 +49,7 @@ Read [[About/Architecture]] before moving logic between these layers. Public rea
 
 Sample notes are illustrative fixtures. Keep their observations, book ratings, and example project histories labeled as demo content, and preserve genuine bibliographic author names.
 
-When renaming a demo note, update wikilinks, transclusion targets, fixtures, and relevant regressions. Prefer exact vault-relative links. Documentation pages use frontmatter titles without a duplicate top-level body heading.
+When editing or renaming a demo note, synchronize its content in `src/demo.ts` and update wikilinks, transclusion targets, and relevant regressions. Prefer exact vault-relative links. Documentation pages use frontmatter titles without a duplicate top-level body heading.
 
 Do not modify third-party theme vendor files casually. Preserve their licenses and provenance; use snippets or `publish.css` for site-level overrides.
 

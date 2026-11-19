@@ -6,6 +6,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { folderStateKey } from "./useFolderState";
 import { demoVault, defaultSettings } from "./demo";
 import { buildNotes, getBacklinks, resolveNote } from "./lib/model";
 import { renderMarkdown, renderPreview } from "./lib/render";
@@ -165,6 +166,16 @@ function nav(title: string): HTMLAnchorElement {
     ...container.querySelectorAll<HTMLAnchorElement>("a.nav-file-title"),
   ].filter((link) => link.textContent === title);
   expect(matches, `Expected one sidebar link titled ${title}`).toHaveLength(1);
+  return matches[0];
+}
+function folderButton(
+  text: string,
+  scope: ParentNode = one(".vault-navigation"),
+): HTMLButtonElement {
+  const matches = [
+    ...scope.querySelectorAll<HTMLButtonElement>("button.nav-folder-title"),
+  ].filter((button) => button.textContent === text);
+  expect(matches, `Expected one folder button titled ${text}`).toHaveLength(1);
   return matches[0];
 }
 function titles() {
@@ -443,6 +454,173 @@ afterEach(async () => {
 });
 
 describe("compiled-site reader", () => {
+  describe("persisted navigation folders", () => {
+    it("restores collapsed and expanded folders on nested-route reloads without depending on the route or display title", async () => {
+      const key = folderStateKey(site);
+      expect(folderButton("Field Notes").getAttribute("aria-expanded")).toBe(
+        "true",
+      );
+      expect(localStorage.getItem(key)).toBe("[]");
+      await click(folderButton("Field Notes"));
+      expect(folderButton("Field Notes").getAttribute("aria-expanded")).toBe(
+        "false",
+      );
+      expect(
+        one(".vault-navigation").querySelector(
+          '[data-path="Field Notes/Digital gardens.md"]',
+        ),
+      ).toBeNull();
+      expect(localStorage.getItem(key)).toBe('["Field Notes"]');
+
+      const renamedSite: CompiledSite = {
+        ...site,
+        name: "Renamed vault",
+        settings: { ...site.settings, title: "Renamed site" },
+      };
+      await remount(
+        renamedSite,
+        compiled("Field Notes/Digital gardens.md").url,
+      );
+      expect(titles()).toEqual(["Digital gardens"]);
+      expect(one(".site-name").textContent).toBe("Renamed site");
+      expect(folderStateKey(renamedSite)).toBe(key);
+      expect(folderButton("Field Notes").getAttribute("aria-expanded")).toBe(
+        "false",
+      );
+      expect(
+        folderButton("Field Notes").parentElement!.classList.contains(
+          "is-collapsed",
+        ),
+      ).toBe(true);
+
+      await click(folderButton("Field Notes"));
+      expect(nav("Digital gardens").getAttribute("aria-current")).toBe("page");
+      expect(localStorage.getItem(key)).toBe("[]");
+      await click(nav("Attention is a material"));
+      expect(folderStateKey(renamedSite)).toBe(key);
+      await remount(
+        renamedSite,
+        compiled("Field Notes/Attention is a material.md").url,
+      );
+      expect(titles()).toEqual(["Attention is a material"]);
+      expect(folderButton("Field Notes").getAttribute("aria-expanded")).toBe(
+        "true",
+      );
+      expect(nav("Digital gardens")).toBeDefined();
+      expect(localStorage.getItem(key)).toBe("[]");
+    });
+
+    it("keeps a nested folder collapsed when its parent is collapsed, reloaded, and expanded", async () => {
+      const library = folderButton("Library").parentElement!;
+      await click(folderButton("Books", library));
+      expect(folderButton("Books", library).getAttribute("aria-expanded")).toBe(
+        "false",
+      );
+      await click(folderButton("Library"));
+      expect(localStorage.getItem(folderStateKey(site))).toBe(
+        '["Library","Library/Books"]',
+      );
+
+      await remount(site, compiled("Library/Books/How to Do Nothing.md").url);
+      expect(titles()).toEqual(["How to Do Nothing"]);
+      expect(folderButton("Library").getAttribute("aria-expanded")).toBe(
+        "false",
+      );
+      expect(
+        folderButton("Library").parentElement!.querySelector(
+          ".nav-folder-children",
+        ),
+      ).toBeNull();
+      await click(folderButton("Library"));
+      const books = folderButton(
+        "Books",
+        folderButton("Library").parentElement!,
+      );
+      expect(books.getAttribute("aria-expanded")).toBe("false");
+      expect(
+        books.parentElement!.querySelector(".nav-folder-children"),
+      ).toBeNull();
+      expect(localStorage.getItem(folderStateKey(site))).toBe(
+        '["Library/Books"]',
+      );
+      await click(books);
+      expect(nav("How to Do Nothing").getAttribute("aria-current")).toBe(
+        "page",
+      );
+      expect(localStorage.getItem(folderStateKey(site))).toBe("[]");
+    });
+
+    it("persists assigned public navigation paths rather than the notes' source folders", async () => {
+      const input = compileFixture({
+        name: "Public navigation",
+        files: [
+          { path: "Welcome.md", kind: "note", content: "Home" },
+          {
+            path: "Private/Research/Note.md",
+            kind: "note",
+            content: "Published note",
+          },
+          {
+            path: "Other/Note.md",
+            kind: "note",
+            content: "Another published note",
+          },
+        ],
+      });
+      input.settings.navigationFolders = {
+        "Private/Research/Note.md": "Public/Shelf",
+        "Other/Note.md": "Other public/Shelf",
+      };
+      const key = folderStateKey(input);
+      localStorage.setItem(key, '["Private","Private/Research"]');
+      await remount(input);
+      expect(localStorage.getItem(key)).toBe("[]");
+      const publicFolder = folderButton("Public").parentElement!;
+      expect(
+        folderButton("Shelf", publicFolder).getAttribute("aria-expanded"),
+      ).toBe("true");
+      await click(folderButton("Shelf", publicFolder));
+      expect(localStorage.getItem(key)).toBe('["Public/Shelf"]');
+      await remount(
+        input,
+        input.notes.find((note) => note.path === "Private/Research/Note.md")!
+          .url,
+      );
+      expect(folderButton("Public").getAttribute("aria-expanded")).toBe("true");
+      const shelf = folderButton(
+        "Shelf",
+        folderButton("Public").parentElement!,
+      );
+      expect(shelf.getAttribute("aria-expanded")).toBe("false");
+      expect(shelf.parentElement!.querySelector(".nav-file-title")).toBeNull();
+      expect(
+        folderButton(
+          "Shelf",
+          folderButton("Other public").parentElement!,
+        ).getAttribute("aria-expanded"),
+      ).toBe("true");
+      expect(
+        input.notes.find((note) => note.path === "Private/Research/Note.md")!
+          .folder,
+      ).toBe("Private/Research");
+      await click(shelf);
+      expect(
+        one(
+          '[data-path="Private/Research/Note.md"]',
+          one(".vault-navigation"),
+        ).getAttribute("aria-current"),
+      ).toBe("page");
+      await remount(input);
+      expect(
+        folderButton(
+          "Shelf",
+          folderButton("Public").parentElement!,
+        ).getAttribute("aria-expanded"),
+      ).toBe("true");
+      expect(localStorage.getItem(key)).toBe("[]");
+    });
+  });
+
   it("expands styled properties after Markdown by default, preserves safe wikilinks and keeps a reader's fold on rerender", async () => {
     const input = compileFixture({
       name: "Properties",

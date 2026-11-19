@@ -55,7 +55,7 @@ Open **`publish.config.json`** in the `lattice` folder. Replace its contents wit
 
 That's the only configuration you need to start. If your folder has a different name, change `./my-vault` to match it. Lattice uses the other settings' defaults and picks a note as the homepage.
 
-If you want a specific homepage, add `"home": "Home.md"` inside `site`, using the name of a note that actually exists in your vault. See [[About/Configuration]] for optional settings—you do not need them to get started.
+If you want a specific homepage, add `"home": "Home.md"` inside `site`, using an existing note's full vault-relative filename, such as `Notes/Home.md`. This is a file path, not its frontmatter title or published URL. See [[About/Configuration]] for optional settings—you do not need them to get started.
 
 ## 4. Start your site
 

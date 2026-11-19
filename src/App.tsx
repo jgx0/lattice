@@ -31,6 +31,7 @@ import GraphView from "./GraphView";
 import LocalGraphPopover from "./LocalGraphPopover";
 import QuickSwitcher from "./QuickSwitcher";
 import { usePublishedTheme } from "./usePublishedTheme";
+import { useFolderState } from "./useFolderState";
 
 function normalizeRoute(value: string) {
   const trim = (path: string) =>
@@ -99,7 +100,7 @@ export default function App({ site }: { site: CompiledSite }) {
     setRightSidebar(!rightSidebar);
     if (!rightSidebar && innerWidth <= 1100) setSidebar(false);
   }
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const { collapsed, toggleFolder } = useFolderState(site);
   const [view, setView] = useState<"note" | "graph">("note");
   const [query, setQuery] = useState("");
   const [localGraphOpen, setLocalGraphOpen] = useState(false);
@@ -620,13 +621,7 @@ export default function App({ site }: { site: CompiledSite }) {
                   settings={settings}
                   current={current.path}
                   collapsed={collapsed}
-                  onToggle={(folder) =>
-                    setCollapsed((old) => {
-                      const next = new Set(old);
-                      next.has(folder) ? next.delete(folder) : next.add(folder);
-                      return next;
-                    })
-                  }
+                  onToggle={toggleFolder}
                   onNavigate={navigate}
                 />
               )}

@@ -22,14 +22,16 @@ The compiler closes its isolated DOM after a compilation. It does not depend on 
 
 `dist/` contains semantic note HTML, the reader bundle, compiled public metadata/search data, and emitted assets. The browser payload does not include each original complete Markdown file: `PublishedNote.content` is empty, and its searchable `body` omits nonliteral Obsidian comments. Literal `%%` examples inside fenced or inline code are preserved. Published note text, properties, HTML, and previews remain public; a hidden panel does not make them confidential. Private notes, unselected `.obsidian` source files, and arbitrary unreferenced vault attachments are not blindly copied.
 
-Public metadata is still public: YAML properties, search information, previews, and links for surviving notes may be available even if a panel hides them. The privacy boundary is **exclusion before compilation**, not a visual control in the reader.
+The privacy boundary is **exclusion before compilation**, not a visual control in the reader.
 
 Each published note has a URL and directory `index.html`; its text, navigation, outline, and backlinks exist before JavaScript. The browser receives precompiled published pages and a public search index, and adds interactions without uploading or processing local vault files.
 
 ## Browser reader
 
 - `src/App.tsx` coordinates navigation, browser history, preferences, optional panes, and the compiled site.
-- `src/SidebarTree.tsx` renders nested file navigation.
+- `src/SidebarTree.tsx` renders nested file navigation; `src/useFolderState.ts` remembers valid collapsed navigation paths in browser storage, scoped to the site's mount path and homepage file.
+- `src/QuickSwitcher.tsx` provides the optional keyboard file picker.
+- `build/appearanceBootstrap.ts` applies the initial color mode and restores a saved local theme with a four-second startup fallback; `src/usePublishedTheme.ts` owns subsequent theme switches.
 - `src/MarkdownContent.tsx` handles interactions with already-rendered note content.
 - `src/GraphView.tsx` presents local/global connections.
 - `src/lib/search.ts` searches public compiled note information.

@@ -54,7 +54,7 @@ Use vault-relative wikilinks when filenames could be ambiguous. Aliases change d
 
 These examples point to existing sample notes. A block identifier such as `^link-test` marks the source block. Whole-note, heading, and block embeds are supported; recursion is bounded, so cyclic or excessively nested embeds are not an unlimited expansion mechanism.
 
-Markdown links and heading/block anchors also work. The build rewrites resolved internal links to published URLs. Renaming a file can change its route; update incoming links before rebuilding.
+Markdown links and heading/block anchors also work. For a relative Markdown link from an About note, use `[Digital gardens](../Field%20Notes/Digital%20gardens.md)`; keep the `.md` filename and encode spaces. The build rewrites resolved internal links to published URLs. Filenames and folders determine routes, while frontmatter `title` changes the displayed heading. Renaming a file can change its route; update incoming links before rebuilding. Paths to project code such as `src/App.tsx` are not vault notes—write them as inline code, not local note links.
 
 ## Reader syntax and media
 
@@ -114,7 +114,7 @@ views:
 ```
 ````
 
-This renders a table of public notes that link to the current note, with the most recently modified first. `this.file` is the note containing the block. Property wikilinks count too. `file.mtime` comes from the source file's filesystem modification time; `file.ctime` uses its creation time where available. A copied or freshly cloned vault may have different timestamps from the original vault.
+This renders a table of public notes that link to the current note, with the most recently modified first. `this.file` is the note containing the block. Property wikilinks count too. `file.mtime` is the source file's filesystem modification timestamp in milliseconds; `file.ctime` uses creation time where available, otherwise filesystem change time. These are not frontmatter `date` values or revision history. Copying or freshly cloning a vault can change timestamps and therefore this ordering; use an explicit note property when you need dates preserved across machines.
 
 Inline Bases use the same views and filters as embedded `.base` files. A fence labeled `yaml` is just a code example; label it `base` to render the view. Invalid configurations produce a visible Base error.
 
@@ -124,7 +124,7 @@ Supported views are `table`, `list`, and `cards`. View-level filters combine wit
 
 `file` describes the candidate row; `note` and bare property names access its frontmatter. `this.file` describes the **host note**, not the `.base` source file. For example, `collection == this.file.properties.collection` selects books for the reading room, while `file.path != this.file.path` excludes the host from related rows.
 
-`file.hasLink("Field Notes/Digital gardens")` tests whether a row links to a note, including links in its properties. `file.hasLink(this.file)` and `file.links.contains(this.file)` select notes that link to the host. String, `link(...)`, and `file.link` targets can resolve aliases and heading/block references. `file.hasTag("research")` includes nested tags such as `research/methods`, and supported values can use `toString()` for display.
+`file.hasLink("Field Notes/Digital gardens")` tests whether a row links to a note, including links in its properties. `file.hasLink(this.file)` and `file.links.contains(this.file)` select notes that link to the host. String, `link(...)`, and `file.link` targets can resolve aliases and heading/block references. `file.hasTag("research")` matches tags case-insensitively, accepts an optional leading `#`, and includes nested tags such as `research/methods`. `toString()` converts supported values for display; for example, `link("Field Notes/Digital gardens").toString()` produces a wikilink string.
 
 The evaluator supports a bounded, no-eval subset: property access, comparisons, Boolean/arithmetic operators, lists, conditionals, formulas, and selected helpers such as `contains`, `length`, `if`, `number`, `string`, and `file.inFolder`. Supported list/string methods include `contains`, `join`, `split`, `unique`, `map`, and `filter`; this is not general JavaScript or every Obsidian Bases function. Formula cycles, excessive complexity, and unsupported expressions produce visible Base errors.
 

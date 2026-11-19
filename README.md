@@ -49,7 +49,7 @@ Replace the contents of **`publish.config.json`** with:
 }
 ```
 
-Use your actual folder name instead of `my-vault`. This minimal config is enough. Lattice supplies defaults and picks a note for the homepage. To choose one yourself, add `"home": "Home.md"` inside `site`, using an existing note path.
+Use your actual folder name instead of `my-vault`. This minimal config is enough. Lattice supplies defaults and picks a note for the homepage. To choose one yourself, add `"home": "Home.md"` inside `site`, using an existing full vault-relative filename—not its frontmatter title or published URL.
 
 ### 4. Run
 
@@ -77,6 +77,8 @@ Local setup does not publish anything to the internet. See [Deployment](#deploym
 
 **Quick switcher:** press **Command+K** on macOS or **Ctrl+K** elsewhere to find a note by title, filename, folder path, or alias. Use the arrow keys and Enter to open it, or Escape to close. Turn it off in **Reader settings → Quick switcher**; the preference stays in that browser. When disabled, the shortcut focuses sidebar search instead. Set `site.quickSwitcher` to `false` to start with it disabled.
 
+**Folder navigation:** folder folds are remembered in this browser for this site, including across reloads and rebuilds. They do not change your vault or publication settings; removed or renamed folder paths are discarded. If browser storage is blocked, folds last only for the current session.
+
 ## Themes
 
 Lattice can use the actual CSS installed in your vault. It follows `.obsidian/appearance.json`, enabled snippets, and `publish.css`; local CSS imports, fonts, and images are included in the build.
@@ -95,7 +97,7 @@ Let readers switch themes without rebuilding:
 
 Only list themes you have installed. Omit `themes` to discover installed vault themes. Default, Publish, and the selected site theme remain available. The picker is disabled by default; the demo enables it.
 
-Theme choices are saved per browser. Failed loads keep the current appearance. Light/dark/system mode is a separate setting. The first page paint uses the system or saved color mode, rather than briefly showing light mode first.
+Theme choices are saved in this browser; light/dark/system mode is separate. The first paint uses the configured or saved color mode and restores a saved theme from local assets before revealing the page. If startup loading fails or takes more than four seconds, the page uses the site's default theme instead. Without JavaScript, static note content remains readable with that default theme.
 
 Editor-only styles, plugin controls, and Style Settings plugin execution cannot run in a static reader. Use snippets, `publish.css`, and `bodyClasses` for theme-specific adjustments. CSS is trusted input—only use themes you trust.
 
@@ -167,7 +169,7 @@ The checked-in host header paths assume `base: "/"`. Review routing and headers 
 
 ## Privacy
 
-A deployed Lattice site is public unless your host restricts access. Exclude private folders with `hiddenPaths` or mark a note with unquoted `publish: false` or `private: true`. Filtering happens before rendering, so excluded notes cannot enter transclusions, Bases, previews, search, or graphs. Invalid publication metadata fails the build.
+A deployed Lattice site is public unless your host restricts access. **Every surviving note is published in full**, even if it is not linked from the homepage. Exclude private folders with `hiddenPaths` or mark a note with unquoted `publish: false` or `private: true`. Filtering happens before rendering, so excluded notes cannot enter transclusions, Bases, previews, search, or graphs. Invalid publication metadata fails the build.
 
 Public note text and properties are included in reader/search data. **Hiding properties in the UI does not make them private.** Non-literal Obsidian comments are removed; literal `%%` examples in code remain visible. Review your output before publishing and replace old deployments so newly excluded pages do not survive as stale files.
 

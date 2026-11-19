@@ -31,7 +31,7 @@ A cyclic or overly nested embed can reach the renderer's limit. Prefer a direct 
 
 ## A Base is empty or reports an error
 
-An empty view can be correct: no public notes match its filters. Check property names, YAML value types, folder paths, and the host note's properties. `this.file` means the host Markdown note; it is not the `.base` file.
+An empty view can be correct: no public notes match its filters. Check property names, YAML value types, folder paths, and the host note's properties. `this.file` means the host Markdown note; it is not the `.base` file. For inline views, the fence must be labeled `base`, not `yaml`. If modification-date order changed after a copy or clone, check the source filesystem timestamps; `file.mtime` is not a frontmatter date.
 
 A visible “Unable to render Base” message indicates invalid YAML, an unsupported view/expression, a circular formula, or an evaluator limit. Reduce the expression to supported operations and verify the result on a small collection. Obsidian's complete Bases runtime and general JavaScript are not supported.
 
@@ -45,6 +45,12 @@ A visible “Unable to render Base” message indicates invalid YAML, an unsuppo
 - Check connectivity for remote CSS resources; the build leaves their URLs remote.
 
 Style Settings plugin state, editing controls, and plugin-only components cannot appear merely by loading their CSS. See [[About/Obsidian themes]] for the compatibility boundary.
+
+## Reader choices do not match configuration
+
+Saved browser preferences take precedence over reader defaults. Check **Reader settings** for color mode, the selected theme, and Quick switcher; when the switcher is disabled, Command/Ctrl+K focuses sidebar search instead. Clear this site's browser storage to start from defaults, noting that this also resets other saved reader choices.
+
+Folder folds survive reloads and rebuilds for the same site. Removed or renamed folder paths are discarded, and new folders start open. Moving the deployment base or changing the homepage file starts a separate folder preference set. If browser storage is blocked, controls still work during the session but their choices cannot survive a reload. This state never changes your source notes or their publication status.
 
 ## Saved edits do not appear
 
