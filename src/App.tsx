@@ -21,7 +21,8 @@ import MarkdownContent from "./MarkdownContent";
 import GraphView from "./GraphView";
 
 function normalizeRoute(value: string) {
-  const trim = (path: string) => path.replace(/\/index\.html\/?$/, "/").replace(/\/+$/, "") || "/";
+  const trim = (path: string) =>
+    path.replace(/\/index\.html\/?$/, "/").replace(/\/+$/, "") || "/";
   try {
     return trim(decodeURIComponent(value));
   } catch {
@@ -393,7 +394,12 @@ export default function App({ site }: { site: CompiledSite }) {
             Object.keys(note.properties).some(
               (k) => !["title", "cssclasses", "aliases"].includes(k),
             ) && (
-              <details className="metadata-container properties">
+              <details
+                className="metadata-container properties"
+                onClick={contentClick}
+                onMouseOver={hoverLink}
+                onMouseOut={leaveHover}
+              >
                 <summary>Properties</summary>
                 <div className="metadata-content">
                   {Object.entries(note.properties)
@@ -403,9 +409,18 @@ export default function App({ site }: { site: CompiledSite }) {
                     .map(([k, v]) => (
                       <div className="metadata-property" key={k}>
                         <span className="metadata-property-key">{k}</span>
-                        <span className="metadata-property-value">
-                          {Array.isArray(v) ? v.join(", ") : String(v ?? "")}
-                        </span>
+                        {note.propertyHtml?.[k] !== undefined ? (
+                          <span
+                            className="metadata-property-value"
+                            dangerouslySetInnerHTML={{
+                              __html: note.propertyHtml[k],
+                            }}
+                          />
+                        ) : (
+                          <span className="metadata-property-value">
+                            {Array.isArray(v) ? v.join(", ") : String(v ?? "")}
+                          </span>
+                        )}
                       </div>
                     ))}
                 </div>

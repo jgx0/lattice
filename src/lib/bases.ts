@@ -1,6 +1,9 @@
 import type { Note } from '../types';
 import { parseYaml } from './markdown';
-import { basename, escapeHtml, internalLink, normalizePath } from './utils';
+import { resolveNote } from './model';
+import { notePathKey } from './noteIndex';
+import { renderPropertyValue } from './propertyValue';
+import { basename, decodeTarget, dirname, escapeHtml, internalLink, normalizePath } from './utils';
 
 type Value = unknown;
 type Node = { type: string; value?: any; left?: Node; right?: Node; args?: Node[] };
@@ -88,15 +91,32 @@ function parseExpression(source: string): Node {
   return result;
 }
 
-function fileInfo(note: Note): Record<string, Value> {
+const fileValue = Symbol('Base file');
+const linkValue = Symbol('Base link');
+interface BaseLink { [linkValue]: true; path: string; source: string; display?: string }
+function makeLink(path: string, source: string, display?: string): BaseLink {
+  return { [linkValue]: true, path, source, ...(display == null ? {} : { display }) };
+}
+function isLink(value: Value): value is BaseLink {
+  return value != null && typeof value === 'object' && (value as BaseLink)[linkValue] === true;
+}
+function isFile(value: Value): boolean {
+  return value != null && typeof value === 'object' && (value as Record<symbol, Value>)[fileValue] === true;
+}
+function fileInfo(note: Note, context: Context): Record<string, Value> {
   const name = basename(note.path).replace(/\.md$/i, '');
-  return { path: note.path, name, basename: name, fullname: basename(note.path), folder: note.folder,
-    ext: 'md', extension: 'md', tags: note.tags, links: note.links, properties: note.properties, size: note.content.length };
+  return { [fileValue]: true, path: note.path, name, basename: name, fullname: basename(note.path), folder: note.folder,
+    ext: 'md', extension: 'md', tags: note.tags,
+    link: makeLink(note.path, ''), links: note.links.map(path => {
+      const target = resolveNote(path, context.notes, note.path);
+      return makeLink(target?.path ?? path, target ? '' : note.path);
+    }), properties: note.properties, size: note.content.length };
 }
 
 interface Context {
   note: Note;
   current: Note;
+  notes: Note[];
   formulas: Record<string, string>;
   cache: Map<string, Value>;
   active: Set<string>;
@@ -109,9 +129,49 @@ function own(object: Value, key: string): Value {
   return object != null && typeof object === 'object' && Object.prototype.hasOwnProperty.call(object, key)
     ? (object as Record<string, Value>)[key] : undefined;
 }
-function equals(a: Value, b: Value): boolean {
-  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((value, i) => equals(value, b[i]));
+function targetPath(value: Value, source: string): { path: string; source: string } | undefined {
+  if (typeof value === 'string') return { path: value, source };
+  const path = own(value, 'path');
+  if (typeof path !== 'string') return undefined;
+  return { path, source: isFile(value) ? '' : typeof own(value, 'source') === 'string' ? String(own(value, 'source')) : source };
+}
+function targetIdentity(value: Value, context: Context, source = context.note.path): string | undefined {
+  const target = targetPath(value, source);
+  if (!target) return undefined;
+  const path = decodeTarget(target.path.trim().replace(/^!?\[\[|\]\]$/g, '').split('|')[0].split('#')[0]);
+  if (/^(?:[a-z][\w+.-]*:|\/\/)/i.test(path)) return undefined;
+  if (!path && (!target.path.includes('#') || !target.source)) return undefined;
+  const note = resolveNote(target.path, context.notes, target.source);
+  if (note) return notePathKey(note.path);
+  // Without a complete vault, explicit relative links still have a stable identity.
+  return notePathKey(!path ? target.source : /^\.\.?\//.test(path) ? `${dirname(target.source)}/${path}` : path);
+}
+function equals(a: Value, b: Value, context?: Context): boolean {
+  if (context && (isLink(a) || isFile(a) || isLink(b) || isFile(b))) {
+    const left = targetIdentity(a, context);
+    return left !== undefined && left === targetIdentity(b, context);
+  }
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((value, i) => equals(value, b[i], context));
   return a === b;
+}
+function hasLink(file: Value, target: Value, context: Context): boolean {
+  const path = own(file, 'path');
+  const note = typeof path === 'string' ? resolveNote(path, context.notes) : undefined;
+  const identity = targetIdentity(target, context, note?.path ?? context.note.path);
+  if (!note || identity === undefined) return false;
+  return note.links.some(link => targetIdentity(link, context, note.path) === identity);
+}
+function hasTag(file: Value, target: Value): boolean {
+  if (typeof target !== 'string') return false;
+  const tag = target.trim().replace(/^#/, '').toLocaleLowerCase();
+  const tags = own(file, 'tags');
+  return !!tag && Array.isArray(tags) && tags.some(value => typeof value === 'string'
+    && (value.toLocaleLowerCase() === tag || value.toLocaleLowerCase().startsWith(`${tag}/`)));
+}
+function stringValue(value: Value): string {
+  if (isLink(value)) return `[[${value.path}${value.display == null ? '' : `|${value.display}`}]]`;
+  if (Array.isArray(value)) return value.map(stringValue).join(', ');
+  return value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
 }
 function compare(a: Value, b: Value): number {
   if (a == null && b == null) return 0;
@@ -142,9 +202,9 @@ function evaluate(node: Node, context: Context): Value {
       if (name === 'true') return true;
       if (name === 'false') return false;
       if (name === 'null' || name === 'undefined') return null;
-      if (name === 'file') return fileInfo(context.note);
+      if (name === 'file') return fileInfo(context.note, context);
       if (name === 'note') return context.note.properties;
-      if (name === 'this') return { ...context.current.properties, file: fileInfo(context.current), note: context.current.properties };
+      if (name === 'this') return { ...context.current.properties, file: fileInfo(context.current, context), note: context.current.properties };
       if (name === 'formula') return null; // Resolved specially below, never a JS getter.
       if (context.variables && Object.prototype.hasOwnProperty.call(context.variables, name)) return own(context.variables, name);
       return own(context.note.properties, name);
@@ -165,8 +225,8 @@ function evaluate(node: Node, context: Context): Value {
       if (node.value === 'or' || node.value === '||') return Boolean(left) || Boolean(run(node.right!));
       const right = run(node.right!);
       switch (node.value) {
-        case '==': case '===': return equals(left, right);
-        case '!=': case '!==': return !equals(left, right);
+        case '==': case '===': return equals(left, right, context);
+        case '!=': case '!==': return !equals(left, right, context);
         case '>': return left != null && right != null && compare(left, right) > 0;
         case '<': return left != null && right != null && compare(left, right) < 0;
         case '>=': return left != null && right != null && compare(left, right) >= 0;
@@ -188,7 +248,12 @@ function evaluate(node: Node, context: Context): Value {
         switch (callee.value) {
           case 'list': return values;
           case 'length': return typeof values[0] === 'string' || Array.isArray(values[0]) ? values[0].length : 0;
-          case 'contains': return contains(values[0], values[1]);
+          case 'contains': return contains(values[0], values[1], context);
+          case 'link': {
+            const target = targetPath(values[0], context.note.path);
+            if (!target) throw new Error('link requires a path or Link');
+            return makeLink(target.path, target.source, values[1] == null ? undefined : stringValue(values[1]));
+          }
           case 'any': return values.flat().some(Boolean);
           case 'all': return values.flat().every(Boolean);
           case 'number': return Number(values[0]);
@@ -223,18 +288,23 @@ function evaluate(node: Node, context: Context): Value {
         const path = String(own(object, 'path'));
         return !folder || path.startsWith(`${folder}/`);
       }
+      if (method === 'hasLink' || method === 'hasTag') {
+        if (!isFile(object)) throw new Error(`${method} requires file or this.file`);
+        return method === 'hasLink' ? hasLink(object, values[0], context) : hasTag(object, values[0]);
+      }
       switch (method) {
-        case 'contains': return contains(object, values[0]);
-        case 'containsAny': return values.flat().some(value => contains(object, value));
-        case 'containsAll': return values.flat().every(value => contains(object, value));
+        case 'contains': return contains(object, values[0], context);
+        case 'containsAny': return values.flat().some(value => contains(object, value, context));
+        case 'containsAll': return values.flat().every(value => contains(object, value, context));
+        case 'toString': return stringValue(object);
         case 'startsWith': return typeof object === 'string' && object.startsWith(String(values[0]));
         case 'endsWith': return typeof object === 'string' && object.endsWith(String(values[0]));
         case 'lower': case 'toLowerCase': return typeof object === 'string' ? object.toLowerCase() : undefined;
         case 'upper': case 'toUpperCase': return typeof object === 'string' ? object.toUpperCase() : undefined;
         case 'trim': return typeof object === 'string' ? object.trim() : undefined;
         case 'split': return typeof object === 'string' ? object.split(String(values[0] ?? ',')).slice(0, 1000) : [];
-        case 'join': return Array.isArray(object) ? object.map(value => String(value ?? '')).join(String(values[0] ?? ', ')) : undefined;
-        case 'unique': return Array.isArray(object) ? object.filter((value, index) => object.findIndex(item => equals(item, value)) === index) : [];
+        case 'join': return Array.isArray(object) ? object.map(stringValue).join(String(values[0] ?? ', ')) : undefined;
+        case 'unique': return Array.isArray(object) ? object.filter((value, index) => object.findIndex(item => equals(item, value, context)) === index) : [];
         case 'reverse': return Array.isArray(object) ? [...object].reverse() : undefined;
         case 'sort': return Array.isArray(object) ? [...object].sort(compare) : undefined;
         case 'slice': return typeof object === 'string' || Array.isArray(object) ? object.slice(Number(values[0] ?? 0), values[1] == null ? undefined : Number(values[1])) : undefined;
@@ -245,16 +315,18 @@ function evaluate(node: Node, context: Context): Value {
     default: throw new Error('Invalid expression');
   }
 }
-function contains(container: Value, item: Value): boolean {
-  return typeof container === 'string' ? container.includes(String(item)) : Array.isArray(container) && container.some(value => equals(value, item));
+function contains(container: Value, item: Value, context: Context): boolean {
+  return typeof container === 'string' ? container.includes(stringValue(item)) : Array.isArray(container) && container.some(value => equals(value, item, context));
 }
-function makeContext(note: Note, current: Note, formulas: Record<string, string> = {}): Context {
-  return { note, current, formulas, cache: new Map(), active: new Set(), budget: { remaining: 20_000 } };
+function makeContext(note: Note, current: Note, formulas: Record<string, string> = {}, notes?: Note[]): Context {
+  // Small standalone evaluations can still resolve the candidate and host aliases.
+  return { note, current, notes: notes ?? (note === current ? [note] : [note, current]),
+    formulas, cache: new Map(), active: new Set(), budget: { remaining: 20_000 } };
 }
 
 /** Extra public helpers are useful for validating a Base without rendering it. Errors are explicit. */
-export function evaluateExpression(expression: string, note: Note, currentNote: Note = note, formulas: Record<string, string> = {}): Value {
-  return evaluate(parseExpression(expression), makeContext(note, currentNote, formulas));
+export function evaluateExpression(expression: string, note: Note, currentNote: Note = note, formulas: Record<string, string> = {}, notes?: Note[]): Value {
+  return evaluate(parseExpression(expression), makeContext(note, currentNote, formulas, notes));
 }
 function filterMatches(filter: unknown, context: Context): boolean {
   if (filter == null) return true;
@@ -274,19 +346,17 @@ function filterMatches(filter: unknown, context: Context): boolean {
     }
   });
 }
-export function matchesFilters(filters: unknown, note: Note, currentNote: Note = note): boolean {
-  return filterMatches(filters, makeContext(note, currentNote));
+export function matchesFilters(filters: unknown, note: Note, currentNote: Note = note, notes?: Note[]): boolean {
+  return filterMatches(filters, makeContext(note, currentNote, {}, notes));
 }
 function fieldValue(field: string, context: Context): Value {
   if (field.startsWith('formula.')) return formulaValue(field.slice(8), context);
-  if (field.startsWith('file.')) return own(fileInfo(context.note), field.slice(5));
+  if (field.startsWith('file.')) return own(fileInfo(context.note, context), field.slice(5));
   return own(context.note.properties, field.replace(/^note\./, ''));
 }
-function display(value: Value): string {
-  if (value == null) return '';
-  if (Array.isArray(value)) return value.map(display).join(', ');
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+function propertyValue(value: Value): Value {
+  if (isLink(value)) return stringValue(value);
+  return Array.isArray(value) ? value.map(propertyValue) : value;
 }
 
 export function renderBase(baseContent: string, notes: Note[], currentNote: Note): string {
@@ -301,7 +371,7 @@ export function renderBase(baseContent: string, notes: Note[], currentNote: Note
       const type = view.type ?? 'table';
       if (!['table', 'list', 'cards'].includes(type)) throw new Error(`Unsupported view: ${type}`);
       const name = String(view.name ?? type);
-      let rows = notes.map(note => ({ note, context: makeContext(note, currentNote, formulas) }))
+      let rows = notes.map(note => ({ note, context: makeContext(note, currentNote, formulas, notes) }))
         .filter(row => filterMatches(base.filters, row.context) && filterMatches(view.filters, row.context));
       const sort = Array.isArray(view.sort) ? view.sort : view.sort ? [view.sort] : [];
       if (sort.length) rows.sort((a, b) => {
@@ -318,9 +388,13 @@ export function renderBase(baseContent: string, notes: Note[], currentNote: Note
       const order = Array.isArray(view.order) ? view.order.filter((item: unknown) => typeof item === 'string') : ['file.name'];
       const fields: string[] = order.length ? order : ['file.name'];
       const label = (field: string) => String(base.properties?.[field]?.displayName ?? field.replace(/^(note|file|formula)\./, ''));
-      const cell = (field: string, row: typeof rows[number]) => field === 'file.name' || field === 'file.path' || field === 'file.basename'
-        ? internalLink(row.note.path, row.note.slug, field === 'file.path' ? row.note.path : fieldValue(field, row.context))
-        : escapeHtml(display(fieldValue(field, row.context)));
+      const cell = (field: string, row: typeof rows[number]) => {
+        const value = fieldValue(field, row.context);
+        if (field === 'file.name' || field === 'file.path' || field === 'file.basename') {
+          return internalLink(row.note.path, row.note.slug, field === 'file.path' ? row.note.path : value);
+        }
+        return renderPropertyValue(propertyValue(value), notes, row.note.path);
+      };
       const heading = `<h3 class="base-view-title">${escapeHtml(name)}</h3>`;
       let html: string;
       if (type === 'table') {

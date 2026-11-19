@@ -173,6 +173,45 @@ describe("Node vault compiler", () => {
       path.join(root, "vault/.obsidian/appearance.json"),
     );
   });
+  it("compiles property-only links into metadata, backlinks, graphs, and host-relative Bases", async () => {
+    const { root, put } = await fixture({
+      base: "/garden/",
+      site: { title: "Garden", home: "Welcome.md", hiddenPaths: ["Hidden"] },
+    });
+    await put(
+      "vault/Welcome.md",
+      '---\nrelated: ["[[Topics/Category#Details|Category details]]", "[[Hidden/Private]]"]\n---\n# Welcome',
+    );
+    await put(
+      "vault/Topics/Category.md",
+      "# Category\n\n## Details\n\n![[Related.base]]",
+    );
+    await put(
+      "vault/Topics/Related.base",
+      'filters: "file.hasLink(this.file)"\nviews:\n  - type: table\n    order: [file.name, note.related]',
+    );
+    await put("vault/Hidden/Private.md", "SECRET_PRIVATE_PROPERTY_TARGET");
+    const { site } = await compileVault(await loadConfig(root));
+    const welcome = site.notes.find((note) => note.path === "Welcome.md")!;
+    const category = site.notes.find(
+      (note) => note.path === "Topics/Category.md",
+    )!;
+    expect(welcome.outgoing).toEqual(["Topics/Category.md"]);
+    expect(category.backlinks).toEqual(["Welcome.md"]);
+    expect(welcome.propertyHtml?.related).toContain(
+      'href="/garden/topics/category#details"',
+    );
+    expect(welcome.propertyHtml?.related).toContain("Category details");
+    expect(welcome.propertyHtml?.related).not.toContain(
+      'data-note="Hidden/Private.md"',
+    );
+    expect(category.html).not.toContain("base-error");
+    expect(category.html).toContain('data-note="Welcome.md"');
+    expect(category.html).toContain('href="/garden/topics/category#details"');
+    expect(JSON.stringify(site)).not.toContain(
+      "SECRET_PRIVATE_PROPERTY_TARGET",
+    );
+  });
   it("keeps repeated builds deterministic and privacy decisions fresh across asset rewrites", async () => {
     const { root, put } = await fixture();
     await put(

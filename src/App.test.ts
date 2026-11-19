@@ -7,6 +7,7 @@ import App from "./App";
 import { demoVault, defaultSettings } from "./demo";
 import { buildNotes, getBacklinks, resolveNote } from "./lib/model";
 import { renderMarkdown, renderPreview } from "./lib/render";
+import { renderPropertyValue } from "./lib/propertyValue";
 import type { CompiledSite, Vault } from "./types";
 
 // Compile test input once, outside App: the reader receives no vault/storage mocks.
@@ -48,6 +49,19 @@ function compileFixture(vault: Vault): CompiledSite {
       url: urls.get(note.path)!,
       html: markup(renderMarkdown(note, notes, vault.files)),
       previewHtml: markup(renderPreview(note, notes, vault.files)),
+      propertyHtml: Object.fromEntries(
+        Object.entries(note.properties).map(([key, value]) => [
+          key,
+          renderPropertyValue(
+            value,
+            notes,
+            note.path,
+            (target, anchor) =>
+              urls.get(target.path)! +
+              (anchor ? "#" + encodeURIComponent(anchor) : ""),
+          ),
+        ]),
+      ),
       outgoing: [
         ...new Set(
           note.links
@@ -284,6 +298,35 @@ afterEach(async () => {
 });
 
 describe("compiled-site reader", () => {
+  it("opens property wikilinks with clean routes and heading anchors", async () => {
+    const input = compileFixture({
+      name: "Properties",
+      files: [
+        {
+          path: "Welcome.md",
+          kind: "note",
+          content:
+            '---\ncategory: ["[[Topics/Target#Details|Related category]]"]\n---\nHome',
+        },
+        {
+          path: "Topics/Target.md",
+          kind: "note",
+          content: "## Details\nDestination",
+        },
+      ],
+    });
+    input.settings.showProperties = true;
+    await remount(input);
+    const link = one<HTMLAnchorElement>(".metadata-property-value a");
+    expect(link.textContent).toBe("Related category");
+    expect(link.getAttribute("href")).toBe("/garden/topics/target#details");
+    expect(link.dataset.note).toBe("Topics/Target.md");
+    expect(link.dataset.anchor).toBe("details");
+    await click(link);
+    expect(titles()).toEqual(["Target"]);
+    expect(window.location.pathname).toBe("/garden/topics/target");
+    expect(window.location.hash).toBe("#details");
+  });
   it("renders plain demo content without authoring scaffolding and preserves compiled sanitization", async () => {
     expect(titles()).toEqual(["Welcome to Lattice"]);
     expect(one(".note-header").textContent).toBe("Welcome to Lattice");

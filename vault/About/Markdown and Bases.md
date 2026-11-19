@@ -26,7 +26,16 @@ An opening paragraph.
 The note continues here.
 ```
 
-Properties can drive Bases and are part of public compiled data even if the properties panel is hidden. Use unquoted YAML booleans for privacy flags, not strings; see [[About/Security and privacy]].
+Properties can drive Bases and are part of public compiled data even if the properties panel is hidden. Wikilinks in property strings, lists, and nested values contribute to backlinks and graphs and become clickable links in the properties panel and Base cells. For example:
+
+```yaml
+category: "[[Field Notes/Digital gardens]]"
+related:
+  - "[[Field Notes/Walking as research|Walking]]"
+  - "[[Field Notes/Digital gardens#A link should carry a thought|A useful link]]"
+```
+
+Use unquoted YAML booleans for privacy flags, not strings; see [[About/Security and privacy]].
 
 ## Links and transclusions
 
@@ -92,6 +101,8 @@ Supported views are `table`, `list`, and `cards`. View-level filters combine wit
 ## Expression context and limits
 
 `file` describes the candidate row; `note` and bare property names access its frontmatter. `this.file` describes the **host note**, not the `.base` source file. For example, `collection == this.file.properties.collection` selects books for the reading room, while `file.path != this.file.path` excludes the host from related rows.
+
+`file.hasLink("Field Notes/Digital gardens")` tests whether a row links to a note, including links in its properties. `file.hasLink(this.file)` and `file.links.contains(this.file)` select notes that link to the host. String, `link(...)`, and `file.link` targets can resolve aliases and heading/block references. `file.hasTag("research")` includes nested tags such as `research/methods`, and supported values can use `toString()` for display.
 
 The evaluator supports a bounded, no-eval subset: property access, comparisons, Boolean/arithmetic operators, lists, conditionals, formulas, and selected helpers such as `contains`, `length`, `if`, `number`, `string`, and `file.inFolder`. Supported list/string methods include `contains`, `join`, `split`, `unique`, `map`, and `filter`; this is not general JavaScript or every Obsidian Bases function. Formula cycles, excessive complexity, and unsupported expressions produce visible Base errors.
 

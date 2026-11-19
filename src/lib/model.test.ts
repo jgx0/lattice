@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Note, VaultFile } from '../types';
 import { buildNotes, getBacklinks, invalidateNoteIndex, resolveLink, resolveNote, searchNotes, slugify } from './model';
 import { basename, decodeTarget, dirname, normalizePath, stripExtension } from './utils';
+import { extractPropertyLinks, parsePropertyWikilinks } from './propertyLinks';
 
 const noteFile = (path: string, content: string): VaultFile => ({ path, content, kind: 'note' });
 const files = [
@@ -113,6 +114,148 @@ describe('note model', () => {
     expect(slugify('  Héllo, 世界!  ')).toBe('héllo-世界');
     const result = buildNotes([noteFile('A!.md', ''), noteFile('A.md', ''), noteFile('A-1.md', '')]);
     expect(new Set(result.map(note => note.slug)).size).toBe(3);
+  });
+});
+
+describe('property wikilinks', () => {
+  it('returns reusable string tokens with aliases, embed flags and original offsets', () => {
+    const text = String.raw`Before [[ Folder/Target#Heading | Label ]] and ![[Other#^block\|Shown]] after`;
+    const tokens = parsePropertyWikilinks(text);
+    expect(tokens.map(({ target, alias, embed }) => ({ target, alias, embed }))).toEqual([
+      { target: 'Folder/Target#Heading', alias: 'Label', embed: false },
+      { target: 'Other#^block', alias: 'Shown', embed: true },
+    ]);
+    for (const token of tokens) expect(text.slice(token.start, token.end)).toBe(token.raw);
+    expect(parsePropertyWikilinks('[[Plain]]')).toEqual([
+      { raw: '[[Plain]]', target: 'Plain', embed: false, start: 0, end: 9 },
+    ]);
+    expect(parsePropertyWikilinks('[Label](Target.md) [[ ]] [[|Alias]] [[broken] [[Across\nlines]]')).toEqual([]);
+    expect(extractPropertyLinks('[[A]] [[A|Alias]] ![[A]] [[A#Heading]] [[A#^block]]')).toEqual([
+      'A', 'A#Heading', 'A#^block',
+    ]);
+  });
+
+  it('traverses arbitrary nested values without coercing scalars, keys or prototypes', () => {
+    const inherited = Object.assign(Object.create({ inherited: '[[Ignored]]' }), { own: '[[Own]]' });
+    const value = Object.freeze({
+      '[[Key]]': Object.freeze(['[[First]]', 42, true, false, null, undefined, 1n, Symbol('[[Symbol]]')]),
+      nested: Object.freeze({ items: Object.freeze([['text [[Second|Alias]] and ![[Third#^block]]'], '[[First]]']) }),
+      scalar: '[Markdown](Ignored.md)',
+      inherited,
+      date: new Date(0),
+      function: () => '[[Function]]',
+    });
+    expect(extractPropertyLinks(value)).toEqual(['First', 'Second', 'Third#^block', 'Own']);
+    expect(value['[[Key]]'][0]).toBe('[[First]]');
+    for (const scalar of [null, undefined, false, 17, 1n, Symbol('[[Symbol]]'), new Date(0)]) {
+      expect(extractPropertyLinks(scalar)).toEqual([]);
+    }
+  });
+
+  it('visits shared objects once and handles cyclic arrays/objects and very deep nesting', () => {
+    const read = vi.fn(() => '[[Shared]]');
+    const shared = Object.defineProperty({}, 'link', { enumerable: true, get: read });
+    const cyclic: Record<string, unknown> = { first: '[[First]]', shared };
+    const array: unknown[] = [cyclic, shared, '[[Last]]'];
+    cyclic.self = cyclic;
+    cyclic.array = array;
+    array.push(array);
+    expect(extractPropertyLinks(cyclic)).toEqual(['First', 'Shared', 'Last']);
+    expect(read).toHaveBeenCalledTimes(1);
+    let deep: unknown = '[[Deep]]';
+    for (let i = 0; i < 20_000; i++) deep = { nested: [deep] };
+    expect(extractPropertyLinks(deep)).toEqual(['Deep']);
+  });
+
+  it('adds YAML scalar, flow/block list, nested and embedded links after body links without changing words or properties', () => {
+    const body = '# Source\n\nBody [[Inline]] [[Target#Heading|body label]].';
+    const content = [
+      '---',
+      'category: ["[[Category]]", "[[Inline|duplicate]]"]',
+      'related: "Text [[Target#Heading|property label]] and [[Other#^block]]"',
+      'items:',
+      "  - '[[Block List]]'",
+      '  - 17',
+      '  - false',
+      '  - null',
+      'nested:',
+      '  more:',
+      '    - ["![[Embedded|embed label]]", "[[Folder/Encoded%20Note.md#Heading]]"]',
+      '    - detail: "[[Third]]"',
+      'plain: "[Markdown](NotLinked.md)"',
+      'tags: [topic]',
+      '---',
+      body,
+    ].join('\n');
+    const [note] = buildNotes([noteFile('Source.md', content)]);
+    expect(note.links).toEqual([
+      'Inline', 'Target#Heading', 'Category', 'Other#^block', 'Block List', 'Embedded',
+      'Folder/Encoded%20Note.md#Heading', 'Third',
+    ]);
+    expect(note.words).toBe(buildNotes([noteFile('Source.md', body)])[0].words);
+    expect(note.body).toBe(body);
+    expect(note.content).toBe(content);
+    expect(note.properties.category).toEqual(['[[Category]]', '[[Inline|duplicate]]']);
+    expect(note.properties.nested.more[0]).toEqual(['![[Embedded|embed label]]', '[[Folder/Encoded%20Note.md#Heading]]']);
+    expect(note.tags).toEqual(['topic']);
+  });
+
+  it('extracts links from recursive YAML aliases without mutating the property graph', () => {
+    const [note] = buildNotes([noteFile('Cycle.md', [
+      '---',
+      'nested: &nested',
+      '  link: "[[Target]]"',
+      '  self: *nested',
+      'shared: *nested',
+      'list: &list',
+      '  - "[[Other#^block]]"',
+      '  - *list',
+      '---',
+      'Body',
+    ].join('\n'))]);
+    expect(note.links).toEqual(['Target', 'Other#^block']);
+    expect(note.properties.nested.self).toBe(note.properties.nested);
+    expect(note.properties.shared).toBe(note.properties.nested);
+    expect(note.properties.list[1]).toBe(note.properties.list);
+  });
+
+  it('exposes property-only outgoing edges and backlinks through existing alias/relative/fragment resolution', () => {
+    const graph = buildNotes([
+      noteFile('Topics/Source.md', [
+        '---',
+        'category: ["[[../Category]]", "[[Category#Heading|shown]]"]',
+        'related: "[[Start#^block]] [[../Category.md]] [[Missing]] [[#Self]]"',
+        'nested: {embed: "![[./Nearby]]", encoded: "[[../Encoded%20Note.md]]"}',
+        '---',
+        '# Self',
+      ].join('\n')),
+      noteFile('Category.md', '---\naliases: [Start]\n---\n# Heading'),
+      noteFile('Topics/Nearby.md', ''),
+      noteFile('Encoded Note.md', ''),
+    ]);
+    const outgoing = new Set(graph[0].links.map(link => resolveNote(link, graph, graph[0].path)?.path).filter(Boolean));
+    expect([...outgoing]).toEqual(['Category.md', 'Topics/Source.md', 'Topics/Nearby.md', 'Encoded Note.md']);
+    expect(resolveLink(graph[0].links[1], graph, graph[0].path)).toMatchObject({ note: graph[1], anchor: 'heading' });
+    expect(resolveLink('Start#^block', graph, graph[0].path)).toMatchObject({ note: graph[1], anchor: 'block' });
+    expect(getBacklinks(graph[0], graph)).toEqual([]);
+    for (const target of graph.slice(1)) expect(getBacklinks(target, graph)).toEqual([graph[0]]);
+    expect(graph.map(note => getBacklinks(note, graph))).toEqual(graph.map(note => scanBacklinks(note, graph)));
+  });
+
+  it('keeps link snapshots stable until rebuilt and invalidated after an in-place property edit', () => {
+    const graph = buildNotes([
+      noteFile('Target.md', ''),
+      noteFile('Other.md', ''),
+      noteFile('Source.md', '---\ncategory: ["[[Target]]"]\n---'),
+    ]);
+    expect(getBacklinks(graph[0], graph)).toEqual([graph[2]]);
+    graph[2].properties.category = ['[[Other]]'];
+    expect(graph[2].links).toEqual(['Target']);
+    expect(getBacklinks(graph[0], graph)).toEqual([graph[2]]);
+    graph[2].links = extractPropertyLinks(graph[2].properties);
+    invalidateNoteIndex(graph);
+    expect(getBacklinks(graph[0], graph)).toEqual([]);
+    expect(getBacklinks(graph[1], graph)).toEqual([graph[2]]);
   });
 });
 

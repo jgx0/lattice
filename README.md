@@ -171,7 +171,9 @@ See [Obsidian themes](vault/About/Obsidian%20themes.md).
 
 Supported reading features include internal links and aliases; heading/block anchors; note, heading and block transclusions; YAML properties; collapsible callouts; read-only tasks; footnotes; highlighting; code; and bundled KaTeX LaTeX output. Images, audio, video, inline PDFs, and sanitized HTML/HTTP(S) iframes are supported. Playback depends on browser/codec support.
 
-Bases supports table/list/cards views, properties, configured filters/formulas, sorting and limits. Embedded `this.file` references use the **host note**, including `this.file.properties`. Column headers are sortable in the reader.
+Wikilinks in YAML properties are links too: scalar values, lists, and nested metadata contribute to backlinks and graphs, and appear as clickable links in the properties panel and Base cells. Aliases and heading/block targets work there as they do in note text.
+
+Bases supports table/list/cards views, properties, configured filters/formulas, sorting and limits. Embedded `this.file` references use the **host note**, including `this.file.properties`. `file.hasLink(...)` and `file.links.contains(this.file)` include property links; `file.hasTag(...)` and safe `toString()` calls are supported. Column headers are sortable in the reader.
 
 This is a **bounded, no-eval compatibility subset**, not all of Obsidian's evolving Bases runtime. Unsupported expressions fail visibly. Plugin execution, Dataview, Canvas editing, Sync, collaboration, hosted accounts, and password-protected hosting are not included.
 

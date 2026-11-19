@@ -19,6 +19,7 @@ import { renderMarkdown, renderPreview } from "../src/lib/render";
 import { createSanitizers } from "../src/lib/sanitize";
 import { decodeTarget } from "../src/lib/utils";
 import type { BuildConfig } from "./config";
+import { renderPropertyValue } from "../src/lib/propertyValue";
 import { validatePublishedRoutes } from "./staticPages";
 
 export interface CompileResult {
@@ -411,6 +412,19 @@ export async function compileVault(
         body: stripComments(note.body),
         html: renderMarkdown(note, notes, files, sanitizers),
         previewHtml: renderPreview(note, notes, files, sanitizers),
+        propertyHtml: Object.fromEntries(
+          Object.entries(note.properties).map(([key, value]) => [
+            key,
+            renderPropertyValue(
+              value,
+              notes,
+              note.path,
+              (target, anchor) =>
+                urls.get(target.path)! +
+                (anchor ? `#${encodeURIComponent(anchor)}` : ""),
+            ),
+          ]),
+        ),
         outgoing: [
           ...new Set(
             note.links

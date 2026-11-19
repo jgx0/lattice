@@ -2,6 +2,7 @@ import type { Heading, Note, VaultFile } from '../types';
 import { createMarkdown, plainInline, splitFrontmatter, stripComments } from './markdown';
 import { basename, decodeTarget, dirname, headingAnchor, normalizePath, noteHref, slugify, stripExtension, uniqueHeadingId } from './utils';
 import { findNoteCandidate, getNoteIndex, notePathKey } from './noteIndex';
+import { extractPropertyLinks } from './propertyLinks';
 
 export { slugify } from './utils';
 export { invalidateNoteIndex } from './noteIndex';
@@ -41,6 +42,7 @@ export function buildNotes(files: VaultFile[]): Note[] {
         } else if (child.type === 'code_inline') prose.push(child.content);
       }
     }
+    for (const link of extractPropertyLinks(properties)) links.add(link);
     const propertyTags = properties.tags ?? properties.tag;
     for (const tag of Array.isArray(propertyTags) ? propertyTags : typeof propertyTags === 'string' ? propertyTags.split(/[,\s]+/) : []) {
       if (typeof tag === 'string' && tag.trim()) tags.add(tag.trim().replace(/^#/, ''));

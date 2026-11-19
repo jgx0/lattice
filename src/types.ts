@@ -31,6 +31,7 @@ export interface PublishedNote extends Note {
   url: string;
   html: string;
   previewHtml: string;
+  propertyHtml?: Record<string, string>;
   outgoing: string[];
   backlinks: string[];
 }

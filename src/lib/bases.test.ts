@@ -11,6 +11,20 @@ const notes = buildNotes([
 const host = notes[0];
 const alpha = notes[1];
 
+// Synthetic graph only: never copy test content from a user's vault.
+const graph = buildNotes([
+  { path: 'Projects/Host.md', kind: 'note', content: '---\naliases: [Parent]\ntags: [work/project]\n---\n# Overview\n[[Tasks/Source]]' },
+  { path: 'Projects/Tasks/Source.md', kind: 'note', content: '---\nrelated: "[[Parent#Overview|Property label]]"\n---\n# Source\n[[../../Projects/Host.md#Overview|Display label]]' },
+  { path: 'Archive/Host.md', kind: 'note', content: '# Other host' },
+  { path: 'Archive/Source.md', kind: 'note', content: '# Other source\n[[./Host#Section]]' },
+  { path: 'Projects/Inbound.md', kind: 'note', content: '# Inbound\n[[Host]]' },
+  { path: 'Projects/Unlinked.md', kind: 'note', content: '# Unlinked' },
+  { path: 'Projects/Self.md', kind: 'note', content: '# Self\n[[#Self]]' },
+  { path: 'Projects/PropertyOnly.md', kind: 'note', content: '---\nrelated: ["[[Parent#Overview|Property label]]"]\n---\n# Property only' },
+]);
+const graphHost = graph[0];
+const source = graph[1];
+
 describe('safe Base expressions', () => {
   it('distinguishes candidate file from host this.file and supports property access', () => {
     expect(evaluateExpression('file.name == "Alpha" && this.file.name == "Host"', alpha, host)).toBe(true);
@@ -33,11 +47,60 @@ describe('safe Base expressions', () => {
     expect(matchesFilters({ not: ['status == "archived"', 'score < 4'] }, alpha)).toBe(false);
     expect(matchesFilters({ not: ['status == "archived"', 'score < 4'] }, notes[2])).toBe(true);
   });
+  it('supports outgoing hasLink with native file/Link targets and normalized strings', () => {
+    for (const target of ['this.file', 'this.file.link', 'link(this.file.path)', 'link(this.file.path, "Label")', '"[[Projects/Host.MD#Overview|Label]]"', '"Parent"', '"../Host.md#Overview"']) {
+      expect(evaluateExpression(`file.hasLink(${target})`, source, graphHost, {}, graph)).toBe(true);
+    }
+    expect(evaluateExpression('file.hasLink(this.file)', source, graphHost)).toBe(true);
+    expect(evaluateExpression('file.hasLink("Archive/Host")', source, graphHost, {}, graph)).toBe(false);
+    expect(evaluateExpression('file.hasLink("Host")', graph[3], graphHost, {}, graph)).toBe(true);
+    expect(evaluateExpression('file.hasLink(this.file)', graph[3], graphHost, {}, graph)).toBe(false);
+    expect(evaluateExpression('file.hasLink("Projects/Inbound")', graphHost, graphHost, {}, graph)).toBe(false);
+    expect(evaluateExpression('this.file.hasLink(file)', source, graphHost, {}, graph)).toBe(true);
+    expect(evaluateExpression('file.hasLink(null)', source, graphHost, {}, graph)).toBe(false);
+    expect(evaluateExpression('file.hasLink("https://example.test/Host")', source, graphHost, {}, graph)).toBe(false);
+    expect(evaluateExpression('file.hasLink(this.file)', graphHost, graphHost, {}, graph)).toBe(false);
+    expect(evaluateExpression('file.hasLink(this.file.link)', graph[6], graph[6], {}, graph)).toBe(true);
+    expect(evaluateExpression('file.hasLink(link(this.file.path))', graph[6], graph[6], {}, graph)).toBe(true);
+  });
+  it('compares file.links and property wikilinks to this.file/Link without confusing duplicate names', () => {
+    expect(evaluateExpression('file.links.contains(this.file)', source, graphHost, {}, graph)).toBe(true);
+    expect(evaluateExpression('file.links.contains(this.file.link)', source, graphHost, {}, graph)).toBe(true);
+    expect(evaluateExpression('file.links.contains("Parent")', source, graphHost, {}, graph)).toBe(true);
+    expect(evaluateExpression('file.links.contains(this.file)', graph[3], graphHost, {}, graph)).toBe(false);
+    expect(evaluateExpression('related.contains(this.file.link)', graph[7], graphHost, {}, graph)).toBe(true);
+    expect(evaluateExpression('file.hasLink(this.file)', graph[7], graphHost, {}, graph)).toBe(true);
+    expect(matchesFilters('file.hasLink(this.file)', source, graphHost, graph)).toBe(true);
+    expect(evaluateExpression('this.file.link == link("Parent#Overview|Label")', source, graphHost, {}, graph)).toBe(true);
+    expect(evaluateExpression('file.links.unique().length', source, graphHost, {}, graph)).toBe(1);
+  });
+  it('matches unresolved explicit paths in standalone evaluations without a vault-wide scan', () => {
+    const standalone = { ...source, links: ['../Missing.md#Heading'] };
+    expect(evaluateExpression('file.hasLink("Projects/Missing")', standalone)).toBe(true);
+    expect(evaluateExpression('file.hasLink("Archive/Missing")', standalone)).toBe(false);
+    expect(() => evaluateExpression('file.hasLink({})', standalone)).toThrow();
+  });
+  it('supports observed native tag and safe string conversion methods', () => {
+    for (const tag of ['work', '#work', '#work/project']) {
+      expect(evaluateExpression(`file.hasTag("${tag}")`, graphHost, graphHost, {}, graph)).toBe(true);
+    }
+    expect(evaluateExpression('this.file.hasTag("#work")', source, graphHost, {}, graph)).toBe(true);
+    expect(evaluateExpression('file.hasTag("wor") || file.hasTag(1)', graphHost)).toBe(false);
+    expect(evaluateExpression('status.toString().contains("active")', alpha)).toBe(true);
+    expect(evaluateExpression('labels.toString()', alpha)).toBe('one, two');
+    expect(evaluateExpression('score.toString()', alpha)).toBe('3');
+    expect(evaluateExpression('missing.toString()', alpha)).toBe('');
+    expect(evaluateExpression('this.file.link.toString()', source, graphHost, {}, graph)).toBe('[[Projects/Host.md]]');
+  });
   it('rejects code execution, prototype access, unsupported calls and circular formulas', () => {
     expect(() => evaluateExpression('globalThis.alert(1)', alpha)).toThrow();
     expect(() => evaluateExpression('file.constructor.constructor("return 1")()', alpha)).toThrow();
     expect(evaluateExpression('note.__proto__', alpha)).toBeUndefined();
     expect(() => evaluateExpression('status = "x"', alpha)).toThrow();
+    expect(() => evaluateExpression('note.hasLink(this.file)', source, graphHost)).toThrow(/requires file/);
+    expect(() => evaluateExpression('note.hasTag("work")', source)).toThrow(/requires file/);
+    expect(() => evaluateExpression('file.hasBacklink(this.file)', source, graphHost)).toThrow(/Unsupported method/);
+    expect(() => evaluateExpression('file.asLink()', source)).toThrow(/Unsupported method/);
     expect(() => evaluateExpression('formula.a', alpha, host, { a: 'formula.b', b: 'formula.a' })).toThrow(/Circular/);
     expect(() => evaluateExpression('('.repeat(100) + '1' + ')'.repeat(100), alpha)).toThrow();
   });
@@ -61,6 +124,20 @@ describe('Base views', () => {
       expect(html).toContain('&lt;img');
       expect(html).not.toContain('<img');
     }
+  });
+  it('renders outgoing-link rows with full graph context and links in property/formula cells', () => {
+    const html = renderBase('filters: "file.hasLink(this.file)"\nformulas:\n  parent: "this.file.link"\nviews:\n  - type: table\n    order: [file.name, related, formula.parent]', graph, graphHost);
+    expect(html).not.toContain('base-error');
+    expect(html).toContain('data-note="Projects/Tasks/Source.md"');
+    expect(html).toContain('data-note="Projects/PropertyOnly.md"');
+    expect(html).not.toContain('data-note="Archive/Source.md"');
+    expect(html).not.toContain('data-note="Projects/Unlinked.md"');
+    expect(html).toContain('class="internal-link metadata-link"');
+    expect(html).toContain('data-note="Projects/Host.md" data-anchor="overview"');
+    expect(html).toContain('>Property label</a>');
+    const native = renderBase('filters: "file.links.contains(this.file)"\nviews: [{type: list}]', graph, graphHost);
+    expect(native).toContain('data-note="Projects/Tasks/Source.md"');
+    expect(native).not.toContain('data-note="Archive/Source.md"');
   });
   it('fails visibly on bad YAML, unsupported view or expression without leaking executable HTML', () => {
     expect(renderBase('views: [', notes, host)).toContain('base-error');

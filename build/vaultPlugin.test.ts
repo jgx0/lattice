@@ -114,6 +114,18 @@ describe("semantic published pages", () => {
     expect(document.querySelector("script[type=module]")?.getAttribute("src")).toBe("/main.js");
   });
 
+  it('includes compiled clickable property values in static no-JavaScript pages', async () => {
+    const {root}=await fixture();
+    const {site}=await fakeCompile(await loadConfig(root));
+    site.settings.showProperties=true;
+    const home=site.notes.find(n=>n.path===site.settings.home)!;
+    home.properties.related=['[[Topics/Other|Related topic]]'];
+    home.propertyHtml={related:'<a class="internal-link metadata-link" href="/topics/other" data-note="Topics/Other.md" data-anchor="">Related topic</a>'};
+    const html=renderPublishedPage(await readFile(path.join(root,'index.html'),'utf8'),site,home);
+    const doc=new JSDOM(html).window.document;
+    expect(doc.querySelector('.metadata-property-value a')?.textContent).toBe('Related topic');
+    expect(doc.querySelector('.metadata-property-value a')?.getAttribute('href')).toBe('/topics/other');
+  });
   it("replaces prior page metadata and content safely without duplicating styles", async () => {
     const { root } = await fixture();
     const { site } = await fakeCompile(await loadConfig(root));
