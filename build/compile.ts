@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir, realpath, stat } from "node:fs/promises";
+import { readFile, readdir, realpath, stat, lstat } from "node:fs/promises";
 import path from "node:path";
 import { JSDOM } from "jsdom";
 import type {
   CompiledSite,
   Note,
   PublishedNote,
+  PublishedTheme,
   VaultFile,
 } from "../src/types";
 import { parseYaml, stripComments } from "../src/lib/markdown";
@@ -554,14 +555,68 @@ export async function compileVault(
       }
       return rewritten + css.slice(end);
     };
+    const readCss = async (
+      file: string,
+      boundary: string,
+      optional = false,
+    ): Promise<string | undefined> => {
+      const bytes = await safeRead(file, boundary, optional);
+      return bytes
+        ? await rewriteCss(bytes.toString("utf8"), file, boundary)
+        : undefined;
+    };
     const loadCss = async (
       file: string,
       boundary: string,
       optional = false,
     ): Promise<void> => {
-      const bytes = await safeRead(file, boundary, optional);
-      if (bytes)
-        cssParts.push(await rewriteCss(bytes.toString("utf8"), file, boundary));
+      const css = await readCss(file, boundary, optional);
+      if (css !== undefined) cssParts.push(css);
+    };
+    const themesRoot = path.join(obsidianRoot, "themes");
+    const themeInputs = new Map<
+      string,
+      { name: string; identity: string; css: string }
+    >();
+    const readTheme = async (reference: string): Promise<string> => {
+      if (
+        !reference ||
+        (!path.isAbsolute(reference) &&
+          (reference.includes("/") ||
+            reference.includes("\\") ||
+            reference === ".."))
+      )
+        throw new Error(`Invalid Obsidian theme name: ${reference}`);
+      const file = path.isAbsolute(reference)
+        ? reference
+        : path.join(themesRoot, reference, "theme.css");
+      try {
+        // Validate every reference, even aliases of an already-read theme: a vault
+        // symlink must not bypass safeRead's boundary checks through the cache.
+        const bytes = (await safeRead(file, path.dirname(file)))!;
+        const key = await realpath(file);
+        if (!themeInputs.has(key)) {
+          const css = await rewriteCss(
+            bytes.toString("utf8"),
+            file,
+            path.dirname(file),
+          );
+          themeInputs.set(key, {
+            name: path.isAbsolute(reference)
+              ? path.basename(path.dirname(reference))
+              : reference,
+            // Relative identities keep IDs stable when a project is moved. Only their
+            // digest is public; neither the catalog nor filenames expose source paths.
+            identity: `css:${slash(path.relative(config.root, key))}`,
+            css,
+          });
+        }
+        return key;
+      } catch (error) {
+        throw new Error(
+          `Unsupported or unavailable theme "${reference}": ${error instanceof Error ? error.message : error}`,
+        );
+      }
     };
     const theme =
       config.theme ??
@@ -570,30 +625,84 @@ export async function compileVault(
         : settings.communityTheme !== "default"
           ? settings.communityTheme
           : undefined);
+    let selectedTheme: string | undefined;
     if (theme && theme !== "default") {
-      const themePath = path.isAbsolute(theme)
-        ? theme
-        : path.join(obsidianRoot, "themes", theme, "theme.css");
-      if (
-        !path.isAbsolute(theme) &&
-        (theme.includes("/") || theme.includes("\\") || theme === "..")
-      )
-        throw new Error(`Invalid Obsidian theme name: ${theme}`);
-      try {
-        await loadCss(
-          themePath,
-          path.isAbsolute(theme)
-            ? path.dirname(themePath)
-            : path.join(obsidianRoot, "themes", theme),
-        );
-      } catch (error) {
-        throw new Error(
-          `Unsupported or unavailable theme "${theme}": ${error instanceof Error ? error.message : error}`,
-        );
+      selectedTheme = await readTheme(theme);
+      const selected = themeInputs.get(selectedTheme)!;
+      cssParts.push(selected.css);
+      settings.communityTheme = selected.name;
+    }
+    const themePartsCount = cssParts.length;
+    let themes: PublishedTheme[] | undefined;
+    let defaultTheme: string | undefined;
+    if (settings.allowThemeSwitching) {
+      dependencies.add(obsidianRoot);
+      dependencies.add(themesRoot);
+      let references = config.themes;
+      if (references === undefined) {
+        references = [];
+        // Discovery never follows symlinks (including the containing directories),
+        // dot directories, or metadata; only installed theme.css files are inputs.
+        const plainDirectory = async (directory: string): Promise<boolean> => {
+          try {
+            return (await lstat(directory)).isDirectory();
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT")
+              return false;
+            throw error;
+          }
+        };
+        if (
+          (await plainDirectory(obsidianRoot)) &&
+          (await plainDirectory(themesRoot))
+        ) {
+          const entries = await readdir(themesRoot, { withFileTypes: true });
+          entries.sort((a, b) => a.name.localeCompare(b.name, "en"));
+          for (const entry of entries) {
+            if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+            const directory = path.join(themesRoot, entry.name);
+            const file = path.join(directory, "theme.css");
+            dependencies.add(directory);
+            dependencies.add(file);
+            try {
+              if ((await lstat(file)).isFile()) references.push(entry.name);
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+                throw error;
+            }
+          }
+        }
       }
-      settings.communityTheme = path.isAbsolute(theme)
-        ? path.basename(path.dirname(theme))
-        : theme;
+      for (const reference of references) {
+        if (reference !== "default") await readTheme(reference);
+      }
+      themes = [{ id: "default", name: "Default (Obsidian)", cssUrl: "" }];
+      defaultTheme = "default";
+      const ids = new Set(["default"]);
+      const choices = [...themeInputs].sort(
+        ([, a], [, b]) =>
+          a.name.localeCompare(b.name, "en") ||
+          a.identity.localeCompare(b.identity, "en"),
+      );
+      for (const [key, choice] of choices) {
+        const slug =
+          choice.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "") || "theme";
+        const stem = `${slug}-${hash(Buffer.from(choice.identity))}`;
+        let id = stem;
+        for (let suffix = 2; ids.has(id); suffix++) id = `${stem}-${suffix}`;
+        ids.add(id);
+        const cssUrl = emitAsset(
+          Buffer.from(choice.css),
+          `theme-${slug}.css`,
+          true,
+        );
+        themes.push({ id, name: choice.name, cssUrl });
+        if (key === selectedTheme) defaultTheme = id;
+        dependencies.add(path.dirname(key));
+      }
     }
     const snippetNames =
       config.snippets ??
@@ -670,6 +779,13 @@ export async function compileVault(
         notes: published,
         themeCss: cssParts.join("\n"),
         bodyClasses: [...classes],
+        ...(themes
+          ? {
+              themes,
+              defaultTheme,
+              themeOverridesCss: cssParts.slice(themePartsCount).join("\n"),
+            }
+          : {}),
       },
       assets,
       dependencies: [...dependencies].sort(),

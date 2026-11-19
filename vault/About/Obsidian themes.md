@@ -43,6 +43,33 @@ Top-level `theme` chooses the community theme; `site.theme` chooses light/dark/s
 
 Theme/snippet names resolve inside `.obsidian`. Explicit CSS paths and additional `css` entries resolve beside the configuration file. Files named by explicit settings must exist; unavailable selected themes or snippets fail compilation rather than silently switching styles.
 
+## Let readers switch themes
+
+To show an **Obsidian theme** picker in Reader settings, enable it in `publish.config.json`:
+
+```json
+{
+  "vault": "./vault",
+  "site": { "allowThemeSwitching": true }
+}
+```
+
+Lattice includes Default (Obsidian) and the themes installed in `.obsidian/themes`. The reader can switch immediately without rebuilding or changing your vault. The choice is saved in that browser; light/dark/system color mode remains a separate setting.
+
+Want to offer only a few themes? Add a top-level allowlist:
+
+```json
+{
+  "vault": "./vault",
+  "themes": ["Minimal", "Things"],
+  "site": { "allowThemeSwitching": true }
+}
+```
+
+Only list themes already installed in your vault, or explicit CSS file paths. Default and the site's selected theme remain available. Use `themes: []` to offer only those two. Theme switching is disabled by default, so other theme files are not bundled unless you enable it.
+
+Theme styles are served as local CSS assets and fetched only when selected. Snippets, `publish.css`, and your other site overrides still apply afterward. If a theme cannot be loaded, the reader keeps the current appearance and shows an error. This does not install themes or execute Obsidian plugins.
+
 ## Loading order and assets
 
 Reader baseline CSS is followed by the compiled theme layer. Within that layer, Lattice loads:

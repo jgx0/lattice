@@ -77,6 +77,24 @@ function compileFixture(vault: Vault): CompiledSite {
   };
 }
 const site = compileFixture(demoVault);
+const themePreferenceKey = "publish-reader-community-theme";
+const commonThemeCss = ".snippet{color:rgb(12, 34, 56)}";
+const minimalThemeCss =
+  "body{--community-theme:minimal}.snippet{color:rgb(200, 0, 0)}";
+const thingsThemeCss =
+  "body{--community-theme:things}.snippet{color:rgb(0, 0, 200)}";
+const catalogSite: CompiledSite = {
+  ...site,
+  settings: { ...site.settings, allowThemeSwitching: true },
+  defaultTheme: "default",
+  themes: [
+    { id: "default", name: "Default", cssUrl: "" },
+    { id: "minimal", name: "Minimal", cssUrl: "/_theme/minimal.css" },
+    { id: "things", name: "Things", cssUrl: "/_theme/things.css" },
+  ],
+  themeCss: `${site.themeCss}\n.default-only{color:rgb(99, 88, 77)}\n${commonThemeCss}`,
+  themeOverridesCss: commonThemeCss,
+};
 const safeSite = compileFixture({
   name: "Safety fixture",
   files: [
@@ -96,6 +114,9 @@ const mediaListeners = new Set<() => void>();
 const originalTitle = document.title;
 const originalBodyClass = document.body.className;
 const originalTheme = document.documentElement.getAttribute("data-theme");
+const originalCommunity =
+  document.documentElement.getAttribute("data-community");
+const originalThemeName = document.body.getAttribute("data-theme-name");
 const shims = [
   [HTMLElement.prototype, "scrollTo"],
   [HTMLElement.prototype, "scrollIntoView"],
@@ -134,6 +155,32 @@ function compiled(path: string) {
 }
 function prefs() {
   return JSON.parse(localStorage.getItem("publish-reader-preferences")!);
+}
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+function themeResponse(css: string, status = 200) {
+  return new Response(css, { status });
+}
+async function settle(action: () => void) {
+  await act(async () => {
+    action();
+    await Promise.resolve();
+  });
+}
+function picker() {
+  return one<HTMLSelectElement>('select[aria-label="Obsidian theme"]');
+}
+function expectPublishedTheme(id: string, css: string) {
+  expect(one("style[data-publish-theme]").textContent).toBe(css);
+  expect(document.documentElement.dataset.community).toBe(id);
+  expect(document.body.dataset.themeName).toBe(id);
 }
 async function advance(ms: number) {
   await act(async () => {
@@ -295,6 +342,13 @@ afterEach(async () => {
   if (originalTheme === null)
     document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", originalTheme);
+  if (originalCommunity === null)
+    document.documentElement.removeAttribute("data-community");
+  else
+    document.documentElement.setAttribute("data-community", originalCommunity);
+  if (originalThemeName === null)
+    document.body.removeAttribute("data-theme-name");
+  else document.body.setAttribute("data-theme-name", originalThemeName);
 });
 
 describe("compiled-site reader", () => {
@@ -620,6 +674,378 @@ describe("compiled-site reader", () => {
     ).toBe("18px");
     await key(window, "Escape");
     expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  describe("published theme picker and reader status", () => {
+    it("hides the picker when switching is disabled or no catalog is supplied, ignoring a stale selection", async () => {
+      const fetch = vi.fn<typeof globalThis.fetch>();
+      vi.stubGlobal("fetch", fetch);
+      localStorage.setItem(themePreferenceKey, "minimal");
+      localStorage.setItem(
+        "publish-reader-preferences",
+        JSON.stringify({ allowThemeSwitching: true }),
+      );
+      for (const inputSite of [
+        {
+          ...catalogSite,
+          settings: { ...catalogSite.settings, allowThemeSwitching: false },
+        },
+        { ...catalogSite, themes: undefined },
+      ]) {
+        await remount(inputSite);
+        await click(label("Reader settings"));
+        expect(
+          container.querySelector('[aria-label="Obsidian theme"]'),
+        ).toBeNull();
+        expect(
+          container.querySelector('[role="status"], [role="alert"]'),
+        ).toBeNull();
+        expectPublishedTheme("default", catalogSite.themeCss);
+        expect(localStorage.getItem(themePreferenceKey)).toBe("minimal");
+        expect(prefs()).toEqual({});
+      }
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("keeps the original CSS until the response body succeeds, preserves overrides across navigation and caches each URL", async () => {
+      const request = deferred<Response>();
+      const body = deferred<string>();
+      const response = themeResponse("");
+      response.text = vi.fn(() => body.promise);
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockReturnValueOnce(request.promise)
+        .mockResolvedValueOnce(themeResponse(thingsThemeCss));
+      vi.stubGlobal("fetch", fetch);
+      await remount(catalogSite);
+      await click(label("Reader settings"));
+      const select = picker();
+      expect(
+        [...select.options].map((option) => [option.value, option.textContent]),
+      ).toEqual([
+        ["default", "Default"],
+        ["minimal", "Minimal"],
+        ["things", "Things"],
+      ]);
+      expect(select.value).toBe("default");
+      expect(select.getAttribute("aria-busy")).toBe("false");
+      expect(fetch).not.toHaveBeenCalled();
+      await input(select, "minimal");
+      expect(fetch).toHaveBeenCalledExactlyOnceWith("/_theme/minimal.css", {
+        signal: expect.any(AbortSignal),
+      });
+      expect(select.value).toBe("minimal");
+      expect(select.getAttribute("aria-busy")).toBe("true");
+      expect(one('[role="status"]').textContent).toMatch(/loading theme/i);
+      expectPublishedTheme("default", catalogSite.themeCss);
+      expect(localStorage.getItem(themePreferenceKey)).toBeNull();
+      await settle(() => request.resolve(response));
+      expect(response.text).toHaveBeenCalledOnce();
+      expectPublishedTheme("default", catalogSite.themeCss);
+      expect(container.querySelector('[role="status"]')).not.toBeNull();
+      await settle(() => body.resolve(minimalThemeCss));
+      const minimalCss = `${minimalThemeCss}\n${commonThemeCss}`;
+      expectPublishedTheme("minimal", minimalCss);
+      expect(select.getAttribute("aria-busy")).toBe("false");
+      expect(
+        container.querySelector('[role="status"], [role="alert"]'),
+      ).toBeNull();
+      expect(localStorage.getItem(themePreferenceKey)).toBe("minimal");
+      const snippet = document.createElement("div");
+      snippet.className = "snippet";
+      container.appendChild(snippet);
+      expect(getComputedStyle(snippet).color).toBe("rgb(12, 34, 56)");
+      await click(label("Close settings"));
+      await click(nav("Digital gardens"));
+      expect(titles()).toEqual(["Digital gardens"]);
+      expectPublishedTheme("minimal", minimalCss);
+      expect(fetch).toHaveBeenCalledOnce();
+      await click(label("Reader settings"));
+      expect(picker().value).toBe("minimal");
+      await input(picker(), "default");
+      expectPublishedTheme("default", catalogSite.themeCss);
+      expect(localStorage.getItem(themePreferenceKey)).toBe("default");
+      await input(picker(), "minimal");
+      expectPublishedTheme("minimal", minimalCss);
+      await input(picker(), "things");
+      const thingsCss = `${thingsThemeCss}\n${commonThemeCss}`;
+      expectPublishedTheme("things", thingsCss);
+      expect(getComputedStyle(snippet).color).toBe("rgb(12, 34, 56)");
+      await input(picker(), "default");
+      await input(picker(), "things");
+      expectPublishedTheme("things", thingsCss);
+      await input(picker(), "minimal");
+      expectPublishedTheme("minimal", minimalCss);
+      expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+        "/_theme/minimal.css",
+        "/_theme/things.css",
+      ]);
+      expect(prefs()).toEqual({});
+    });
+
+    it("announces HTTP, network and response-body failures without replacing CSS or the saved theme, and allows retry", async () => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValueOnce(themeResponse(minimalThemeCss));
+      vi.stubGlobal("fetch", fetch);
+      await remount(catalogSite);
+      await click(label("Reader settings"));
+      await input(picker(), "minimal");
+      const minimalCss = `${minimalThemeCss}\n${commonThemeCss}`;
+      for (const failure of ["http", "network", "body"]) {
+        const request = deferred<Response>();
+        fetch.mockReturnValueOnce(request.promise);
+        await input(picker(), "things");
+        expect(container.querySelector('[role="alert"]')).toBeNull();
+        expect(one('[role="status"]').textContent).toMatch(/loading/i);
+        expectPublishedTheme("minimal", minimalCss);
+        await settle(() => {
+          if (failure === "network") request.reject(new TypeError("Offline"));
+          else if (failure === "http") request.resolve(themeResponse("", 503));
+          else {
+            const response = themeResponse("");
+            response.text = () => Promise.reject(new Error("Interrupted body"));
+            request.resolve(response);
+          }
+        });
+        expect(one('[role="alert"]').textContent).toMatch(
+          /could not load Things.*current theme has been kept/i,
+        );
+        expect(container.querySelector('[role="status"]')).toBeNull();
+        expect(picker().getAttribute("aria-busy")).toBe("false");
+        expect(picker().value).toBe("minimal");
+        expectPublishedTheme("minimal", minimalCss);
+        expect(localStorage.getItem(themePreferenceKey)).toBe("minimal");
+      }
+      fetch.mockResolvedValueOnce(themeResponse(thingsThemeCss));
+      await input(picker(), "things");
+      expectPublishedTheme("things", `${thingsThemeCss}\n${commonThemeCss}`);
+      expect(localStorage.getItem(themePreferenceKey)).toBe("things");
+      expect(
+        container.querySelector('[role="status"], [role="alert"]'),
+      ).toBeNull();
+      expect(fetch).toHaveBeenCalledTimes(5);
+    });
+
+    it("aborts rapid selections and never lets an older response, error or cached body overwrite the latest choice", async () => {
+      const oldRequest = deferred<Response>();
+      const oldBody = deferred<string>();
+      const middleRequest = deferred<Response>();
+      const latestRequest = deferred<Response>();
+      const oldResponse = themeResponse("");
+      oldResponse.text = () => oldBody.promise;
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockReturnValueOnce(oldRequest.promise)
+        .mockReturnValueOnce(middleRequest.promise)
+        .mockReturnValueOnce(latestRequest.promise);
+      vi.stubGlobal("fetch", fetch);
+      await remount(catalogSite);
+      await click(label("Reader settings"));
+      await input(picker(), "minimal");
+      await settle(() => oldRequest.resolve(oldResponse));
+      const firstSignal = fetch.mock.calls[0][1]!.signal!;
+      await input(picker(), "things");
+      const middleSignal = fetch.mock.calls[1][1]!.signal!;
+      expect(firstSignal.aborted).toBe(true);
+      await input(picker(), "minimal");
+      const latestSignal = fetch.mock.calls[2][1]!.signal!;
+      expect(middleSignal.aborted).toBe(true);
+      expect(latestSignal.aborted).toBe(false);
+      expectPublishedTheme("default", catalogSite.themeCss);
+      await settle(() => latestRequest.resolve(themeResponse(minimalThemeCss)));
+      const latestCss = `${minimalThemeCss}\n${commonThemeCss}`;
+      expectPublishedTheme("minimal", latestCss);
+      // These mocks deliberately ignore abort so revision checks must protect state.
+      await settle(() =>
+        middleRequest.reject(new Error("Late network failure")),
+      );
+      await settle(() => oldBody.resolve("body{--community-theme:outdated}"));
+      expectPublishedTheme("minimal", latestCss);
+      expect(picker().value).toBe("minimal");
+      expect(picker().getAttribute("aria-busy")).toBe("false");
+      expect(
+        container.querySelector('[role="status"], [role="alert"]'),
+      ).toBeNull();
+      expect(localStorage.getItem(themePreferenceKey)).toBe("minimal");
+      await input(picker(), "default");
+      expectPublishedTheme("default", catalogSite.themeCss);
+      await input(picker(), "minimal");
+      expectPublishedTheme("minimal", latestCss);
+      expect(fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("automatically loads a valid stored selection on reload and ignores invalid or default stored IDs", async () => {
+      const request = deferred<Response>();
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockReturnValueOnce(request.promise)
+        .mockResolvedValueOnce(themeResponse(thingsThemeCss));
+      vi.stubGlobal("fetch", fetch);
+      localStorage.setItem(themePreferenceKey, "things");
+      await remount(catalogSite);
+      expect(fetch).toHaveBeenCalledExactlyOnceWith("/_theme/things.css", {
+        signal: expect.any(AbortSignal),
+      });
+      expectPublishedTheme("default", catalogSite.themeCss);
+      await click(label("Reader settings"));
+      expect(picker().value).toBe("things");
+      expect(picker().getAttribute("aria-busy")).toBe("true");
+      expect(container.querySelector('[role="status"]')).not.toBeNull();
+      await settle(() => request.resolve(themeResponse(thingsThemeCss)));
+      const css = `${thingsThemeCss}\n${commonThemeCss}`;
+      expectPublishedTheme("things", css);
+      expect(localStorage.getItem(themePreferenceKey)).toBe("things");
+      await remount(catalogSite);
+      expectPublishedTheme("things", css);
+      expect(fetch).toHaveBeenCalledTimes(2);
+      await click(label("Reader settings"));
+      expect(picker().value).toBe("things");
+      for (const saved of ["removed-theme", "null", "", "default"]) {
+        localStorage.setItem(themePreferenceKey, saved);
+        await remount(catalogSite);
+        await click(label("Reader settings"));
+        expect(picker().value).toBe("default");
+        expect(picker().getAttribute("aria-busy")).toBe("false");
+        expectPublishedTheme("default", catalogSite.themeCss);
+        expect(
+          container.querySelector('[role="status"], [role="alert"]'),
+        ).toBeNull();
+        expect(localStorage.getItem(themePreferenceKey)).toBe(saved);
+      }
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("disables the static head stylesheet while mounted and restores its exact no-JS media baseline on unmount", async () => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockImplementation(async () => themeResponse(minimalThemeCss));
+      vi.stubGlobal("fetch", fetch);
+      for (const media of [null, "screen"]) {
+        localStorage.removeItem(themePreferenceKey);
+        const staticTheme = document.createElement("style");
+        staticTheme.id = "published-theme";
+        staticTheme.textContent = catalogSite.themeCss;
+        if (media !== null) staticTheme.setAttribute("media", media);
+        document.head.appendChild(staticTheme);
+        try {
+          await remount(catalogSite);
+          expect(staticTheme.getAttribute("media")).toBe("not all");
+          expectPublishedTheme("default", catalogSite.themeCss);
+          await click(label("Reader settings"));
+          await input(picker(), "minimal");
+          expectPublishedTheme(
+            "minimal",
+            `${minimalThemeCss}\n${commonThemeCss}`,
+          );
+          expect(staticTheme.getAttribute("media")).toBe("not all");
+          expect(one("style[data-publish-theme]").textContent).not.toContain(
+            ".default-only",
+          );
+          expect(staticTheme.textContent).toBe(catalogSite.themeCss);
+          await act(async () => {
+            root.unmount();
+          });
+          root = createRoot(container);
+          expect(
+            container.querySelector("style[data-publish-theme]"),
+          ).toBeNull();
+          expect(staticTheme.getAttribute("media")).toBe(media);
+          expect(staticTheme.textContent).toBe(catalogSite.themeCss);
+        } finally {
+          staticTheme.remove();
+        }
+      }
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps stacked-page icon status in sync with the settings switch through reload, independently of theme and color scheme, without disrupting focus trapping", async () => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockImplementation(async (url) =>
+          themeResponse(
+            url === "/_theme/minimal.css" ? minimalThemeCss : thingsThemeCss,
+          ),
+        );
+      vi.stubGlobal("fetch", fetch);
+      await remount(catalogSite);
+      const trigger = label("Reader settings", label("Site navigation"));
+      await act(async () => trigger.focus());
+      await click(trigger);
+      const dialog = one('[role="dialog"][aria-label="Reader settings"]');
+      const first = label("Close settings", dialog);
+      const last = label("Stacked pages", dialog);
+      const expectStacked = (enabled: boolean) => {
+        const icon = label("Toggle stacked pages");
+        const value = String(enabled);
+        expect(icon.getAttribute("aria-pressed")).toBe(value);
+        expect(icon.getAttribute("data-enabled")).toBe(value);
+        expect(icon.getAttribute("title")).toBe(
+          `Stacked pages: ${enabled ? "on" : "off"}`,
+        );
+        expect(icon.classList.contains("is-active")).toBe(enabled);
+        expect(
+          label("Stacked pages", one('[role="dialog"]')).getAttribute(
+            "aria-checked",
+          ),
+        ).toBe(value);
+        expect(one(".app-shell").classList.contains("stack-mode")).toBe(
+          enabled,
+        );
+      };
+      expectStacked(false);
+      expect(document.activeElement).toBe(first);
+      await key(first, "Tab", { shiftKey: true });
+      expect(document.activeElement).toBe(last);
+      await key(last, "Tab");
+      expect(document.activeElement).toBe(first);
+      await act(async () => picker().focus());
+      await input(picker(), "minimal");
+      expect(document.activeElement).toBe(picker());
+      await input(one<HTMLSelectElement>("#color-mode"), "dark");
+      expect(document.documentElement.dataset.theme).toBe("dark");
+      expect(document.body.classList.contains("theme-dark")).toBe(true);
+      expect(label("Toggle color theme").getAttribute("aria-pressed")).toBe(
+        "true",
+      );
+      expectPublishedTheme("minimal", `${minimalThemeCss}\n${commonThemeCss}`);
+      await input(picker(), "things");
+      expect(document.documentElement.dataset.theme).toBe("dark");
+      expect(prefs()).toEqual({ theme: "dark" });
+      await input(one<HTMLSelectElement>("#color-mode"), "system");
+      expect(document.body.classList.contains("theme-light")).toBe(true);
+      await act(async () => {
+        systemDark = true;
+        mediaListeners.forEach((listener) => listener());
+      });
+      expect(document.documentElement.dataset.theme).toBe("dark");
+      expectPublishedTheme("things", `${thingsThemeCss}\n${commonThemeCss}`);
+      expect(picker().value).toBe("things");
+      expect(fetch).toHaveBeenCalledTimes(2);
+      await click(last);
+      expectStacked(true);
+      expect(prefs()).toEqual({ theme: "system", stacked: true });
+      await key(picker(), "Escape");
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+      await click(nav("Digital gardens"));
+      expect(container.querySelectorAll(".stack-pane")).toHaveLength(2);
+      expectPublishedTheme("things", `${thingsThemeCss}\n${commonThemeCss}`);
+      await click(label("Reader settings"));
+      await click(label("Toggle stacked pages"));
+      expectStacked(false);
+      expect(container.querySelectorAll(".stack-pane")).toHaveLength(0);
+      await click(label("Toggle stacked pages"));
+      expectStacked(true);
+      await remount(catalogSite);
+      await click(label("Reader settings"));
+      expectStacked(true);
+      expect(prefs()).toEqual({ theme: "system", stacked: true });
+      expect(document.documentElement.dataset.theme).toBe("dark");
+      expect(picker().value).toBe("things");
+      expectPublishedTheme("things", `${thingsThemeCss}\n${commonThemeCss}`);
+      expect(fetch).toHaveBeenCalledTimes(3);
+    });
   });
 
   it("opens and zooms the graph, filters compiled nodes and navigates a node with Enter", async () => {

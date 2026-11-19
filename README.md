@@ -161,6 +161,18 @@ The demo includes the original **Minimal** theme with its license. Set `cssTheme
 
 Top-level `theme` names the community theme or CSS path; `site.theme` selects light, dark, or system mode. Use `theme: "default"` to ignore the vault theme, or `snippets: []` to ignore enabled snippets.
 
+**Let readers change themes without rebuilding:** set `site.allowThemeSwitching` to `true`. Reader settings then offers Default (Obsidian) and installed vault themes. Add a top-level `themes` list to offer only selected themes:
+
+```json
+{
+  "vault": "./vault",
+  "themes": ["Minimal"],
+  "site": { "allowThemeSwitching": true }
+}
+```
+
+The demo enables this picker. Other sites keep it disabled by default. Theme CSS is loaded locally only when selected; common snippets and site overrides stay applied, and choices are saved per browser. A failed load keeps the current theme.
+
 Theme CSS is not replaced with an imitation. The reader uses Obsidian workspace/file-tree/Markdown/callout/popover classes and native CSS variables. Local imports, fonts, and images are collected and rewritten to emitted assets. Remote CSS resources remain remote.
 
 **Compatibility boundary:** Electron/editor-only features, plugin controls, and Style Settings plugin execution cannot run on a static reader. Matching reading styles and native variables work; use `bodyClasses`, snippets, or `publish.css` for theme-specific settings.

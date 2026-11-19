@@ -39,6 +39,11 @@ export interface PublishedNote extends Note {
   outgoing: string[];
   backlinks: string[];
 }
+export interface PublishedTheme {
+  id: string;
+  name: string;
+  cssUrl: string;
+}
 export interface CompiledSite {
   version: 1;
   name: string;
@@ -46,6 +51,9 @@ export interface CompiledSite {
   notes: PublishedNote[];
   themeCss: string;
   bodyClasses: string[];
+  themes?: PublishedTheme[];
+  defaultTheme?: string;
+  themeOverridesCss?: string;
 }
 export interface SiteSettings {
   title: string;
@@ -64,4 +72,5 @@ export interface SiteSettings {
   navigation: string[];
   hiddenPaths: string[];
   navigationFolders?: Record<string, string>;
+  allowThemeSwitching?: boolean;
 }

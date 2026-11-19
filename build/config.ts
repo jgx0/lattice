@@ -10,6 +10,8 @@ export interface BuildConfig {
   settings: SiteSettings;
   /** Obsidian theme name, or an absolute CSS file path. */
   theme?: string;
+  /** Runtime theme allowlist; omitted discovers installed themes when switching is enabled. */
+  themes?: string[];
   /** Omitted means appearance.json's enabledCssSnippets; [] disables snippets. */
   snippets?: string[];
   css: string[];
@@ -20,10 +22,10 @@ const defaults: SiteSettings = {
   title: 'Notes', description: '', home: '', accent: '', theme: 'system',
   communityTheme: 'default', customCss: '', readable: true, showProperties: true,
   showToc: true, showBacklinks: true, showGraph: true, stacked: false,
-  navigation: [], hiddenPaths: [],
+  navigation: [], hiddenPaths: [], allowThemeSwitching: false,
 };
 const stringSettings = ['title', 'description', 'home', 'accent', 'communityTheme', 'customCss'] as const;
-const booleanSettings = ['readable', 'showProperties', 'showToc', 'showBacklinks', 'showGraph', 'stacked'] as const;
+const booleanSettings = ['readable', 'showProperties', 'showToc', 'showBacklinks', 'showGraph', 'stacked', 'allowThemeSwitching'] as const;
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be an object.`);
   return value as Record<string, unknown>;
@@ -64,7 +66,7 @@ export async function loadConfig(root = process.cwd()): Promise<BuildConfig> {
   let raw: Record<string, unknown>;
   try { raw = object(JSON.parse(await readFile(configPath, 'utf8')), 'publish config'); }
   catch (error) { throw new Error(`Cannot load publish configuration ${configPath}: ${error instanceof Error ? error.message : error}`); }
-  const allowed = new Set(['vault', 'site', 'theme', 'snippets', 'css', 'bodyClasses', 'base']);
+  const allowed = new Set(['vault', 'site', 'theme', 'themes', 'snippets', 'css', 'bodyClasses', 'base']);
   for (const key of Object.keys(raw)) if (!allowed.has(key)) throw new Error(`Unknown publish config field: ${key}`);
   const configRoot = path.dirname(configPath);
   const vault = process.env.OBSIDIAN_VAULT || (raw.vault === undefined ? './vault' : string(raw.vault, 'vault'));
@@ -88,9 +90,10 @@ export async function loadConfig(root = process.cwd()): Promise<BuildConfig> {
   if (settings.accent && !/^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(settings.accent)) throw new Error('site.accent must be empty or a #RGB/#RRGGBB color.');
   const base = normalizeBase(raw.base === undefined ? '/' : string(raw.base, 'base'));
   const theme = raw.theme === undefined ? undefined : cssReference(string(raw.theme, 'theme'), configRoot);
+  const themes = raw.themes === undefined ? undefined : strings(raw.themes, 'themes').map(value => cssReference(value, configRoot));
   const snippets = raw.snippets === undefined ? undefined : strings(raw.snippets, 'snippets').map(value => cssReference(value, configRoot));
   const css = raw.css === undefined ? [] : strings(raw.css, 'css').map(value => path.resolve(configRoot, value));
   const bodyClasses = raw.bodyClasses === undefined ? [] : strings(raw.bodyClasses, 'bodyClasses');
   if (bodyClasses.some(value => !value || /\s/.test(value))) throw new Error('bodyClasses must contain non-empty individual class names.');
-  return { root, vaultPath, configPath, base: base.replace(/\/+$/, '') + '/', settings, theme, snippets, css, bodyClasses };
+  return { root, vaultPath, configPath, base: base.replace(/\/+$/, '') + '/', settings, theme, themes, snippets, css, bodyClasses };
 }

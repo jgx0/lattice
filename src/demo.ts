@@ -1180,6 +1180,7 @@ A relative \`PUBLISH_CONFIG\` resolves from the project root. \`OBSIDIAN_VAULT\`
 | \`showBacklinks\` | \`true\` | Incoming note links. |
 | \`showGraph\` | \`true\` | Graph panel. |
 | \`stacked\` | \`false\` | Horizontal stacked-page reading. |
+| \`allowThemeSwitching\` | \`false\` | Let readers choose included Obsidian themes in settings. |
 | \`navigation\` | \`[]\` | Order folders and full note paths. |
 | \`hiddenPaths\` | \`[]\` | Exclude matching vault-relative files or whole folders before rendering. |
 
@@ -1205,7 +1206,7 @@ Paths in \`navigation\` and \`hiddenPaths\` must be vault-relative, non-empty, a
 
 ## Appearance inputs
 
-Top-level \`theme\` selects an installed community theme name or CSS file path. \`snippets\` selects CSS snippet names or paths; omit it to follow Obsidian, or use \`[]\` to disable snippets. \`css\` lists additional CSS paths. \`bodyClasses\` adds individual class names, without whitespace inside a name.
+Top-level \`theme\` selects an installed community theme name or CSS file path. When \`site.allowThemeSwitching\` is enabled, optional top-level \`themes\` limits the reader's choices to listed theme names or CSS paths; otherwise installed themes are discovered automatically. See [[About/Obsidian themes#Let readers switch themes|the theme-picker guide]]. \`snippets\` selects CSS snippet names or paths; omit it to follow Obsidian, or use \`[]\` to disable snippets. \`css\` lists additional CSS paths. \`bodyClasses\` adds individual class names, without whitespace inside a name.
 
 \`site.communityTheme\` is a fallback when no explicit theme or vault \`cssTheme\` is selected. \`site.customCss\` accepts inline trusted CSS; prefer a versioned \`publish.css\` or CSS file for maintainability. These are not a plugin runtime.
 
@@ -1625,6 +1626,33 @@ In \`publish.config.json\`:
 Top-level \`theme\` chooses the community theme; \`site.theme\` chooses light/dark/system mode. Set top-level \`theme\` to \`"default"\` to ignore the vault's selected theme. Omitted \`snippets\` follows \`enabledCssSnippets\`; an empty array disables them.
 
 Theme/snippet names resolve inside \`.obsidian\`. Explicit CSS paths and additional \`css\` entries resolve beside the configuration file. Files named by explicit settings must exist; unavailable selected themes or snippets fail compilation rather than silently switching styles.
+
+## Let readers switch themes
+
+To show an **Obsidian theme** picker in Reader settings, enable it in \`publish.config.json\`:
+
+\`\`\`json
+{
+  "vault": "./vault",
+  "site": { "allowThemeSwitching": true }
+}
+\`\`\`
+
+Lattice includes Default (Obsidian) and the themes installed in \`.obsidian/themes\`. The reader can switch immediately without rebuilding or changing your vault. The choice is saved in that browser; light/dark/system color mode remains a separate setting.
+
+Want to offer only a few themes? Add a top-level allowlist:
+
+\`\`\`json
+{
+  "vault": "./vault",
+  "themes": ["Minimal", "Things"],
+  "site": { "allowThemeSwitching": true }
+}
+\`\`\`
+
+Only list themes already installed in your vault, or explicit CSS file paths. Default and the site's selected theme remain available. Use \`themes: []\` to offer only those two. Theme switching is disabled by default, so other theme files are not bundled unless you enable it.
+
+Theme styles are served as local CSS assets and fetched only when selected. Snippets, \`publish.css\`, and your other site overrides still apply afterward. If a theme cannot be loaded, the reader keeps the current appearance and shows an error. This does not install themes or execute Obsidian plugins.
 
 ## Loading order and assets
 

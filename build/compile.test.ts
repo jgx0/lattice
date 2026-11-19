@@ -65,6 +65,8 @@ describe("filesystem build configuration", () => {
     expect(config.base).toBe("/garden/");
     expect(config.css).toEqual([path.join(root, "extra.css")]);
     expect(config.settings.accent).toBe("");
+    expect(config.settings.allowThemeSwitching).toBe(false);
+    expect(config.themes).toBeUndefined();
     await put("second/Another.md", "# Another");
     await put(
       "custom.json",
@@ -76,6 +78,36 @@ describe("filesystem build configuration", () => {
     expect(override.configPath).toBe(path.join(root, "custom.json"));
     expect(override.vaultPath).toBe(path.join(root, "second"));
     expect(override.settings.title).toBe("Override");
+  });
+  it("validates theme allowlists even when disabled and resolves CSS paths beside the config", async () => {
+    const { root, put } = await fixture();
+    await put("config/vault/Welcome.md", "# Welcome");
+    await put(
+      "config/publish.json",
+      JSON.stringify({
+        vault: "./vault",
+        site: { allowThemeSwitching: true },
+        themes: ["Minimal", "./custom/theme.css"],
+      }),
+    );
+    process.env.PUBLISH_CONFIG = "./config/publish.json";
+    const config = await loadConfig(root);
+    expect(config.settings.allowThemeSwitching).toBe(true);
+    expect(config.themes).toEqual([
+      "Minimal",
+      path.join(root, "config/custom/theme.css"),
+    ]);
+    for (const themes of ["Minimal", [false], ["bad\0name"]]) {
+      await put(
+        "config/publish.json",
+        JSON.stringify({
+          vault: "./vault",
+          site: { allowThemeSwitching: false },
+          themes,
+        }),
+      );
+      await expect(loadConfig(root)).rejects.toThrow(/themes/);
+    }
   });
   it("rejects invalid settings and unsafe base/hidden paths", async () => {
     const { root, put } = await fixture();
@@ -92,6 +124,7 @@ describe("filesystem build configuration", () => {
       { base: "/%3cscript%3e/" },
       { site: { theme: "Minimal" } },
       { site: { showGraph: "yes" } },
+      { site: { allowThemeSwitching: "yes" } },
       { site: { hiddenPaths: ["../private"] } },
       { site: { accent: "red; color: blue" } },
     ]) {
@@ -328,6 +361,451 @@ describe("Node vault compiler", () => {
     expect([...assets.values()][0]).toEqual(new Uint8Array([1, 2, 3]));
     expect([...assets.keys()].join(" ")).not.toContain(".obsidian");
   });
+  it("emits runtime themes as separate CSS assets and keeps common overrides out of the catalog", async () => {
+    const { root, put } = await fixture({
+      base: "/garden/",
+      site: { allowThemeSwitching: true, customCss: ".custom{color:orange}" },
+      css: ["./extra.css"],
+    });
+    await put(
+      "vault/.obsidian/appearance.json",
+      JSON.stringify({
+        cssTheme: "First",
+        enabledCssSnippets: ["common"],
+        accentColor: "#123456",
+        baseFontSize: 18,
+        textFontFamily: "Inter",
+      }),
+    );
+    const firstCss = '.first{color:red;background:url("image.png?v=2#icon")}';
+    const firstFile = await put(
+      "vault/.obsidian/themes/First/theme.css",
+      firstCss,
+    );
+    const imageFile = await put(
+      "vault/.obsidian/themes/First/image.png",
+      new Uint8Array([1, 2, 3]),
+    );
+    const secondFile = await put(
+      "vault/.obsidian/themes/Second/theme.css",
+      '.second{color:blue}\n@import "parts/detail.css" screen;',
+    );
+    const importedFile = await put(
+      "vault/.obsidian/themes/Second/parts/detail.css",
+      ".detail{color:purple}",
+    );
+    await put(
+      "vault/.obsidian/themes/First/manifest.json",
+      '{"author":"SECRET_METADATA"}',
+    );
+    await put("vault/.obsidian/themes/First/LICENSE", "SECRET_LICENSE");
+    await put("vault/.obsidian/snippets/common.css", ".snippet{color:black}");
+    await put("vault/publish.css", ".publish{color:green}");
+    await put("extra.css", ".extra{color:pink}");
+    const globals = [
+      globalThis.window,
+      globalThis.document,
+      globalThis.DOMParser,
+    ];
+    const result = await compileVault(await loadConfig(root));
+    const { site, assets, dependencies } = result;
+    expect([
+      globalThis.window,
+      globalThis.document,
+      globalThis.DOMParser,
+    ]).toEqual(globals);
+    expect(site.themes?.map(({ name }) => name)).toEqual([
+      "Default (Obsidian)",
+      "First",
+      "Second",
+    ]);
+    expect(site.themes?.[0]).toEqual({
+      id: "default",
+      name: "Default (Obsidian)",
+      cssUrl: "",
+    });
+    const first = site.themes!.find(({ name }) => name === "First")!;
+    const second = site.themes!.find(({ name }) => name === "Second")!;
+    expect(site.defaultTheme).toBe(first.id);
+    expect(site.settings.communityTheme).toBe("First");
+    const cssFor = (url: string) =>
+      Buffer.from(
+        assets.get(decodeURIComponent(url.slice("/garden/".length)))!,
+      ).toString();
+    const firstAsset = cssFor(first.cssUrl);
+    const secondAsset = cssFor(second.cssUrl);
+    expect(first.cssUrl).toMatch(
+      /^\/garden\/_theme\/[a-f0-9]+-theme-first.css$/,
+    );
+    expect(second.cssUrl).toMatch(
+      /^\/garden\/_theme\/[a-f0-9]+-theme-second.css$/,
+    );
+    expect(firstAsset).toMatch(
+      /url\("\/garden\/_theme\/[a-f0-9]+-image.png\?v=2#icon"\)/,
+    );
+    expect(secondAsset).toMatch(
+      /@import url\("\/garden\/_theme\/[a-f0-9]+-detail.css"\) screen;/,
+    );
+    expect(firstAsset).not.toContain(".second");
+    expect(secondAsset).not.toContain(".first");
+    const common =
+      '.snippet{color:black}\n.publish{color:green}\n.extra{color:pink}\nbody{--accent:#123456;--interactive-accent:#123456;--text-accent:#123456;--font-text-size:18px;--font-text:"Inter"}\n.custom{color:orange}';
+    expect(site.themeOverridesCss).toBe(common);
+    expect(site.themeCss).toBe(`${firstAsset}\n${common}`);
+    expect(firstAsset).not.toContain(".snippet");
+    expect(secondAsset).not.toContain(".snippet");
+    expect(Object.keys(first).sort()).toEqual(["cssUrl", "id", "name"]);
+    expect(JSON.stringify(site.themes)).not.toContain(root);
+    expect(JSON.stringify(site.themes)).not.toContain(".obsidian");
+    expect([...assets.keys()]).toHaveLength(4);
+    expect(
+      [...assets.values()]
+        .map((bytes) => Buffer.from(bytes).toString())
+        .join("\n"),
+    ).not.toContain("SECRET_");
+    expect(dependencies).toEqual(
+      expect.arrayContaining([
+        path.join(root, "vault/.obsidian/themes"),
+        firstFile,
+        secondFile,
+        imageFile,
+        importedFile,
+        path.dirname(firstFile),
+        path.dirname(secondFile),
+      ]),
+    );
+    const repeated = await compileVault(await loadConfig(root));
+    expect(repeated.site).toEqual(site);
+    expect([...repeated.assets]).toEqual([...assets]);
+  });
+
+  it("does not read or emit alternate themes when switching is false or omitted", async () => {
+    const { root, put } = await fixture({ theme: "Selected", snippets: [] });
+    const selectedCss = ".selected{color:red}";
+    await put("vault/.obsidian/themes/Selected/theme.css", selectedCss);
+    const unsafeFile = await put(
+      "vault/.obsidian/themes/Unsafe/theme.css",
+      '.unsafe{background:url("../../../../../outside.png")}',
+    );
+    const missingFile = path.join(root, "missing/theme.css");
+    const initial = await compileVault(await loadConfig(root));
+    for (const allowThemeSwitching of [undefined, false]) {
+      await put(
+        "publish.config.json",
+        JSON.stringify({
+          vault: "./vault",
+          theme: "Selected",
+          snippets: [],
+          site: { title: "Garden", home: "Welcome.md", allowThemeSwitching },
+          themes: ["Unknown", "./missing/theme.css", "Unsafe"],
+        }),
+      );
+      const result = await compileVault(await loadConfig(root));
+      expect(result.site).toEqual(initial.site);
+      expect(result.site.themeCss).toBe(selectedCss);
+      expect(result.site.settings.allowThemeSwitching).toBe(false);
+      for (const key of ["themes", "defaultTheme", "themeOverridesCss"])
+        expect(result.site).not.toHaveProperty(key);
+      expect([...result.assets]).toEqual([...initial.assets]);
+      expect(result.assets.size).toBe(0);
+      expect(result.dependencies).not.toContain(unsafeFile);
+      expect(result.dependencies).not.toContain(missingFile);
+      expect(result.dependencies).not.toContain(
+        path.join(root, "vault/.obsidian/themes"),
+      );
+    }
+  });
+
+  it("honors allowlists, deduplicates theme references, and always retains the selected theme", async () => {
+    const { root, put } = await fixture({
+      site: { allowThemeSwitching: true },
+      theme: "Selected",
+      snippets: [],
+      themes: [
+        "Other",
+        "Other",
+        "./vault/.obsidian/themes/Other/theme.css",
+        "default",
+      ],
+    });
+    await put(
+      "vault/.obsidian/appearance.json",
+      JSON.stringify({ cssTheme: "Ignored" }),
+    );
+    await put(
+      "vault/.obsidian/themes/Selected/theme.css",
+      ".selected{color:red}",
+    );
+    await put("vault/.obsidian/themes/Other/theme.css", ".other{color:blue}");
+    const ignored = await put(
+      "vault/.obsidian/themes/Ignored/theme.css",
+      "SHOULD_NOT_BE_READ",
+    );
+    const first = await compileVault(await loadConfig(root));
+    expect(first.site.themes?.map(({ name }) => name)).toEqual([
+      "Default (Obsidian)",
+      "Other",
+      "Selected",
+    ]);
+    expect(first.site.defaultTheme).toBe(
+      first.site.themes!.find(({ name }) => name === "Selected")!.id,
+    );
+    expect(first.dependencies).not.toContain(ignored);
+    await put(
+      "publish.config.json",
+      JSON.stringify({
+        vault: "./vault",
+        site: { allowThemeSwitching: true },
+        theme: "Selected",
+        snippets: [],
+        themes: [],
+      }),
+    );
+    const restricted = await compileVault(await loadConfig(root));
+    expect(restricted.site.themes?.map(({ name }) => name)).toEqual([
+      "Default (Obsidian)",
+      "Selected",
+    ]);
+    expect(restricted.site.defaultTheme).toBe(first.site.defaultTheme);
+    expect(restricted.site.themeCss).toBe(first.site.themeCss);
+    expect(restricted.assets.size).toBe(1);
+    await put(
+      "publish.config.json",
+      JSON.stringify({
+        vault: "./vault",
+        site: { allowThemeSwitching: true },
+        theme: "default",
+        snippets: [],
+        themes: [],
+      }),
+    );
+    const onlyDefault = await compileVault(await loadConfig(root));
+    expect(onlyDefault.site.themes).toEqual([
+      { id: "default", name: "Default (Obsidian)", cssUrl: "" },
+    ]);
+    expect(onlyDefault.site.defaultTheme).toBe("default");
+    expect(onlyDefault.site.themeCss).toBe("");
+    expect(onlyDefault.site.themeOverridesCss).toBe("");
+    expect(onlyDefault.assets.size).toBe(0);
+  });
+
+  it("supports external CSS allowlists with stable private IDs and colliding display names", async () => {
+    const { root, put } = await fixture({
+      site: { allowThemeSwitching: true },
+      theme: "./one/Same/theme.css",
+      snippets: [],
+      themes: [
+        "./two/Same/theme.css",
+        "./one/Same/theme.css",
+        "Same",
+        "A B",
+        "A-B",
+      ],
+    });
+    await put("one/Same/theme.css", '.one{background:url("image.png")}');
+    await put("one/Same/image.png", new Uint8Array([9, 8]));
+    await put("two/Same/theme.css", ".two{color:blue}");
+    await put(
+      "vault/.obsidian/themes/Same/theme.css",
+      ".installed{color:green}",
+    );
+    await put("vault/.obsidian/themes/A B/theme.css", ".spaced{color:red}");
+    await put("vault/.obsidian/themes/A-B/theme.css", ".hyphen{color:pink}");
+    const result = await compileVault(await loadConfig(root));
+    expect(result.site.themes).toHaveLength(6);
+    expect(new Set(result.site.themes!.map(({ id }) => id)).size).toBe(6);
+    expect(
+      result.site.themes!.filter(({ name }) => name === "Same"),
+    ).toHaveLength(3);
+    expect(result.site.settings.communityTheme).toBe("Same");
+    expect(
+      result.site.themes!.find(({ id }) => id === result.site.defaultTheme)
+        ?.name,
+    ).toBe("Same");
+    expect(JSON.stringify(result.site.themes)).not.toContain(root);
+    expect([...result.assets.keys()].join("\n")).not.toContain("one/");
+    await put(
+      "publish.config.json",
+      JSON.stringify({
+        vault: "./vault",
+        site: { allowThemeSwitching: true },
+        theme: "./one/Same/theme.css",
+        snippets: [],
+        themes: [
+          "A-B",
+          "Same",
+          "./one/Same/theme.css",
+          "A B",
+          "./two/Same/theme.css",
+        ],
+      }),
+    );
+    expect((await compileVault(await loadConfig(root))).site.themes).toEqual(
+      result.site.themes,
+    );
+    // Choosing the same installed file by CSS path or by name yields the same ID.
+    await put(
+      "publish.config.json",
+      JSON.stringify({
+        vault: "./vault",
+        site: { allowThemeSwitching: true },
+        theme: "Same",
+        snippets: [],
+        themes: [],
+      }),
+    );
+    const byName = await compileVault(await loadConfig(root));
+    await put(
+      "publish.config.json",
+      JSON.stringify({
+        vault: "./vault",
+        site: { allowThemeSwitching: true },
+        theme: "./vault/.obsidian/themes/Same/theme.css",
+        snippets: [],
+        themes: [],
+      }),
+    );
+    expect((await compileVault(await loadConfig(root))).site.defaultTheme).toBe(
+      byName.site.defaultTheme,
+    );
+  });
+
+  it("discovers only plain installed theme files and watches additions and removals", async () => {
+    const { root, put } = await fixture({
+      site: { allowThemeSwitching: true },
+      snippets: [],
+    });
+    const visible = await put(
+      "vault/.obsidian/themes/Visible/theme.css",
+      ".visible{color:red}",
+    );
+    const dotFile = await put(
+      "vault/.obsidian/themes/.Hidden/theme.css",
+      "SECRET_DOT_THEME",
+    );
+    const outside = await put("outside/theme.css", "SECRET_SYMLINK_THEME");
+    const themesRoot = path.join(root, "vault/.obsidian/themes");
+    await symlink(path.dirname(outside), path.join(themesRoot, "Linked"));
+    await mkdir(path.join(themesRoot, "LinkedFile"));
+    await symlink(outside, path.join(themesRoot, "LinkedFile/theme.css"));
+    await put(
+      "vault/.obsidian/themes/NotTheme/manifest.json",
+      "SECRET_METADATA",
+    );
+    const first = await compileVault(await loadConfig(root));
+    expect(first.site.themes?.map(({ name }) => name)).toEqual([
+      "Default (Obsidian)",
+      "Visible",
+    ]);
+    expect(first.site.defaultTheme).toBe("default");
+    expect(first.site.themeCss).toBe("");
+    expect(first.dependencies).toContain(themesRoot);
+    expect(first.dependencies).toContain(path.join(themesRoot, "NotTheme"));
+    expect(first.dependencies).toContain(
+      path.join(themesRoot, "NotTheme/theme.css"),
+    );
+    expect(first.dependencies).not.toContain(dotFile);
+    expect(first.dependencies).not.toContain(outside);
+    const firstId = first.site.themes![1].id;
+    await put("vault/.obsidian/themes/Added/theme.css", ".added{color:blue}");
+    const added = await compileVault(await loadConfig(root));
+    expect(added.site.themes?.map(({ name }) => name)).toEqual([
+      "Default (Obsidian)",
+      "Added",
+      "Visible",
+    ]);
+    expect(added.site.themes!.find(({ name }) => name === "Visible")?.id).toBe(
+      firstId,
+    );
+    await rm(visible);
+    const removed = await compileVault(await loadConfig(root));
+    expect(removed.site.themes?.map(({ name }) => name)).toEqual([
+      "Default (Obsidian)",
+      "Added",
+    ]);
+    expect(removed.dependencies).toContain(visible);
+    expect(
+      [...removed.assets.values()]
+        .map((bytes) => Buffer.from(bytes).toString())
+        .join("\n"),
+    ).not.toContain("SECRET_");
+  });
+
+  it("does not follow a symlinked theme discovery root and accepts a missing root", async () => {
+    const { root, put } = await fixture({
+      site: { allowThemeSwitching: true },
+      snippets: [],
+    });
+    const missing = await compileVault(await loadConfig(root));
+    expect(missing.site.themes).toEqual([
+      { id: "default", name: "Default (Obsidian)", cssUrl: "" },
+    ]);
+    expect(missing.dependencies).toContain(
+      path.join(root, "vault/.obsidian/themes"),
+    );
+    const outside = await put("outside/Themed/theme.css", "SECRET_LINKED_ROOT");
+    await mkdir(path.join(root, "vault/.obsidian"));
+    await symlink(
+      path.dirname(path.dirname(outside)),
+      path.join(root, "vault/.obsidian/themes"),
+    );
+    const linked = await compileVault(await loadConfig(root));
+    expect(linked.site.themes).toEqual(missing.site.themes);
+    expect(linked.assets.size).toBe(0);
+  });
+
+  it("fails clearly for unknown enabled themes and rejects escaping or hidden alternate CSS assets", async () => {
+    const { root, put } = await fixture({
+      site: { allowThemeSwitching: true },
+      themes: ["Unknown"],
+      snippets: [],
+    });
+    await expect(compileVault(await loadConfig(root))).rejects.toThrow(
+      /Unsupported or unavailable theme "Unknown"/,
+    );
+    await put("outside.png", new Uint8Array([1]));
+    await put("vault/Hidden/image.png", new Uint8Array([2]));
+    await put(
+      "vault/.obsidian/themes/Unsafe/theme.css",
+      '.unsafe{background:url("../../../../outside.png")}',
+    );
+    await put(
+      "vault/.obsidian/themes/Hidden/theme.css",
+      '.hidden{background:url("../../../Hidden/image.png")}',
+    );
+    for (const theme of ["Unsafe", "Hidden"]) {
+      await put(
+        "publish.config.json",
+        JSON.stringify({
+          vault: "./vault",
+          site: { allowThemeSwitching: true, hiddenPaths: ["Hidden"] },
+          themes: [theme],
+          snippets: [],
+        }),
+      );
+      await expect(compileVault(await loadConfig(root))).rejects.toThrow(
+        /Path escapes allowed root|hidden vault asset/,
+      );
+    }
+    const external = await put("external/theme.css", ".external{color:red}");
+    await symlink(
+      path.dirname(external),
+      path.join(root, "vault/.obsidian/themes/Alias"),
+    );
+    await put(
+      "publish.config.json",
+      JSON.stringify({
+        vault: "./vault",
+        site: { allowThemeSwitching: true },
+        themes: ["./external/theme.css", "Alias"],
+        snippets: [],
+      }),
+    );
+    await expect(compileVault(await loadConfig(root))).rejects.toThrow(
+      /Path escapes allowed root/,
+    );
+  });
+
   it("emits local data media and raw HTML relative assets, sanitizing SVGs and resolving transcluded media origins", async () => {
     const { root, put } = await fixture();
     await put(

@@ -19,6 +19,7 @@ import { searchNotes } from "./lib/search";
 import SidebarTree from "./SidebarTree";
 import MarkdownContent from "./MarkdownContent";
 import GraphView from "./GraphView";
+import { usePublishedTheme } from "./usePublishedTheme";
 
 function normalizeRoute(value: string) {
   const trim = (path: string) =>
@@ -66,6 +67,7 @@ function initialNote(site: CompiledSite) {
 
 export default function App({ site }: { site: CompiledSite }) {
   const { notes } = site;
+  const appearance = usePublishedTheme(site);
   const [preferences, setPreferences] = useState(readPreferences);
   const settings = useMemo(
     () => ({ ...site.settings, ...preferences }),
@@ -80,6 +82,12 @@ export default function App({ site }: { site: CompiledSite }) {
   const [view, setView] = useState<"note" | "graph">("note");
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(
+    () =>
+      site.settings.theme === "dark" ||
+      (site.settings.theme === "system" &&
+        matchMedia("(prefers-color-scheme: dark)").matches),
+  );
   const [hover, setHover] = useState<{
     note: PublishedNote;
     x: number;
@@ -130,6 +138,7 @@ export default function App({ site }: { site: CompiledSite }) {
       document.body.classList.toggle("theme-dark", dark);
       document.body.classList.toggle("theme-light", !dark);
       document.documentElement.dataset.theme = dark ? "dark" : "light";
+      setDarkMode(dark);
     };
     document.body.classList.add("publish");
     const bodyClasses = site.bodyClasses.filter(
@@ -156,7 +165,7 @@ export default function App({ site }: { site: CompiledSite }) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSidebar(true);
-        searchInput.current?.focus();
+        setTimeout(() => searchInput.current?.focus(), 0);
       }
       if (e.key === "Escape") {
         setSettingsOpen(false);
@@ -440,7 +449,7 @@ export default function App({ site }: { site: CompiledSite }) {
     <div
       className={`published-container publish-container workspace app-shell ${sidebar ? "" : "sidebar-hidden"} ${settings.stacked ? "stack-mode" : ""}`}
     >
-      <style data-publish-theme>{site.themeCss}</style>
+      <style data-publish-theme>{appearance.themeCss}</style>
       {sidebar && (
         <div
           className="mobile-scrim"
@@ -554,7 +563,9 @@ export default function App({ site }: { site: CompiledSite }) {
               <button
                 className={`clickable-icon ${settings.stacked ? "is-active" : ""}`}
                 aria-label="Toggle stacked pages"
-                title="Stacked pages"
+                aria-pressed={settings.stacked}
+                data-enabled={settings.stacked}
+                title={`Stacked pages: ${settings.stacked ? "on" : "off"}`}
                 onClick={() => change("stacked", !settings.stacked)}
               >
                 <Layers2 size={18} />
@@ -562,7 +573,8 @@ export default function App({ site }: { site: CompiledSite }) {
               <button
                 className="clickable-icon"
                 aria-label="Toggle color theme"
-                title="Color theme"
+                aria-pressed={darkMode}
+                title={`Color scheme: ${settings.theme}`}
                 onClick={() =>
                   change(
                     "theme",
@@ -572,11 +584,7 @@ export default function App({ site }: { site: CompiledSite }) {
                   )
                 }
               >
-                {settings.theme === "dark" ? (
-                  <Sun size={18} />
-                ) : (
-                  <Moon size={18} />
-                )}
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               <button
                 className="clickable-icon"
@@ -861,6 +869,42 @@ export default function App({ site }: { site: CompiledSite }) {
                   <option value="dark">Dark</option>
                 </select>
               </div>
+              {settings.allowThemeSwitching &&
+                appearance.choices.length > 0 && (
+                  <div className="setting-row theme-setting">
+                    <div className="setting-item-info">
+                      <label htmlFor="community-theme">Obsidian theme</label>
+                      <p className="setting-item-description">
+                        Choose from the themes this site includes.
+                      </p>
+                    </div>
+                    <select
+                      id="community-theme"
+                      aria-label="Obsidian theme"
+                      value={appearance.pendingId ?? appearance.selectedId}
+                      aria-busy={appearance.pendingId !== null}
+                      onChange={(event) =>
+                        void appearance.selectTheme(event.target.value)
+                      }
+                    >
+                      {appearance.choices.map((theme) => (
+                        <option key={theme.id} value={theme.id}>
+                          {theme.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              {appearance.pendingId && (
+                <p className="theme-status" role="status">
+                  Loading theme…
+                </p>
+              )}
+              {appearance.error && (
+                <p className="theme-error" role="alert">
+                  {appearance.error}
+                </p>
+              )}
               {[
                 { key: "readable", label: "Readable line length" },
                 { key: "showProperties", label: "Properties" },

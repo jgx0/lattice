@@ -49,6 +49,7 @@ A relative `PUBLISH_CONFIG` resolves from the project root. `OBSIDIAN_VAULT` ove
 | `showBacklinks` | `true` | Incoming note links. |
 | `showGraph` | `true` | Graph panel. |
 | `stacked` | `false` | Horizontal stacked-page reading. |
+| `allowThemeSwitching` | `false` | Let readers choose included Obsidian themes in settings. |
 | `navigation` | `[]` | Order folders and full note paths. |
 | `hiddenPaths` | `[]` | Exclude matching vault-relative files or whole folders before rendering. |
 
@@ -74,7 +75,7 @@ Paths in `navigation` and `hiddenPaths` must be vault-relative, non-empty, and w
 
 ## Appearance inputs
 
-Top-level `theme` selects an installed community theme name or CSS file path. `snippets` selects CSS snippet names or paths; omit it to follow Obsidian, or use `[]` to disable snippets. `css` lists additional CSS paths. `bodyClasses` adds individual class names, without whitespace inside a name.
+Top-level `theme` selects an installed community theme name or CSS file path. When `site.allowThemeSwitching` is enabled, optional top-level `themes` limits the reader's choices to listed theme names or CSS paths; otherwise installed themes are discovered automatically. See [[About/Obsidian themes#Let readers switch themes|the theme-picker guide]]. `snippets` selects CSS snippet names or paths; omit it to follow Obsidian, or use `[]` to disable snippets. `css` lists additional CSS paths. `bodyClasses` adds individual class names, without whitespace inside a name.
 
 `site.communityTheme` is a fallback when no explicit theme or vault `cssTheme` is selected. `site.customCss` accepts inline trusted CSS; prefer a versioned `publish.css` or CSS file for maintainability. These are not a plugin runtime.
 
