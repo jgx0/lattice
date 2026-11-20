@@ -2,52 +2,95 @@
 title: Architecture
 category: documentation
 tags: [lattice, documentation, architecture]
-description: Lattice's filesystem compiler, static-page generator, and browser reader boundary.
+description: Follow a saved note from your vault to the website your readers see.
 ---
 
-Lattice separates the **source vault**, the **compiled public site**, and the **browser reader**. Markdown processing and theme ingestion happen on the build machine. Reader interactions operate on compiled public data.
+You write notes in your vault; Lattice turns them into a website. This guide explains what happens after you save, which command to use, and where to make changes.
 
-## Build pipeline
+## What happens when you save a note
 
-1. `build/config.ts` reads and validates disk configuration and environment overrides.
-2. `build/compile.ts` scans allowed vault files, skips hidden paths and symlinks, validates publication frontmatter with fail-closed errors, and filters private notes before building the note model.
-3. `src/lib/model.ts` extracts titles, properties, headings, links, tags, and slugs.
-4. `src/lib/render.ts` and `src/lib/bases.ts` render Markdown, transclusions, media, and supported Bases views. Sanitization uses an isolated JSDOM window and window-bound DOMPurify helpers from `src/lib/sanitize.ts`.
-5. The compiler rewrites internal links and local asset references to deployment URLs, ingests selected theme/snippet CSS, and collects referenced assets.
-6. `build/vaultPlugin.ts` integrates compilation with Vite and emits assets, per-note pages, and `404.html`. `build/staticPages.ts` creates semantic note HTML around the application shell and a missing-page shell that does not mount the reader. Route/output collisions and source/output overlap fail the build rather than overwriting pages or the vault.
+With `npm run dev` running, save a note in the vault folder selected by `publish.config.json`. Lattice rebuilds the local site and refreshes the browser. It does not rewrite your notes.
 
-The compiler closes its isolated DOM after a compilation. It does not depend on browser globals, fetch remote CSS, or upload the vault.
+```text
+Your vault        Lattice build        dist/          Browser
+notes + media --> pages + links ------> website -----> read + search
+                  themes + assets      (build only)
+```
 
-## Output boundary
+During development, Lattice serves the generated site without writing a production `dist/` folder. `npm run build` creates that folder for previewing or hosting.
 
-`dist/` contains semantic note HTML, the reader bundle, compiled public metadata/search data, and emitted assets. The browser payload does not include each original complete Markdown file: `PublishedNote.content` is empty, and its searchable `body` omits nonliteral Obsidian comments. Literal `%%` examples inside fenced or inline code are preserved. Published note text, properties, HTML, and previews remain public; a hidden panel does not make them confidential. Private notes, unselected `.obsidian` source files, and arbitrary unreferenced vault attachments are not blindly copied.
+### 1. Lattice reads the selected vault
 
-The privacy boundary is **exclusion before compilation**, not a visual control in the reader.
+The `vault` setting points to the folder containing your Markdown notes and attachments. Lattice reads that folder on your computer or your hosting service's build machine.
 
-Each published note has a URL and directory `index.html`; its text, navigation, outline, and backlinks exist before JavaScript. The browser receives precompiled published pages and a public search index, and adds interactions without uploading or processing local vault files.
+Notes are included by default. It skips hidden paths and symlinks, folders listed in `site.hiddenPaths`, and notes marked `private: true` or `publish: false`. Those two frontmatter values must be unquoted YAML booleans.
 
-## Browser reader
+If you set `site.home`, Lattice uses that public note as the homepage. If you omit it, Lattice picks a public note. See [[About/Configuration]] to choose your own.
 
-- `src/App.tsx` coordinates navigation, browser history, preferences, optional panes, and the compiled site.
-- `src/SidebarTree.tsx` renders nested file navigation; `src/useFolderState.ts` remembers valid collapsed navigation paths in browser storage, scoped to the site's mount path and homepage file.
-- `src/QuickSwitcher.tsx` provides the optional keyboard file picker.
-- `build/appearanceBootstrap.ts` applies the initial color mode and restores a saved local theme with a four-second startup fallback; `src/usePublishedTheme.ts` owns subsequent theme switches.
-- `src/MarkdownContent.tsx` handles interactions with already-rendered note content.
-- `src/GraphView.tsx` presents local/global connections.
-- `src/lib/search.ts` searches public compiled note information.
+### 2. Notes become linked pages
 
-Reader preferences are local presentation state, not an account, synchronized vault, or authorization mechanism. Obsidian plugins and theme plugins do not execute in this layer.
+Lattice reads titles, properties, headings, tags, and links. It turns Markdown into HTML, resolves supported embeds and Bases, and rewrites internal links to website URLs.
 
-## Local development
+It also cleans rendered HTML and SVG, collects referenced local media, and prepares search text, previews, backlinks, and graph connections. A Base shows matching public notes; it cannot pull in excluded notes.
 
-The Vite plugin watches vault roots, configuration, appearance settings, CSS inputs, and dependencies discovered during compilation. It debounces edits and publishes only a complete successful snapshot. If a new edit fails, the previous snapshot stays available and the error is reported; a later successful edit can recover.
+A failed edit leaves the last successful local version on screen. Fix the reported note or setting and save again; the next successful rebuild refreshes the page.
 
-The development middleware serves compiled notes and emitted assets and blocks direct requests for vault source files, including source requests through Vite's filesystem route. This is useful defense in depth, not a reason to deploy a development server publicly.
+### 3. The build creates the website
 
-## Tests and fixtures
+`npm run build` writes a complete static site to `dist/`: a homepage, a directory `index.html` for each other note, `404.html`, application files, and the collected media and theme assets.
 
-`src/demo.ts` is an in-memory sample fixture for integration and reader tests, not the production vault loader. Production reads the configured filesystem vault. Keep fixture links and sample note content synchronized when editing the checked-in demo; do not replace the build pipeline with browser-side file processing.
+Each note page already contains its text, navigation, outline, and backlinks before JavaScript runs. Deploy the contents of `dist/`, not the vault or the project checkout.
 
-See [[About/Contributing]] for regression checks, [[About/Security and privacy]] for trust boundaries, and [[About/Deployment]] for static hosting.
+### 4. The browser adds reading tools
+
+The reader adds search, link previews, graphs, the Quick switcher, and optional reading panels to the generated pages. It does not open your local vault or run Obsidian plugins.
+
+Color mode, selected theme, and folder folds are saved in that browser when storage is available. These choices change how the site looks, not your source notes or which notes are public.
+
+## Which command should I use?
+
+Run these from the project folder containing `package.json`, not from inside the vault.
+
+| You want to… | Command | What happens |
+| --- | --- | --- |
+| Write notes and see changes immediately | `npm run dev` | Starts a local site and refreshes after successful edits. |
+| Prepare the site for hosting | `npm run build` | Checks TypeScript and writes a new `dist/` site. |
+| See the built site locally | `npm run preview` | Serves the existing `dist/`; it does not rebuild or watch notes. |
+
+For a production preview, run `npm run build` followed by `npm run preview`. Open the address printed by the command. Neither local server publishes the site online.
+
+## What becomes public?
+
+Published text, filenames, properties, links, rendered HTML, and previews are public site data. Hiding the Properties panel does **not** hide the properties from visitors.
+
+Lattice does not copy complete original Markdown files into the reader data. It supplies rendered pages and searchable text instead. Ordinary Obsidian `%% comments %%` are removed from that text; literal examples inside code remain.
+
+Excluded notes, unselected `.obsidian` files, and unreferenced vault attachments are not copied wholesale. Referenced media and selected CSS assets are public. Files you deliberately put in the project's `public/` folder are also copied into the site.
+
+Before hosting, choose your exclusions and remove sensitive properties from public notes. [[About/Security and privacy]] walks through that review.
+
+## Why do Obsidian themes work?
+
+Lattice reads the installed theme CSS and enabled snippets, then includes them in the site with rewritten local asset URLs. The reader uses familiar Obsidian classes and variables for light/dark mode, note content, callouts, and navigation.
+
+The selected theme loads before snippets, vault-root `publish.css`, and your extra CSS overrides. If reader theme switching is enabled, visitors can choose among the themes included in the build.
+
+CSS changes the appearance; it does not recreate editing panes, plugin controls, or Style Settings plugin state. Remote fonts and CSS resources still need a network connection. See [[About/Obsidian themes]] for setup and examples.
+
+## Where to change things
+
+Most site owners only need the first three rows. The source-code rows are optional if you want to develop Lattice itself.
+
+| Change | Where |
+| --- | --- |
+| Note text, titles, links, properties, or Bases | Your selected vault |
+| Vault folder, homepage, exclusions, or reader defaults | `publish.config.json` |
+| Your site's styling | Vault snippets, vault-root `publish.css`, or configured extra CSS |
+| How vault files and themes are compiled | `build/config.ts`, `build/compile.ts` |
+| Generated pages and local serving | `build/staticPages.ts`, `build/vaultPlugin.ts` |
+| Markdown, links, and Bases support | `src/lib/` |
+| Reader controls and navigation | `src/App.tsx` and reader components in `src/` |
+
+Next: [[About/Deployment|put the built site online]], [[About/Troubleshooting|fix a problem]], or [[About/Contributing|contribute a change to Lattice]].
 
 [[About/Documentation|Documentation index]].

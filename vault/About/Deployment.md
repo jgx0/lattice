@@ -2,108 +2,153 @@
 title: Deployment
 category: documentation
 tags: [lattice, documentation, deployment]
-description: Build, inspect, and deploy only Lattice's static output to a production host.
+description: Put your own Lattice site online with Cloudflare Pages, Vercel, or Netlify.
 ---
 
-Deploy **the generated `dist/` directory**, not the project checkout or the source vault. Lattice produces static HTML, application assets, referenced attachments, and theme assets; a production host does not need access to your notes or a running compiler.
+This guide takes your local site and gives it a public web address. If you haven't created your own repository and run Lattice yet, start with [[About/Quick start]].
 
-## Build on your machine or in CI
+You only need to choose **one** hosting provider. Cloudflare Pages, Vercel, and Netlify can all build a site from your GitHub repository. They'll rebuild it when you push changes.
 
-Use Node.js 22.12 or newer. From the project root:
+## First, decide where your notes will live
+
+**Automatic builds from GitHub:** the host needs your configuration, publishable notes, attachments, and selected theme files in **your own repository**. Put a reviewed copy of those files in a folder such as `site-vault/`, then set `"vault": "./site-vault"` in `publish.config.json`. Do not commit an entire personal archive just to make cloud builds work.
+
+**Keep the vault on your computer:** if your vault is ignored by Git or lives outside the project, build locally and upload the generated `dist/` folder yourself. Follow the [[About/Deployment#CLI upload|Cloudflare upload steps]] below, or use your preferred static-file host.
+
+A private GitHub repository can keep source files private, but the deployed website is still public. [[About/Security and privacy]] walks through choosing what to share.
+
+## Build it once before connecting a host
+
+In your project's terminal:
 
 ```sh
-npm ci --include=dev
-npm run check
+npm run build
 npm run preview
 ```
 
-`npm run check` runs type checking, all tests, and the production build. The build requires development dependencies: TypeScript, Vite, and build-time JSDOM are installed there. Do not use a production-only install such as `npm ci --omit=dev` for the builder. `--include=dev` is explicit so CI environments with `NODE_ENV=production` still install the toolchain.
+Open **http://localhost:4173**. This is the version you'll deploy. Open a note directly by its URL, try an attachment, and check your theme. Preview won't update after edits until you run `npm run build` again. Press **Ctrl+C** to stop preview before running the next commands.
 
-`preview` serves the already-built output, normally at `http://localhost:4173`. It is a **local verification tool**, not a hardened production service. Likewise, the live development server is not the public deployment target.
+When you're happy with it, commit the files the cloud builder will need and push them to **your repository**. For example, if `site-vault/` contains only publishable material:
 
-## Review before upload
+```sh
+git add publish.config.json site-vault/
+git commit -m "Add my published notes"
+git push origin main
+```
 
-- Open the homepage and a deep note URL directly, including after a reload.
-- Check links, heading anchors, navigation, and static note content with JavaScript disabled.
-- Test images, audio, video, PDFs, and local theme assets where used.
-- Inspect `dist/` for secrets, unwanted properties, copied quotations, and private details.
-- Confirm there are no unresolved links or visible Base/embed errors on the routes you intend to share.
-- Remove old deployment output when replacing a site; excluded notes must not survive as stale files on the host.
-
-A successful build validates compilation, not the appropriateness of making every surviving sentence public. Follow [[About/Security and privacy]] for source exclusion and external-resource review.
-
-## Static host requirements
-
-Configure your host to serve `dist/` as the site's document root. Note routes are emitted as directory `index.html` files, so the host should serve directory indexes and preserve encoded URL paths. Each note's semantic HTML includes its content, navigation, outline, and backlinks before JavaScript runs.
-
-Do not rely on a blanket single-page-app fallback that serves the homepage for every unknown URL; it can hide missing routes. The build emits `404.html`, and local development/preview return an actual 404 status for missing pages without mounting the reader over the error page. Configure the static host to use that missing-page document with a 404 status, then test a URL that does not exist. Configure HTTPS, caching, and any desired security headers on the host. There is no built-in login or password gate; private access requires separate hosting infrastructure.
+Check the files selected for the commit before running it. If `site-vault/` is in `.gitignore`, it won't be included; only remove that ignore rule after deciding those files can go to GitHub.
 
 ## Cloudflare Pages
 
-The root `wrangler.jsonc` identifies the Pages project with `name: "lattice"`, sets `pages_build_output_dir: "./dist"`, and pins a `compatibility_date`. These are Pages settings, not a Worker entry point. Change the project name if you use a different Pages project.
-
 ### Git integration
 
-Open the [Cloudflare Pages setup dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages), create a **Pages** project, and select [jgx0/lattice](https://github.com/jgx0/lattice) or a fork that you control. Select the project root and configure:
+1. Open [Cloudflare Pages setup](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages).
+2. Choose **Pages → Connect to Git** and authorize GitHub if asked.
+3. Select **the repository you created from the Lattice template**, such as `YOUR-USERNAME/my-lattice`.
+4. Keep the root directory at the repository root and use these settings:
 
 | Setting | Value |
 | --- | --- |
 | Framework preset | None |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| Node.js | 22.12 or newer in the Node 22 release line (`NODE_VERSION=22`) |
-| Install dependencies | Set `NPM_CONFIG_INCLUDE=dev`; use `npm ci --include=dev` where an install command is configurable |
+| Environment variables | `NODE_VERSION=22`, `NPM_CONFIG_INCLUDE=dev` |
 
-If the dashboard uses an automatic dependency install, ensure its environment does not omit development dependencies. With a custom install step, skip the automatic install if needed and run `npm ci --include=dev` before `npm run build`. The repository's Node version file selects Node 22, but verify the version reported in the build log.
+The development dependencies are needed to build the site. `NPM_CONFIG_INCLUDE=dev` keeps them installed on the builder. Node.js must be 22.12 or newer.
+
+5. Save and deploy. Once the build finishes, open the address Cloudflare gives you.
+
+The included `wrangler.jsonc` starts with `name: "lattice"`, `pages_build_output_dir: "./dist"`, and a pinned `compatibility_date`. Change its name to match your Pages project if you use Wrangler. `public/_headers` supplies the site's response headers and asset-cache rules.
 
 ### CLI upload
 
-First create the Pages project in your Cloudflare account, using the dashboard or `npx wrangler pages project create lattice`. Then, from the project root:
+Use this route when you want to build from a vault kept on your computer. You'll upload the website, not the vault.
+
+Create a Pages project once in your account, either in the dashboard or with:
+
+```sh
+npx wrangler pages project create my-lattice
+```
+
+Then build and upload:
 
 ```sh
 npm ci --include=dev
 npm run build
-npx wrangler pages deploy dist --project-name=lattice
+npx wrangler pages deploy dist --project-name=my-lattice
 ```
 
-Wrangler requires authentication and an existing project named `lattice`; the commands above do not provide credentials. Choose Git integration or direct uploads when setting up the project, rather than assuming an existing project supports switching workflows.
+Replace `my-lattice` with your project name. Wrangler will ask you to authenticate if needed. These commands publish when you run them; Lattice doesn't supply hosting credentials.
 
-`public/_headers` is copied into `dist/` for Cloudflare Pages static responses. It configures baseline security headers and immutable caching for hashed application, attachment, and theme assets. Review it alongside your theme and embed choices; headers do not add authentication or make published notes private.
+Choose Git integration or Direct Upload when creating your Pages project. Cloudflare doesn't let you freely switch every existing project between the two workflows.
 
 ## Vercel
 
-The root `vercel.json` selects a static build with `framework: null`, `cleanUrls: true`, `outputDirectory: "dist"`, `installCommand: "npm ci --include=dev"`, and `buildCommand: "npm run build"`. It also defines security and hashed-asset cache headers without a blanket SPA rewrite. Use Node.js 22.12 or newer in the Node 22 release line in the project's dashboard settings.
+1. Open [Vercel's new-project page](https://vercel.com/new).
+2. Import **your own template-created repository** from GitHub.
+3. Leave the root directory at the repository root.
+4. Confirm these settings, supplied by `vercel.json`:
 
-Open the [Vercel clone-and-deploy flow](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjgx0%2Flattice), or import [jgx0/lattice](https://github.com/jgx0/lattice) or your fork from the dashboard, and keep the root directory at this project's root. Verify the framework is **Other**, the install command includes development dependencies, the build command is `npm run build`, and the output directory is `dist` before deploying. Only the static output is served; the source vault is a build input.
+| Setting | Value |
+| --- | --- |
+| Framework preset | Other |
+| Install command | `npm ci --include=dev` |
+| Build command | `npm run build` |
+| Output directory | `dist` |
 
-The repository is [jgx0/lattice](https://github.com/jgx0/lattice). The Vercel link opens a repository-specific clone-and-deploy setup flow; authentication and confirmation are still required. Git-triggered deployments require connecting your repository or fork and pushing to its configured deployment branch. Neither the link nor these configuration files pushes local changes or provisions a deployment automatically.
+Choose Node.js 22 or newer in project settings, then deploy. Vercel gives you a URL when the build completes.
 
-## Netlify and continuous verification
+For reference, the configuration uses `framework: null`, `cleanUrls: true`, `outputDirectory: "dist"`, `installCommand: "npm ci --include=dev"`, and `buildCommand: "npm run build"`. You don't need to edit those values for a normal root-domain deployment. There is no catch-all rewrite to the homepage.
 
-The checked-in `netlify.toml` uses Node.js 22, runs `npm run build`, and publishes `dist`. It configures `nosniff`, referrer/permissions policies, and long-lived immutable caching for hashed application, attachment, and theme assets. It intentionally has no blanket SPA redirect. Ensure dependency installation includes the development toolchain.
+## Netlify
 
-The GitHub Actions verification workflow installs dependencies and runs `npm run check` on Node.js 22 and 24. It verifies the project but does not deploy it or provision hosting credentials. These host configurations are starting points, not a security certification or a private-access mechanism; no hosting account or live deployment is provisioned by the configuration files.
+1. Open Netlify and choose **Add new site → Import an existing project**.
+2. Connect GitHub and select **your own repository**.
+3. Leave the build settings from `netlify.toml`: command `npm run build`, output `dist`, Node 22.
+4. Deploy and open the generated address.
+
+If your builder omits development dependencies, include them with `npm ci --include=dev`. The site itself is static and needs no Node server after the build.
+
+## Check the public site
+
+Try these on the provider's URL:
+
+- Open a nested note, then reload it.
+- Follow a heading link and an attachment.
+- Switch themes if the picker is enabled.
+- Open a made-up URL. It should show the missing-page screen, not the homepage.
+- Confirm that excluded notes and private details are absent.
+
+Lattice emits `404.html`. Keep the host's normal file routing and **don't add an SPA rewrite to `index.html`**. A missing URL should return HTTP 404. If an old note remains online after you exclude it, replace or clear the previous deployment rather than leaving stale files behind.
 
 ## Deploy under a subdirectory
 
-Start with the default root `base: "/"` for the Cloudflare Pages, Vercel, and Netlify setups above. If you later host at a path such as `/notes/`, configure:
+Most provider URLs use the default `base: "/"`. Only change this if the site really lives below a path, such as `example.com/notes/`:
 
 ```json
 {
-  "vault": "./vault",
+  "vault": "./site-vault",
   "base": "/notes/",
-  "site": { "title": "My notes", "home": "Welcome.md" }
+  "site": { "title": "My notes" }
 }
 ```
 
-Rebuild, then mount the **contents** of `dist/` at `/notes/` on the host. The base prefixes public URLs; it does not add a nested `notes/` directory to the output. Preview reads the emitted base manifest, so visit its printed base URL when checking the build.
+Rebuild and mount the **contents** of `dist/` at `/notes/`. The output won't contain an extra `notes/` folder. Revisit host routing and the path patterns in `public/_headers`, `vercel.json`, and `netlify.toml` when changing the mount path.
 
-Changing a domain alone does not require changing `base`; changing the mount path does. A correct base must reach note pages, the application bundle, `_assets/`, and `_theme/` consistently. Revisit host routing and the path patterns in `public/_headers`, `vercel.json`, and `netlify.toml` when moving away from `/`; the checked-in hashed-asset cache rules assume a root deployment.
+For GitHub Pages project sites, the base is usually your own repository name, such as `/my-lattice/`, not `/lattice/` unless that is your name. Use your own Pages deployment workflow to publish `dist/`.
 
-## Updating the site
+## Updating your site
 
-Edit locally, rerun the checks and build, and replace the deployment with the new output. Prefer atomic deployments or a host that versions releases, especially when note names or privacy settings change. Keep the source vault and its `.obsidian` settings on the build side; only deliberately emitted public files belong on the host.
+With Git-connected hosting, edit the publishable files, check the site locally, commit, and push to your own deployment branch. Your provider runs the next build. With manual hosting, run `npm run build` and upload the new `dist/` output again.
 
-[[About/Configuration|Configuration]] covers path overrides; [[About/Troubleshooting]] covers deep-link and asset failures.
+For your own site, use `npm run build` and `npm run preview` before an update. The build includes TypeScript checking; preview lets you inspect the generated pages. `npm run check` additionally runs Lattice's development regression suite, which assumes the included demo configuration. Use that suite when contributing changes to Lattice, not as the only test of your personalized site.
 
-[[About/Documentation|Documentation index]].
+### The inherited GitHub check
+
+The template includes `.github/workflows/verify.yml`, which runs the development checks on Node 22 and 24 for pushes and pull requests. It **does not deploy**. After you customize the configuration, this workflow may fail because some tests expect the demo; an ignored local vault also isn't available to GitHub's runner.
+
+For a personal site, open **your repository → Actions → Verify → ⋯ → Disable workflow** if you aren't using that check. Alternatively, adapt the workflow to build your committed publishing vault with `npm run build`. Your hosting provider's Git integration can still build and deploy the site independently.
+
+Setting up a host requires your own account, and no hosting account or live deployment is provisioned by these files. Authentication and confirmation are still required.
+
+[[About/Troubleshooting|Deployment troubleshooting]] · [[About/Documentation|Guide index]].

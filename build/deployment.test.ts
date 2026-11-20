@@ -49,11 +49,11 @@ describe("static deployment templates", () => {
     expect(readme).toContain(
       "https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages",
     );
-    expect(readme).toContain(
-      "https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjgx0%2Flattice",
-    );
+    expect(readme).toContain("https://vercel.com/new");
+    expect(readme).not.toContain('repository-url=https%3A%2F%2Fgithub.com%2Fjgx0%2Flattice');
+    expect(readme).toContain('your own template-created repository');
     expect(readme).toContain("https://github.com/jgx0/lattice");
-    expect(readme).toContain("Both require your own account and confirmation");
+    expect(readme).toContain("confirm deployment in your own account");
     expect(readme).not.toContain("once the public repository URL exists");
     expect(readme).not.toMatch(
       /repository-url=.*(?:example|YOUR|placeholder)/i,

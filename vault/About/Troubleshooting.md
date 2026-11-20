@@ -2,72 +2,115 @@
 title: Troubleshooting
 category: documentation
 tags: [lattice, documentation, troubleshooting]
-description: Diagnose configuration, link, Base, CSS, watcher, and static-host problems.
+description: Find a symptom, try a concrete fix, and get your site working again.
 ---
 
-Begin with the **first reported build or development error**. The live server preserves the last successful compilation, so a readable page after an error may be an older snapshot rather than proof that the edit worked.
+Find the symptom below and try its fix. Run npm commands from the project folder containing `package.json`, not from inside your vault.
 
-## Installation or compilation fails
+## “npm: command not found”
 
-- Check Node.js is 22.12 or newer.
-- Run `npm ci --include=dev` from the project root; the builder needs TypeScript, Vite, and JSDOM from development dependencies.
-- Verify the vault and configuration file exist and are readable.
-- Unknown configuration fields are rejected; do not add unsupported options hoping they will take effect.
-- Malformed or unterminated frontmatter and quoted/non-Boolean privacy flags fail compilation. Repair the YAML rather than removing a needed exclusion.
-- Published-route collisions are build errors; rename conflicting note paths rather than relying on one page to overwrite another.
-- Run `npm run build` to reproduce the error outside the watcher.
+Install **Node.js 22.12 or newer**, which includes npm, then close and reopen your terminal. Run `node --version` and `npm --version`; both should print a version.
 
-See [[About/Quick start]] and [[About/Configuration]] for working examples.
+In the project folder, run `npm ci --include=dev`, then `npm run dev`. The local site should start. If `vite` or `tsc` was missing, installing the development dependencies fixes that too. See [[About/Quick start]] for the full setup.
 
-## Homepage missing or no published notes
+## “Folder not found” or “Cannot load publish configuration”
 
-`site.home` must resolve to an existing public Markdown note. Check spelling, folder path, extension, `hiddenPaths`, and privacy frontmatter. If all notes are excluded, compilation cannot create a site. Do not weaken privacy settings merely to make an error disappear; choose a genuinely public homepage.
+Open the project's `publish.config.json`. Set `vault` to the **actual folder containing your notes**, for example `"vault": "./my-vault"` when `my-vault` sits beside that configuration file.
 
-## A link or transclusion is unresolved
+If a copied folder contains another folder that holds the notes, point at the inner folder—not its wrapper. Relative vault paths start beside the configuration file; you can also use a full folder path.
 
-Use an exact vault-relative path, especially when several folders contain the same filename. Check the heading text or block identifier as well as the note name. A link cannot reveal a filtered private note. Update incoming links after renaming a source file.
+If you previously set `OBSIDIAN_VAULT` or `PUBLISH_CONFIG`, remove the unwanted override from your terminal environment (`unset OBSIDIAN_VAULT PUBLISH_CONFIG` in bash/zsh). Then run `npm run dev` again. Your chosen vault should appear.
 
-A cyclic or overly nested embed can reach the renderer's limit. Prefer a direct link or a smaller heading/block embed rather than an endless whole-note chain. [[About/Markdown and Bases]] shows valid targets from this vault.
+## “Configured home note is missing or private”
 
-## A Base is empty or reports an error
+Remove the optional `home` entry from `site` to let Lattice choose a public note, or set it to an existing public filename such as `"home": "Home.md"` or `"home": "Notes/Home.md"`.
 
-An empty view can be correct: no public notes match its filters. Check property names, YAML value types, folder paths, and the host note's properties. `this.file` means the host Markdown note; it is not the `.base` file. For inline views, the fence must be labeled `base`, not `yaml`. If modification-date order changed after a copy or clone, check the source filesystem timestamps; `file.mtime` is not a frontmatter date.
+Use the vault-relative file path, not the displayed title or website URL. Keep private notes excluded. Save the configuration; the site should open with a valid homepage. If there are no published notes at all, add a public note or select the correct vault folder.
 
-A visible “Unable to render Base” message indicates invalid YAML, an unsupported view/expression, a circular formula, or an evaluator limit. Reduce the expression to supported operations and verify the result on a small collection. Obsidian's complete Bases runtime and general JavaScript are not supported.
+## A build stops on frontmatter, a setting, or a route collision
 
-## A theme or CSS asset fails
+For an unknown setting, remove it or use a supported option from [[About/Configuration]]. For frontmatter errors, close the YAML block with `---` and use unquoted booleans such as `private: true` or `publish: false`; keep the intended exclusion.
 
-- Check `.obsidian/appearance.json` is valid JSON.
-- Verify the selected theme's `theme.css` and enabled snippet files exist.
-- Distinguish top-level `theme` from `site.theme` color mode.
-- Set top-level `theme: "default"` and `snippets: []` temporarily to isolate a CSS issue, then restore the intended configuration.
-- Check local import/asset paths, supported extensions, allowed directories, and import cycles.
-- Check connectivity for remote CSS resources; the build leaves their URLs remote.
+For a route collision, rename one of the conflicting note files and update its incoming links. Run `npm run build` again. It should finish and write `dist/`.
 
-Style Settings plugin state, editing controls, and plugin-only components cannot appear merely by loading their CSS. See [[About/Obsidian themes]] for the compatibility boundary.
+## A link or embed says it is missing
 
-## Reader choices do not match configuration
+Change the target to its full vault-relative path, especially if two notes share a filename. Check the heading text or `^block-id` when linking to a section. After renaming a file, update the links pointing to it.
 
-Saved browser preferences take precedence over reader defaults. Check **Reader settings** for color mode, the selected theme, and Quick switcher; when the switcher is disabled, Command/Ctrl+K focuses sidebar search instead. Clear this site's browser storage to start from defaults, noting that this also resets other saved reader choices.
+Excluded notes cannot be linked or embedded on the public site; remove that reference or link to a public alternative. For an “embed recursion limit” message, replace the repeating whole-note embed with a direct link or a smaller section. Save the note; the corrected target should resolve. See [[About/Markdown and Bases]].
 
-Folder folds survive reloads and rebuilds for the same site. Removed or renamed folder paths are discarded, and new folders start open. Moving the deployment base or changing the homepage file starts a separate folder preference set. If browser storage is blocked, controls still work during the session but their choices cannot survive a reload. This state never changes your source notes or their publication status.
+## A Base is empty
 
-## Saved edits do not appear
+Temporarily remove its filters and use a `table` view with `order: [file.name]`. Public notes should appear. Add the filters back one at a time to find which condition removes the rows.
 
-Read terminal and browser error output first. A failed edit intentionally leaves the previous snapshot live. Fix the cause and save again; a successful compile refreshes readers. If changes involve configuration base paths, verify the new URL and restart the local command if needed. `npm run preview` does not watch or compile source changes; rerun `npm run build` before previewing.
+Check property spelling and YAML types: `rating: 5` is a number, while `rating: "5"` is text; a list is different from a single string. Check folder paths and the properties of the **host Markdown note**: `this.file` means that note, not the `.base` file.
 
-## Deep links or assets fail after deployment
+If sorting by `file.mtime` changed after copying or cloning, use an explicit frontmatter date property for stable ordering. The filesystem timestamp is not your note's `date` property.
 
-Verify the configured `base` equals the host's mount path, then rebuild. Mount `dist/` contents there, including `_assets/`, `_theme/`, and application assets. The host must serve note-directory `index.html` files. Test a direct note URL and a nonexistent URL rather than relying only on client-side clicks or a universal homepage fallback.
+## An inline Base appears as code, or says “Unable to render Base”
 
-If renamed or excluded pages remain available, replace or clean the old deployment. Local output changes do not delete stale files from a remote host. [[About/Deployment]] provides the complete checklist.
+For an inline view, change the opening fence from `yaml` to `base`:
 
-## Media will not play
+````markdown
+```base
+views:
+  - type: table
+    order: [file.name]
+```
+````
 
-Check the emitted file URL, browser codec support, and visible playback controls. Development serves generated assets with single-byte-range responses for media seeking and ETags for conditional requests; the production static host must provide appropriate file-serving behavior. No autoplay is required by the offline examples. A working file does not guarantee every browser can decode its format; provide a useful text description or download link.
+Save the note; this should display a table of public notes. For an embedded file, use `![[Data/Reading.base]]` (the demo's example) or replace that path with your own Base.
 
-## Reporting a reproducible issue
+For a render error, start with the table above and add expressions back gradually. `file.hasLink(this.file)` **is supported** for finding notes that link to the host. Replace other unsupported functions with simpler supported filters; use `table`, `list`, or `cards` views and remove circular formulas. [[About/Markdown and Bases]] lists supported expressions.
 
-Include the command, Node/npm versions, minimal configuration, exact error, expected behavior, and a non-sensitive sample note/Base/CSS file. Never attach a private vault or unredacted secrets. See [[About/Contributing]] for tests and source locations.
+## Dark mode or the theme ignores my configuration
+
+Open **Reader settings** and choose the color mode you want. If the Obsidian theme picker is available, choose the theme there too. Saved browser choices take precedence over the site's defaults and should survive a reload.
+
+To try the configured defaults without changing your saved choices, open the site in a fresh private window. To reset saved choices, clear this site's browser storage; this also resets other reader preferences.
+
+If a saved theme cannot load at startup, the page uses the site's default theme after a failed request or at most four seconds. Re-upload the complete build, including `_theme/`, then select the desired theme again. A failed switch in Reader settings keeps the current theme.
+
+## Theme CSS fails to build, or plugin styling is missing
+
+Check that `.obsidian/appearance.json` is valid JSON and that the selected `theme.css` and enabled snippet files exist. Top-level `theme` selects a theme; `site.theme` must be `light`, `dark`, or `system`.
+
+To isolate the problem, temporarily set top-level `"theme": "default"`, `"themes": []`, and `"snippets": []`. If the error names extra CSS or a local import, fix that file path too. Rebuild; then restore one style at a time.
+
+Plugin controls and Style Settings state do not run on the website. Use a snippet or vault-root `publish.css` for the reader styling you need. [[About/Obsidian themes]] explains the options.
+
+## Folder folds reset or seem different on another visit
+
+Fold a sidebar folder, then reload. It should stay folded in the same browser when storage is allowed. Removed or renamed folders lose their old fold state; new folders start open.
+
+The folder preference key includes the homepage URL and source filename. Changing `base` or `site.home` starts a separate set of folds. Fold the folders again for the new site location; this does not change your notes. If all preferences reset on reload, allow site storage or use a normal window instead of a private session.
+
+## Saved changes do not appear
+
+**Using `npm run preview`?** Stop it with Ctrl+C, run `npm run build`, then `npm run preview` again. Preview serves the previous `dist/` and does not watch edits. Use `npm run dev` while writing notes.
+
+**Using `npm run dev`?** Save in the vault selected by `publish.config.json`. If an error overlay appears, fix the named file or setting and save again; Lattice keeps the last working page until the edit succeeds. After changing `base`, restart the server and open the new base URL.
+
+**Already deployed?** Upload the new build or trigger your host's deployment. A local save alone does not update the public site.
+
+## A font, image, or video is missing
+
+Open the resource URL directly. For a local attachment, correct its path and rebuild; upload all of `dist/`, including `_assets/` and `_theme/`. The resource should load at its generated URL.
+
+Remote fonts, CSS imports, and media stay remote; they are not downloaded into the build. Check that their HTTPS URLs work and that your browser or host policy allows them, or replace them with local files. A font name alone does not supply the font.
+
+If audio or video loads but will not play, try a browser-supported encoding and keep playback controls visible. If seeking fails only after deployment, use a static host that supports byte-range media requests. Provide a download link or text alternative where useful.
+
+## The homepage works, but a direct note URL fails
+
+Set `base` to the hosting path: `"/"` for a domain root or, for example, `"/notes/"` for a subdirectory. Rebuild and mount the **contents** of `dist/` there; `base` does not create an extra `notes/` output folder.
+
+Configure the host to serve each note directory's `index.html`. Remove any blanket SPA rewrite to the homepage, and configure `404.html` for missing URLs with a 404 status. A direct note URL should open that note; an invented URL should show the missing-page page, not the homepage.
+
+If renamed or excluded pages still open, replace the old deployment rather than leaving its files alongside the new build. See [[About/Deployment]] for host-specific steps.
+
+## Still stuck?
+
+[Open an issue](https://github.com/jgx0/lattice/issues) with the command, Node/npm versions, exact error, expected result, and a small non-sensitive note, Base, or CSS example. Leave out private vaults and secrets. [[About/Contributing]] explains how to propose a fix.
 
 [[About/Documentation|Documentation index]].

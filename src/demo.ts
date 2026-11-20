@@ -89,10 +89,10 @@ description: Publish connected Obsidian notes with Lattice, and explore the docu
 
 ## Get started
 
-Clone the repo, copy your vault into the project folder, point Lattice at it in \`publish.config.json\`, and run \`npm run dev\`. **That's all you need to start.** Follow [[About/Quick start|Quick start]] for the commands and a small configuration example.
+Use **Use this template → Create a new repository** on GitHub to make your own Lattice site. Clone your copy, add a vault, point Lattice at its folder, and run \`npm run dev\`. [[About/Quick start|Quick start]] walks through it from the first button click to your notes on screen.
 
 - [[About/Documentation|Documentation]] — the guides, when you need them.
-- [[About/Quick start|Quick start]] — clone, copy your vault, choose its folder, and run.
+- [[About/Quick start|Quick start]] — create your repository, add a vault, and open your site.
 - [[About/Obsidian themes|Obsidian themes]] — use an installed theme, enabled snippets, and \`publish.css\`.
 - [[About/Deployment|Deployment]] — review the static output and deploy to Cloudflare Pages, Vercel, or Netlify.
 
@@ -1080,53 +1080,96 @@ See [[About/Documentation|Documentation]] for the product guide and [[About/Cont
 title: Architecture
 category: documentation
 tags: [lattice, documentation, architecture]
-description: Lattice's filesystem compiler, static-page generator, and browser reader boundary.
+description: Follow a saved note from your vault to the website your readers see.
 ---
 
-Lattice separates the **source vault**, the **compiled public site**, and the **browser reader**. Markdown processing and theme ingestion happen on the build machine. Reader interactions operate on compiled public data.
+You write notes in your vault; Lattice turns them into a website. This guide explains what happens after you save, which command to use, and where to make changes.
 
-## Build pipeline
+## What happens when you save a note
 
-1. \`build/config.ts\` reads and validates disk configuration and environment overrides.
-2. \`build/compile.ts\` scans allowed vault files, skips hidden paths and symlinks, validates publication frontmatter with fail-closed errors, and filters private notes before building the note model.
-3. \`src/lib/model.ts\` extracts titles, properties, headings, links, tags, and slugs.
-4. \`src/lib/render.ts\` and \`src/lib/bases.ts\` render Markdown, transclusions, media, and supported Bases views. Sanitization uses an isolated JSDOM window and window-bound DOMPurify helpers from \`src/lib/sanitize.ts\`.
-5. The compiler rewrites internal links and local asset references to deployment URLs, ingests selected theme/snippet CSS, and collects referenced assets.
-6. \`build/vaultPlugin.ts\` integrates compilation with Vite and emits assets, per-note pages, and \`404.html\`. \`build/staticPages.ts\` creates semantic note HTML around the application shell and a missing-page shell that does not mount the reader. Route/output collisions and source/output overlap fail the build rather than overwriting pages or the vault.
+With \`npm run dev\` running, save a note in the vault folder selected by \`publish.config.json\`. Lattice rebuilds the local site and refreshes the browser. It does not rewrite your notes.
 
-The compiler closes its isolated DOM after a compilation. It does not depend on browser globals, fetch remote CSS, or upload the vault.
+\`\`\`text
+Your vault        Lattice build        dist/          Browser
+notes + media --> pages + links ------> website -----> read + search
+                  themes + assets      (build only)
+\`\`\`
 
-## Output boundary
+During development, Lattice serves the generated site without writing a production \`dist/\` folder. \`npm run build\` creates that folder for previewing or hosting.
 
-\`dist/\` contains semantic note HTML, the reader bundle, compiled public metadata/search data, and emitted assets. The browser payload does not include each original complete Markdown file: \`PublishedNote.content\` is empty, and its searchable \`body\` omits nonliteral Obsidian comments. Literal \`%%\` examples inside fenced or inline code are preserved. Published note text, properties, HTML, and previews remain public; a hidden panel does not make them confidential. Private notes, unselected \`.obsidian\` source files, and arbitrary unreferenced vault attachments are not blindly copied.
+### 1. Lattice reads the selected vault
 
-The privacy boundary is **exclusion before compilation**, not a visual control in the reader.
+The \`vault\` setting points to the folder containing your Markdown notes and attachments. Lattice reads that folder on your computer or your hosting service's build machine.
 
-Each published note has a URL and directory \`index.html\`; its text, navigation, outline, and backlinks exist before JavaScript. The browser receives precompiled published pages and a public search index, and adds interactions without uploading or processing local vault files.
+Notes are included by default. It skips hidden paths and symlinks, folders listed in \`site.hiddenPaths\`, and notes marked \`private: true\` or \`publish: false\`. Those two frontmatter values must be unquoted YAML booleans.
 
-## Browser reader
+If you set \`site.home\`, Lattice uses that public note as the homepage. If you omit it, Lattice picks a public note. See [[About/Configuration]] to choose your own.
 
-- \`src/App.tsx\` coordinates navigation, browser history, preferences, optional panes, and the compiled site.
-- \`src/SidebarTree.tsx\` renders nested file navigation; \`src/useFolderState.ts\` remembers valid collapsed navigation paths in browser storage, scoped to the site's mount path and homepage file.
-- \`src/QuickSwitcher.tsx\` provides the optional keyboard file picker.
-- \`build/appearanceBootstrap.ts\` applies the initial color mode and restores a saved local theme with a four-second startup fallback; \`src/usePublishedTheme.ts\` owns subsequent theme switches.
-- \`src/MarkdownContent.tsx\` handles interactions with already-rendered note content.
-- \`src/GraphView.tsx\` presents local/global connections.
-- \`src/lib/search.ts\` searches public compiled note information.
+### 2. Notes become linked pages
 
-Reader preferences are local presentation state, not an account, synchronized vault, or authorization mechanism. Obsidian plugins and theme plugins do not execute in this layer.
+Lattice reads titles, properties, headings, tags, and links. It turns Markdown into HTML, resolves supported embeds and Bases, and rewrites internal links to website URLs.
 
-## Local development
+It also cleans rendered HTML and SVG, collects referenced local media, and prepares search text, previews, backlinks, and graph connections. A Base shows matching public notes; it cannot pull in excluded notes.
 
-The Vite plugin watches vault roots, configuration, appearance settings, CSS inputs, and dependencies discovered during compilation. It debounces edits and publishes only a complete successful snapshot. If a new edit fails, the previous snapshot stays available and the error is reported; a later successful edit can recover.
+A failed edit leaves the last successful local version on screen. Fix the reported note or setting and save again; the next successful rebuild refreshes the page.
 
-The development middleware serves compiled notes and emitted assets and blocks direct requests for vault source files, including source requests through Vite's filesystem route. This is useful defense in depth, not a reason to deploy a development server publicly.
+### 3. The build creates the website
 
-## Tests and fixtures
+\`npm run build\` writes a complete static site to \`dist/\`: a homepage, a directory \`index.html\` for each other note, \`404.html\`, application files, and the collected media and theme assets.
 
-\`src/demo.ts\` is an in-memory sample fixture for integration and reader tests, not the production vault loader. Production reads the configured filesystem vault. Keep fixture links and sample note content synchronized when editing the checked-in demo; do not replace the build pipeline with browser-side file processing.
+Each note page already contains its text, navigation, outline, and backlinks before JavaScript runs. Deploy the contents of \`dist/\`, not the vault or the project checkout.
 
-See [[About/Contributing]] for regression checks, [[About/Security and privacy]] for trust boundaries, and [[About/Deployment]] for static hosting.
+### 4. The browser adds reading tools
+
+The reader adds search, link previews, graphs, the Quick switcher, and optional reading panels to the generated pages. It does not open your local vault or run Obsidian plugins.
+
+Color mode, selected theme, and folder folds are saved in that browser when storage is available. These choices change how the site looks, not your source notes or which notes are public.
+
+## Which command should I use?
+
+Run these from the project folder containing \`package.json\`, not from inside the vault.
+
+| You want to… | Command | What happens |
+| --- | --- | --- |
+| Write notes and see changes immediately | \`npm run dev\` | Starts a local site and refreshes after successful edits. |
+| Prepare the site for hosting | \`npm run build\` | Checks TypeScript and writes a new \`dist/\` site. |
+| See the built site locally | \`npm run preview\` | Serves the existing \`dist/\`; it does not rebuild or watch notes. |
+
+For a production preview, run \`npm run build\` followed by \`npm run preview\`. Open the address printed by the command. Neither local server publishes the site online.
+
+## What becomes public?
+
+Published text, filenames, properties, links, rendered HTML, and previews are public site data. Hiding the Properties panel does **not** hide the properties from visitors.
+
+Lattice does not copy complete original Markdown files into the reader data. It supplies rendered pages and searchable text instead. Ordinary Obsidian \`%% comments %%\` are removed from that text; literal examples inside code remain.
+
+Excluded notes, unselected \`.obsidian\` files, and unreferenced vault attachments are not copied wholesale. Referenced media and selected CSS assets are public. Files you deliberately put in the project's \`public/\` folder are also copied into the site.
+
+Before hosting, choose your exclusions and remove sensitive properties from public notes. [[About/Security and privacy]] walks through that review.
+
+## Why do Obsidian themes work?
+
+Lattice reads the installed theme CSS and enabled snippets, then includes them in the site with rewritten local asset URLs. The reader uses familiar Obsidian classes and variables for light/dark mode, note content, callouts, and navigation.
+
+The selected theme loads before snippets, vault-root \`publish.css\`, and your extra CSS overrides. If reader theme switching is enabled, visitors can choose among the themes included in the build.
+
+CSS changes the appearance; it does not recreate editing panes, plugin controls, or Style Settings plugin state. Remote fonts and CSS resources still need a network connection. See [[About/Obsidian themes]] for setup and examples.
+
+## Where to change things
+
+Most site owners only need the first three rows. The source-code rows are optional if you want to develop Lattice itself.
+
+| Change | Where |
+| --- | --- |
+| Note text, titles, links, properties, or Bases | Your selected vault |
+| Vault folder, homepage, exclusions, or reader defaults | \`publish.config.json\` |
+| Your site's styling | Vault snippets, vault-root \`publish.css\`, or configured extra CSS |
+| How vault files and themes are compiled | \`build/config.ts\`, \`build/compile.ts\` |
+| Generated pages and local serving | \`build/staticPages.ts\`, \`build/vaultPlugin.ts\` |
+| Markdown, links, and Bases support | \`src/lib/\` |
+| Reader controls and navigation | \`src/App.tsx\` and reader components in \`src/\` |
+
+Next: [[About/Deployment|put the built site online]], [[About/Troubleshooting|fix a problem]], or [[About/Contributing|contribute a change to Lattice]].
 
 [[About/Documentation|Documentation index]].
 `,
@@ -1141,91 +1184,152 @@ tags: [lattice, documentation, configuration]
 description: Vault paths, site options, navigation, themes, and configuration precedence.
 ---
 
-Start with just your vault folder and a site name. Open \`publish.config.json\` in the \`lattice\` project folder and use:
+Make your site feel like your own: choose a name and homepage, arrange a couple of folders, and leave a private folder out of the published site.
+
+Start with [[About/Quick start]] if you have not run Lattice yet. For your own site, the recommended starting point is GitHub's **Use this template → Create a new repository**, then clone your new repository. This walkthrough assumes dependencies are installed and your copied vault is in \`my-vault/\` beside \`publish.config.json\`.
+
+## 1. Point at your notes
+
+Open \`publish.config.json\` in the project folder and replace its contents with:
 
 \`\`\`json
 {
   "vault": "./my-vault",
-  "site": { "title": "My notes" }
+  "site": {
+    "title": "My notes"
+  }
 }
 \`\`\`
 
-If you copied your vault into \`lattice/my-vault/\`, that's all you need. Change the folder name to match yours, then run \`npm run dev\`. You can leave every other setting at its default. See [[About/Quick start]] for the full walkthrough.
+Run \`npm run dev\` from the project folder and open the address printed in the terminal. You should see **My notes** above the file tree, with notes from \`my-vault/\` rather than the included demo. Keep the terminal running as you follow the steps below; saving changes rebuilds the local site.
 
-The sections below are optional reference material. Lattice reads \`publish.config.json\` from the project folder; a misspelled setting produces an error so you know it has not taken effect.
+\`./my-vault\` means “the folder called my-vault beside this configuration file.” It should contain your notes directly, not another folder wrapping the vault. If your vault lives elsewhere, use its full folder path instead, such as \`/Users/you/Documents/My Vault\` on macOS. Lattice reads that folder without moving or rewriting it.
 
-## Source and deployment paths
+## 2. Choose the page people land on
 
-| Field | Meaning |
-| --- | --- |
-| \`vault\` | Source directory; defaults to \`./vault\`. Relative paths resolve beside the config file. |
-| \`base\` | Rooted public URL pathname; defaults to \`/\`. Use \`/notes/\` for a subdirectory deployment. |
-| \`site.home\` | Existing public homepage note, preferably its full vault-relative path. If omitted, the first compiled note is used. |
+Create \`Home.md\` directly inside \`my-vault/\`, or use an existing public note as your homepage. For a new file, paste:
 
-\`base\` is a path, not a full domain URL. Query strings, fragments, traversal segments, and protocol-relative paths are rejected. Internal links, theme assets, attachments, and the application bundle share this base. Rebuild when it changes.
+\`\`\`markdown
+---
+title: Home
+---
+
+Welcome to my notes. This is where I collect things I want to share.
+\`\`\`
+
+Then add \`home\` to your configuration:
+
+\`\`\`json
+{
+  "vault": "./my-vault",
+  "site": {
+    "title": "My notes",
+    "home": "Home.md"
+  }
+}
+\`\`\`
+
+Save both files and click **My notes** in the site's sidebar. You should arrive at **Home**, with your welcome paragraph below it. The page already supplies a title, so there is no need to add another \`# Home\` heading in the note.
+
+The \`home\` path starts inside your vault: use \`Home.md\`, not \`my-vault/Home.md\`. For a note in a subfolder, use its full filename, such as \`Notes/Home.md\`. The file needs to exist and be included in the publication. Without \`home\`, Lattice chooses the first compiled note.
+
+## 3. Put folders in a useful order
+
+In your copied vault, create \`Notes/First project.md\` and \`Projects/Next project.md\`. Give each a sentence of text so you have something to open. Add \`navigation\` inside \`site\`:
+
+\`\`\`json
+{
+  "vault": "./my-vault",
+  "site": {
+    "title": "My notes",
+    "home": "Home.md",
+    "navigation": ["Projects", "Notes"]
+  }
+}
+\`\`\`
+
+The **Projects** folder should now appear before **Notes**. Open each folder and click its note. You can also list full note paths to order notes within a folder. Entries you do not list remain visible, sorted alphabetically: folders by name and notes by title. Folders are displayed before loose notes; this is not one mixed list of every sidebar item.
+
+Click a folder name to collapse it, then reload the page. It stays collapsed in your browser. These choices do not change your vault or configuration, and a rebuild does not reset them. New folders start open; if browser storage is blocked, fold choices last only for the current session. Hiding the entire sidebar is a separate control.
+
+## 4. Leave a private folder out
+
+Create a folder named \`Private\` inside \`my-vault/\` and put a harmless test note, \`Private/Test.md\`, in it. Before adding anything personal, extend your configuration:
+
+\`\`\`json
+{
+  "vault": "./my-vault",
+  "site": {
+    "title": "My notes",
+    "home": "Home.md",
+    "navigation": ["Projects", "Notes"],
+    "hiddenPaths": ["Private"]
+  }
+}
+\`\`\`
+
+After saving, **Private** should disappear from the file tree, and searching for the test note should not find it. The folder's notes and attachments are excluded from the build, not merely tucked away in navigation. Removing a folder from \`navigation\` does not exclude it.
+
+This controls the generated website, not what goes into your Git repository. Follow [[About/Security and privacy]] before pushing personal files or deploying; it also explains how to exclude individual notes.
+
+## 5. Try the reader controls before setting defaults
+
+Open **Reader settings** using the settings icon beneath the file tree. Try **Properties**, **Table of contents**, and **Stacked pages**, then open another note to see the difference. **Properties** appears below the note body when enabled; hiding it does not remove those values from the published data.
+
+Press **Command+K** on macOS or **Ctrl+K** elsewhere to open the quick switcher. Type a note name, use the arrow keys, and press Enter. It searches titles, filenames, paths, and aliases. Turning off **Quick switcher** makes the same shortcut focus sidebar search instead.
+
+When you know which layout you prefer, add the matching defaults inside \`site\`. For example:
+
+\`\`\`json
+"showProperties": false,
+"showToc": true,
+"stacked": false
+\`\`\`
+
+These lines are a fragment to add to your existing \`site\` object, not a replacement configuration. Use commas between settings, with no trailing comma after the last one. Most reading features start enabled; stacked pages and reader theme switching start disabled.
+
+Reader choices saved in your browser take precedence over these defaults. To check what a new visitor will see, open the site in a fresh private window. To reset your regular browser, clear this site's stored data and reload; that also clears folder folds and other saved reader choices.
+
+For colors and the theme picker, continue with [[About/Obsidian themes]]. Color mode (\`site.theme\`) and the selected Obsidian CSS theme (top-level \`theme\`) are independent settings.
+
+## Optional: other paths and appearance settings
+
+### Show a note in a different sidebar folder
+
+You can change navigation without moving files. With the sample note from step 3, add this inside \`site\`:
+
+\`\`\`json
+"navigationFolders": {
+  "Notes/First project.md": "Guides/Projects"
+}
+\`\`\`
+
+The note appears under **Guides → Projects**, while its source remains \`Notes/First project.md\` and its published route is unchanged. Use the displayed folder path, \`Guides/Projects\`, if you want to order that folder with \`navigation\`.
+
+### Publish beneath a website subfolder
+
+The top-level \`base\` defaults to \`/\`. If your website is served beneath a path such as \`https://example.com/notes/\`, set \`"base": "/notes/"\` and rebuild. This is the website's path, not its domain or a folder on your computer. [[About/Deployment]] walks through hosting.
+
+### Keep a vault or configuration elsewhere
+
+Paths such as \`vault\`, an explicit theme CSS path, and entries in \`css\` are relative to the folder containing \`publish.config.json\`. Note paths such as \`home\` and \`hiddenPaths\` start inside the vault instead. Use \`/\` between folder names and do not put \`..\` in navigation or exclusion paths.
+
+For a one-off build, environment variables can select a different configuration or vault:
 
 \`\`\`sh
 PUBLISH_CONFIG="/absolute/path/to/publish.config.json" npm run build
 OBSIDIAN_VAULT="/absolute/path/to/Your Vault" npm run build
 \`\`\`
 
-A relative \`PUBLISH_CONFIG\` resolves from the project root. \`OBSIDIAN_VAULT\` overrides \`vault\`; a relative environment vault path resolves from the project root rather than from the config file.
+\`OBSIDIAN_VAULT\` takes precedence over the configured \`vault\`. Relative paths in these two environment variables start from the project folder where Lattice runs, rather than beside a separately located configuration file.
 
-## Reader settings
+### A few finishing touches
 
-| \`site\` setting | Default | Purpose |
-| --- | --- | --- |
-| \`title\` | \`Notes\` | Site name. |
-| \`description\` | Empty | Fallback HTML description; a note's \`description\` property takes precedence. |
-| \`theme\` | \`system\` | Reader color mode: \`light\`, \`dark\`, or \`system\`. Not a community theme name. |
-| \`accent\` | Empty | Optional \`#RGB\` or \`#RRGGBB\`; otherwise a valid vault accent can apply. |
-| \`readable\` | \`true\` | Restrained reading width. |
-| \`showProperties\` | \`true\` | Display YAML properties; hiding this panel does not make properties private. |
-| \`showToc\` | \`true\` | Heading outline. |
-| \`showBacklinks\` | \`true\` | Incoming note links. |
-| \`showGraph\` | \`true\` | Graph panel. |
-| \`stacked\` | \`false\` | Horizontal stacked-page reading. |
-| \`quickSwitcher\` | \`true\` | Command/Ctrl+K file picker; readers can disable it in settings. |
-| \`allowThemeSwitching\` | \`false\` | Let readers choose included Obsidian themes in settings. |
-| \`navigation\` | \`[]\` | Order folders and full note paths. |
-| \`navigationFolders\` | Unset | Place notes in custom navigation folders without moving source files. |
-| \`hiddenPaths\` | \`[]\` | Exclude matching vault-relative files or whole folders before rendering. |
-| \`communityTheme\` | \`default\` | Fallback CSS theme when no top-level theme or vault selection applies. |
-| \`customCss\` | Empty | Inline trusted CSS applied after other appearance inputs. |
+Add a short \`site.description\` for the site's default page description, or \`site.accent\` with a color such as \`#8065da\`. A note's own \`description\` overrides the site description, and a configured accent overrides the vault accent. \`readable\` controls the restrained reading width; \`showBacklinks\` and \`showGraph\` control the corresponding page-information sections.
 
-The demo deliberately sets \`showProperties: false\` and \`allowThemeSwitching: true\`; these are not the defaults. Saved browser preferences override the corresponding reader defaults, including \`quickSwitcher\`. Reader controls change presentation, not source notes or access permissions.
+For theme CSS, snippets, \`publish.css\`, and extra styles, use [[About/Obsidian themes]] rather than changing everything at once. If a setting is misspelled or a required file cannot be found, the terminal reports the problem; [[About/Troubleshooting]] can help.
 
-Press **Command+K** (macOS) or **Ctrl+K** to open the quick switcher. It searches published file titles, names, paths, and aliases. Use Up/Down and Enter to choose a note; Escape dismisses it. **Reader settings → Quick switcher** turns the popup on or off and remembers the choice locally. With it disabled, the same shortcut focuses sidebar search.
-
-## Navigation is not privacy
-
-\`navigation\` orders entries; it does not restrict what is published. \`navigationFolders\` moves a note to another public navigation folder without moving its source:
-
-\`\`\`json
-{
-  "site": {
-    "navigation": ["About", "Projects", "Notes"],
-    "navigationFolders": {
-      "Research/Methods.md": "Guides/Research"
-    },
-    "hiddenPaths": ["Private", "Templates"]
-  }
-}
-\`\`\`
-
-Paths in \`navigation\` and \`hiddenPaths\` must be vault-relative, non-empty, and without \`..\`. Use full note filenames, including folders and \`.md\`, rather than frontmatter titles or published URLs. Unlisted entries remain visible in alphabetical order: folders by name, notes by title. See [[About/Security and privacy]] for explicit note-level exclusion.
-
-Folder expansion/collapse is remembered in this browser for the site, independently of the note being viewed. Rebuilds do not reset it or write it into your vault. Removed or renamed folder paths are discarded, new folders start open, and folding a parent preserves its children's fold choices. Custom navigation folders use their displayed folder paths. If storage is blocked, changes still work for the current session but do not survive a reload. This does not persist the button that hides the entire sidebar.
-
-## Appearance inputs
-
-Top-level \`theme\` selects \`"default"\`, \`"publish-theme"\`, an installed community theme name, or a CSS file path. Omit it to follow the vault's selected theme, falling back to Default (Obsidian). When \`site.allowThemeSwitching\` is enabled, optional top-level \`themes\` limits the installed/custom choices; Default, Publish, and the selected site theme always remain available. Omit \`themes\` to discover installed themes, or use \`[]\` to disable that discovery. See [[About/Obsidian themes#Let readers switch themes|the theme-picker guide]]. \`snippets\` selects CSS snippet names or paths; omit it to follow Obsidian, or use \`[]\` to disable snippets. \`css\` lists additional CSS paths. \`bodyClasses\` adds individual class names, without whitespace inside a name.
-
-\`site.communityTheme\` is a fallback when no explicit theme or vault \`cssTheme\` is selected. \`site.customCss\` accepts inline trusted CSS; prefer a versioned \`publish.css\` or CSS file for maintainability. These are not a plugin runtime.
-
-See [[About/Obsidian themes]] for precedence, assets, and compatibility limits; [[About/Deployment]] covers host paths.
-
-[[About/Documentation|Documentation index]].
+[[About/Documentation|Back to the documentation index]].
 `,
     },
     {
@@ -1235,68 +1339,106 @@ See [[About/Obsidian themes]] for precedence, assets, and compatibility limits; 
 title: Contributing
 category: documentation
 tags: [lattice, documentation, contributing]
-description: Maintain Lattice with focused changes, regression tests, and truthful demo provenance.
+description: Create your own site, report a problem, or send a focused change to Lattice.
 ---
 
-Make focused changes that preserve the build/browser boundary, note-native presentation, and privacy filtering. See [[About/Maintainer|the maintainer]] for project maintenance information. Source, issues, and pull requests are hosted at [jgx0/lattice](https://github.com/jgx0/lattice).
+Want your own notes website, or want to improve Lattice? Those use different GitHub workflows. Choose the path below; you do not need to contribute code to publish a site.
 
-## Set up and verify
+## Create your own site: use the template
 
-From the project root, using Node.js 22.12 or newer:
+For your own website, start with [**Use this template**](https://github.com/jgx0/lattice/generate). Choose your GitHub account and a repository name, then create the repository.
+
+Clone **your new repository**, install the dependencies, and follow [[About/Quick start]] to select your vault and start the local site. When it looks right, [[About/Deployment]] explains how to put it online.
+
+A template creates an independent repository for your site. It does **not** create a fork relationship for upstream pull requests. Use the fork workflow below when you want to send a change back to Lattice.
+
+## Report a problem or suggest an improvement
+
+Search [the issues](https://github.com/jgx0/lattice/issues) for an existing report. If you do not find one, open an issue with:
+
+- What you were trying to do and what happened instead.
+- Your Node/npm versions, the command you ran, and the error message.
+- A small example note, Base, or CSS file that shows the problem, if needed.
+
+Use a made-up example rather than attaching a private vault or screenshots containing personal information. For a substantial feature, discuss it in an issue before spending time on the implementation.
+
+For a setup problem, try [[About/Troubleshooting]] first; it may have the fix you need.
+
+## Contribute a change: fork the repository
+
+A documentation clarification is a good first contribution. The steps below use \`vault/About/Troubleshooting.md\` as an example; replace that filename if you choose another guide.
+
+### 1. Make your GitHub fork
+
+Open [jgx0/lattice](https://github.com/jgx0/lattice) and click **Fork**. Create the fork under your GitHub account. GitHub keeps it connected to the original repository so you can open an upstream pull request.
+
+With Git and **Node.js 22.12 or newer** installed, run the following. Replace \`YOUR-USERNAME\` with your GitHub username.
 
 \`\`\`sh
-git clone https://github.com/jgx0/lattice.git
+git clone https://github.com/YOUR-USERNAME/lattice.git
 cd lattice
 npm ci --include=dev
-npm run check
-npm audit
+git switch -c docs/clearer-troubleshooting
 \`\`\`
 
-\`npm run check\` runs type checking, the complete test suite, and the production build. The build also runs TypeScript checks and compiles the filesystem demo. The checked-in GitHub Actions workflow verifies Node.js 22 and 24; it does not deploy a site. Tests cover note/link/search/Bases behavior, sanitization, true Node compilation without browser globals, themes and CSS assets, privacy filtering, static HTML, preview serving, watcher recovery, and React reader interactions.
+You now have a local checkout of your fork and a separate branch for this change. Run the remaining commands from this \`lattice\` folder.
 
-For a demo-content change, a focused regression command is:
+### 2. Make one small edit
+
+Open \`vault/About/Troubleshooting.md\` in your editor. Clarify one confusing instruction: name the action a reader should take and what they should see afterward. Save the file.
+
+Keep the frontmatter title, stable filename, and working links. The site supplies the page title, so do not add a duplicate top-level heading. Avoid including personal notes or changing unrelated files.
+
+To see the page locally, run \`npm run dev\`, open the printed address, and navigate to the guide. The saved text should appear on the page. Stop the server with Ctrl+C when finished.
+
+The demo guides also have a copy in \`src/demo.ts\` for reader and integration tests. Open that file, find \`path: 'About/Troubleshooting.md'\`, and update the matching \`content\` text to match your edited guide. Keep the surrounding entry unchanged. The text is inside a JavaScript template literal, so use these escapes when copying it:
+
+\`\`\`text
+Markdown text    Inside the template literal
+\`                \\\`
+\\                \\\\
+\${               \\\${
+\`\`\`
+
+The synchronization test checks that the guide and fixture contain the same text. This step is for contributing to the included demo, not for notes in your own publishing vault.
+
+### 3. Check the change
 
 \`\`\`sh
-npm test -- src/lib/integration.test.ts src/App.test.ts build/compile.test.ts build/readme.test.ts
+npm run check
 \`\`\`
 
-Run the full suite before treating a cross-cutting change as complete. Audit results need investigation; do not claim a clean audit without running it.
+This runs type checking, the test suite, and a production build. A successful run finishes without errors and produces \`dist/\`. If a check fails, correct the problem and run it again before sending the change.
 
-## Find the right layer
+Review \`git diff\` to see the exact edit. For a documentation change, check that the steps are understandable to someone setting up their first site and that the links open the intended guides.
 
-| Area | Primary files |
-| --- | --- |
-| Configuration validation | \`build/config.ts\` |
-| Filesystem compilation and theme assets | \`build/compile.ts\` |
-| Vite integration, watcher, static emission | \`build/vaultPlugin.ts\` |
-| Semantic note pages | \`build/staticPages.ts\` |
-| Note model, links, Markdown/Bases, sanitization | \`src/lib/\` |
-| Reader state and navigation | \`src/App.tsx\` |
-| Reader components | \`src/SidebarTree.tsx\`, \`src/GraphView.tsx\`, \`src/MarkdownContent.tsx\` |
-| Filesystem demo | \`vault/\` |
-| In-memory regression fixture | \`src/demo.ts\` |
+### 4. Commit and push to your fork
 
-Read [[About/Architecture]] before moving logic between these layers. Public reader code should consume compiled data, not load private source files or parse vaults at runtime.
+Stage the guide and its synchronized fixture, then commit and push your feature branch:
 
-## Keep the demo truthful
+\`\`\`sh
+git add vault/About/Troubleshooting.md src/demo.ts
+git commit -m "docs: clarify troubleshooting steps"
+git push -u origin docs/clearer-troubleshooting
+\`\`\`
 
-Sample notes are illustrative fixtures. Keep their observations, book ratings, and example project histories labeled as demo content, and preserve genuine bibliographic author names.
+Your change is now on your fork's branch, not on the original repository. Do not include your personal vault, generated \`dist/\` output, or unrelated edits in the commit.
 
-When editing or renaming a demo note, synchronize its content in \`src/demo.ts\` and update wikilinks, transclusion targets, and relevant regressions. Prefer exact vault-relative links. Documentation pages use frontmatter titles without a duplicate top-level body heading.
+### 5. Open the upstream pull request
 
-Do not modify third-party theme vendor files casually. Preserve their licenses and provenance; use snippets or \`publish.css\` for site-level overrides.
+Open [Lattice's pull requests](https://github.com/jgx0/lattice/pulls) and choose **New pull request**, then **compare across forks**. Select \`jgx0/lattice\` as the base repository and your fork's \`docs/clearer-troubleshooting\` branch as the head. Use the upstream default branch as the base branch.
 
-## Review changes as a reader
+Give the pull request a short title. Explain the problem, the improvement, and which checks you ran; link the issue if there is one. The resulting pull request proposes your change to Lattice for review.
 
-Check a narrow screen, keyboard navigation, both color modes, direct URLs, heading links, previews, optional panels, and no-JavaScript note content. Look for unresolved links, embed limits, Base errors, and unexpectedly exposed metadata.
+If a reviewer asks for an adjustment, edit locally, rerun the checks, commit the changed file, and push the same branch. The existing pull request updates automatically.
 
-For privacy or asset changes, add a regression that proves excluded material cannot enter public HTML, transclusions, previews, Bases, or metadata. Test failure cases, not only successful rendering.
+## Working on code or demo content?
 
-## Share an issue or proposed change
+[[About/Architecture]] has a short source-file map. Keep code changes focused and add a test for behavior you change. For reader changes, try a narrow screen, keyboard navigation, and both color modes; for generated-page changes, open a note URL directly.
 
-[Open an issue](https://github.com/jgx0/lattice/issues) or [submit a pull request](https://github.com/jgx0/lattice/pulls). Use a minimal, non-sensitive reproduction and explain expected versus actual behavior. Include commands and version information. Avoid publishing a full private vault, screenshots with personal data, or configuration containing secrets.
+Demo-content changes may also need updates to the in-memory test fixture and links. Keep examples clearly fictional, and use snippets or \`publish.css\` for site overrides rather than editing bundled third-party theme files.
 
-See [[About/Troubleshooting]] for diagnosis and [[About/Security and privacy]] for the safety review.
+Next: [[About/Architecture|find the right place to edit]] or [[About/Troubleshooting|resolve a local problem]]. [[About/Maintainer]] introduces the project's maintainer.
 
 [[About/Documentation|Documentation index]].
 `,
@@ -1308,111 +1450,156 @@ See [[About/Troubleshooting]] for diagnosis and [[About/Security and privacy]] f
 title: Deployment
 category: documentation
 tags: [lattice, documentation, deployment]
-description: Build, inspect, and deploy only Lattice's static output to a production host.
+description: Put your own Lattice site online with Cloudflare Pages, Vercel, or Netlify.
 ---
 
-Deploy **the generated \`dist/\` directory**, not the project checkout or the source vault. Lattice produces static HTML, application assets, referenced attachments, and theme assets; a production host does not need access to your notes or a running compiler.
+This guide takes your local site and gives it a public web address. If you haven't created your own repository and run Lattice yet, start with [[About/Quick start]].
 
-## Build on your machine or in CI
+You only need to choose **one** hosting provider. Cloudflare Pages, Vercel, and Netlify can all build a site from your GitHub repository. They'll rebuild it when you push changes.
 
-Use Node.js 22.12 or newer. From the project root:
+## First, decide where your notes will live
+
+**Automatic builds from GitHub:** the host needs your configuration, publishable notes, attachments, and selected theme files in **your own repository**. Put a reviewed copy of those files in a folder such as \`site-vault/\`, then set \`"vault": "./site-vault"\` in \`publish.config.json\`. Do not commit an entire personal archive just to make cloud builds work.
+
+**Keep the vault on your computer:** if your vault is ignored by Git or lives outside the project, build locally and upload the generated \`dist/\` folder yourself. Follow the [[About/Deployment#CLI upload|Cloudflare upload steps]] below, or use your preferred static-file host.
+
+A private GitHub repository can keep source files private, but the deployed website is still public. [[About/Security and privacy]] walks through choosing what to share.
+
+## Build it once before connecting a host
+
+In your project's terminal:
 
 \`\`\`sh
-npm ci --include=dev
-npm run check
+npm run build
 npm run preview
 \`\`\`
 
-\`npm run check\` runs type checking, all tests, and the production build. The build requires development dependencies: TypeScript, Vite, and build-time JSDOM are installed there. Do not use a production-only install such as \`npm ci --omit=dev\` for the builder. \`--include=dev\` is explicit so CI environments with \`NODE_ENV=production\` still install the toolchain.
+Open **http://localhost:4173**. This is the version you'll deploy. Open a note directly by its URL, try an attachment, and check your theme. Preview won't update after edits until you run \`npm run build\` again. Press **Ctrl+C** to stop preview before running the next commands.
 
-\`preview\` serves the already-built output, normally at \`http://localhost:4173\`. It is a **local verification tool**, not a hardened production service. Likewise, the live development server is not the public deployment target.
+When you're happy with it, commit the files the cloud builder will need and push them to **your repository**. For example, if \`site-vault/\` contains only publishable material:
 
-## Review before upload
+\`\`\`sh
+git add publish.config.json site-vault/
+git commit -m "Add my published notes"
+git push origin main
+\`\`\`
 
-- Open the homepage and a deep note URL directly, including after a reload.
-- Check links, heading anchors, navigation, and static note content with JavaScript disabled.
-- Test images, audio, video, PDFs, and local theme assets where used.
-- Inspect \`dist/\` for secrets, unwanted properties, copied quotations, and private details.
-- Confirm there are no unresolved links or visible Base/embed errors on the routes you intend to share.
-- Remove old deployment output when replacing a site; excluded notes must not survive as stale files on the host.
-
-A successful build validates compilation, not the appropriateness of making every surviving sentence public. Follow [[About/Security and privacy]] for source exclusion and external-resource review.
-
-## Static host requirements
-
-Configure your host to serve \`dist/\` as the site's document root. Note routes are emitted as directory \`index.html\` files, so the host should serve directory indexes and preserve encoded URL paths. Each note's semantic HTML includes its content, navigation, outline, and backlinks before JavaScript runs.
-
-Do not rely on a blanket single-page-app fallback that serves the homepage for every unknown URL; it can hide missing routes. The build emits \`404.html\`, and local development/preview return an actual 404 status for missing pages without mounting the reader over the error page. Configure the static host to use that missing-page document with a 404 status, then test a URL that does not exist. Configure HTTPS, caching, and any desired security headers on the host. There is no built-in login or password gate; private access requires separate hosting infrastructure.
+Check the files selected for the commit before running it. If \`site-vault/\` is in \`.gitignore\`, it won't be included; only remove that ignore rule after deciding those files can go to GitHub.
 
 ## Cloudflare Pages
 
-The root \`wrangler.jsonc\` identifies the Pages project with \`name: "lattice"\`, sets \`pages_build_output_dir: "./dist"\`, and pins a \`compatibility_date\`. These are Pages settings, not a Worker entry point. Change the project name if you use a different Pages project.
-
 ### Git integration
 
-Open the [Cloudflare Pages setup dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages), create a **Pages** project, and select [jgx0/lattice](https://github.com/jgx0/lattice) or a fork that you control. Select the project root and configure:
+1. Open [Cloudflare Pages setup](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/pages).
+2. Choose **Pages → Connect to Git** and authorize GitHub if asked.
+3. Select **the repository you created from the Lattice template**, such as \`YOUR-USERNAME/my-lattice\`.
+4. Keep the root directory at the repository root and use these settings:
 
 | Setting | Value |
 | --- | --- |
 | Framework preset | None |
 | Build command | \`npm run build\` |
 | Build output directory | \`dist\` |
-| Node.js | 22.12 or newer in the Node 22 release line (\`NODE_VERSION=22\`) |
-| Install dependencies | Set \`NPM_CONFIG_INCLUDE=dev\`; use \`npm ci --include=dev\` where an install command is configurable |
+| Environment variables | \`NODE_VERSION=22\`, \`NPM_CONFIG_INCLUDE=dev\` |
 
-If the dashboard uses an automatic dependency install, ensure its environment does not omit development dependencies. With a custom install step, skip the automatic install if needed and run \`npm ci --include=dev\` before \`npm run build\`. The repository's Node version file selects Node 22, but verify the version reported in the build log.
+The development dependencies are needed to build the site. \`NPM_CONFIG_INCLUDE=dev\` keeps them installed on the builder. Node.js must be 22.12 or newer.
+
+5. Save and deploy. Once the build finishes, open the address Cloudflare gives you.
+
+The included \`wrangler.jsonc\` starts with \`name: "lattice"\`, \`pages_build_output_dir: "./dist"\`, and a pinned \`compatibility_date\`. Change its name to match your Pages project if you use Wrangler. \`public/_headers\` supplies the site's response headers and asset-cache rules.
 
 ### CLI upload
 
-First create the Pages project in your Cloudflare account, using the dashboard or \`npx wrangler pages project create lattice\`. Then, from the project root:
+Use this route when you want to build from a vault kept on your computer. You'll upload the website, not the vault.
+
+Create a Pages project once in your account, either in the dashboard or with:
+
+\`\`\`sh
+npx wrangler pages project create my-lattice
+\`\`\`
+
+Then build and upload:
 
 \`\`\`sh
 npm ci --include=dev
 npm run build
-npx wrangler pages deploy dist --project-name=lattice
+npx wrangler pages deploy dist --project-name=my-lattice
 \`\`\`
 
-Wrangler requires authentication and an existing project named \`lattice\`; the commands above do not provide credentials. Choose Git integration or direct uploads when setting up the project, rather than assuming an existing project supports switching workflows.
+Replace \`my-lattice\` with your project name. Wrangler will ask you to authenticate if needed. These commands publish when you run them; Lattice doesn't supply hosting credentials.
 
-\`public/_headers\` is copied into \`dist/\` for Cloudflare Pages static responses. It configures baseline security headers and immutable caching for hashed application, attachment, and theme assets. Review it alongside your theme and embed choices; headers do not add authentication or make published notes private.
+Choose Git integration or Direct Upload when creating your Pages project. Cloudflare doesn't let you freely switch every existing project between the two workflows.
 
 ## Vercel
 
-The root \`vercel.json\` selects a static build with \`framework: null\`, \`cleanUrls: true\`, \`outputDirectory: "dist"\`, \`installCommand: "npm ci --include=dev"\`, and \`buildCommand: "npm run build"\`. It also defines security and hashed-asset cache headers without a blanket SPA rewrite. Use Node.js 22.12 or newer in the Node 22 release line in the project's dashboard settings.
+1. Open [Vercel's new-project page](https://vercel.com/new).
+2. Import **your own template-created repository** from GitHub.
+3. Leave the root directory at the repository root.
+4. Confirm these settings, supplied by \`vercel.json\`:
 
-Open the [Vercel clone-and-deploy flow](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjgx0%2Flattice), or import [jgx0/lattice](https://github.com/jgx0/lattice) or your fork from the dashboard, and keep the root directory at this project's root. Verify the framework is **Other**, the install command includes development dependencies, the build command is \`npm run build\`, and the output directory is \`dist\` before deploying. Only the static output is served; the source vault is a build input.
+| Setting | Value |
+| --- | --- |
+| Framework preset | Other |
+| Install command | \`npm ci --include=dev\` |
+| Build command | \`npm run build\` |
+| Output directory | \`dist\` |
 
-The repository is [jgx0/lattice](https://github.com/jgx0/lattice). The Vercel link opens a repository-specific clone-and-deploy setup flow; authentication and confirmation are still required. Git-triggered deployments require connecting your repository or fork and pushing to its configured deployment branch. Neither the link nor these configuration files pushes local changes or provisions a deployment automatically.
+Choose Node.js 22 or newer in project settings, then deploy. Vercel gives you a URL when the build completes.
 
-## Netlify and continuous verification
+For reference, the configuration uses \`framework: null\`, \`cleanUrls: true\`, \`outputDirectory: "dist"\`, \`installCommand: "npm ci --include=dev"\`, and \`buildCommand: "npm run build"\`. You don't need to edit those values for a normal root-domain deployment. There is no catch-all rewrite to the homepage.
 
-The checked-in \`netlify.toml\` uses Node.js 22, runs \`npm run build\`, and publishes \`dist\`. It configures \`nosniff\`, referrer/permissions policies, and long-lived immutable caching for hashed application, attachment, and theme assets. It intentionally has no blanket SPA redirect. Ensure dependency installation includes the development toolchain.
+## Netlify
 
-The GitHub Actions verification workflow installs dependencies and runs \`npm run check\` on Node.js 22 and 24. It verifies the project but does not deploy it or provision hosting credentials. These host configurations are starting points, not a security certification or a private-access mechanism; no hosting account or live deployment is provisioned by the configuration files.
+1. Open Netlify and choose **Add new site → Import an existing project**.
+2. Connect GitHub and select **your own repository**.
+3. Leave the build settings from \`netlify.toml\`: command \`npm run build\`, output \`dist\`, Node 22.
+4. Deploy and open the generated address.
+
+If your builder omits development dependencies, include them with \`npm ci --include=dev\`. The site itself is static and needs no Node server after the build.
+
+## Check the public site
+
+Try these on the provider's URL:
+
+- Open a nested note, then reload it.
+- Follow a heading link and an attachment.
+- Switch themes if the picker is enabled.
+- Open a made-up URL. It should show the missing-page screen, not the homepage.
+- Confirm that excluded notes and private details are absent.
+
+Lattice emits \`404.html\`. Keep the host's normal file routing and **don't add an SPA rewrite to \`index.html\`**. A missing URL should return HTTP 404. If an old note remains online after you exclude it, replace or clear the previous deployment rather than leaving stale files behind.
 
 ## Deploy under a subdirectory
 
-Start with the default root \`base: "/"\` for the Cloudflare Pages, Vercel, and Netlify setups above. If you later host at a path such as \`/notes/\`, configure:
+Most provider URLs use the default \`base: "/"\`. Only change this if the site really lives below a path, such as \`example.com/notes/\`:
 
 \`\`\`json
 {
-  "vault": "./vault",
+  "vault": "./site-vault",
   "base": "/notes/",
-  "site": { "title": "My notes", "home": "Welcome.md" }
+  "site": { "title": "My notes" }
 }
 \`\`\`
 
-Rebuild, then mount the **contents** of \`dist/\` at \`/notes/\` on the host. The base prefixes public URLs; it does not add a nested \`notes/\` directory to the output. Preview reads the emitted base manifest, so visit its printed base URL when checking the build.
+Rebuild and mount the **contents** of \`dist/\` at \`/notes/\`. The output won't contain an extra \`notes/\` folder. Revisit host routing and the path patterns in \`public/_headers\`, \`vercel.json\`, and \`netlify.toml\` when changing the mount path.
 
-Changing a domain alone does not require changing \`base\`; changing the mount path does. A correct base must reach note pages, the application bundle, \`_assets/\`, and \`_theme/\` consistently. Revisit host routing and the path patterns in \`public/_headers\`, \`vercel.json\`, and \`netlify.toml\` when moving away from \`/\`; the checked-in hashed-asset cache rules assume a root deployment.
+For GitHub Pages project sites, the base is usually your own repository name, such as \`/my-lattice/\`, not \`/lattice/\` unless that is your name. Use your own Pages deployment workflow to publish \`dist/\`.
 
-## Updating the site
+## Updating your site
 
-Edit locally, rerun the checks and build, and replace the deployment with the new output. Prefer atomic deployments or a host that versions releases, especially when note names or privacy settings change. Keep the source vault and its \`.obsidian\` settings on the build side; only deliberately emitted public files belong on the host.
+With Git-connected hosting, edit the publishable files, check the site locally, commit, and push to your own deployment branch. Your provider runs the next build. With manual hosting, run \`npm run build\` and upload the new \`dist/\` output again.
 
-[[About/Configuration|Configuration]] covers path overrides; [[About/Troubleshooting]] covers deep-link and asset failures.
+For your own site, use \`npm run build\` and \`npm run preview\` before an update. The build includes TypeScript checking; preview lets you inspect the generated pages. \`npm run check\` additionally runs Lattice's development regression suite, which assumes the included demo configuration. Use that suite when contributing changes to Lattice, not as the only test of your personalized site.
 
-[[About/Documentation|Documentation index]].
+### The inherited GitHub check
+
+The template includes \`.github/workflows/verify.yml\`, which runs the development checks on Node 22 and 24 for pushes and pull requests. It **does not deploy**. After you customize the configuration, this workflow may fail because some tests expect the demo; an ignored local vault also isn't available to GitHub's runner.
+
+For a personal site, open **your repository → Actions → Verify → ⋯ → Disable workflow** if you aren't using that check. Alternatively, adapt the workflow to build your committed publishing vault with \`npm run build\`. Your hosting provider's Git integration can still build and deploy the site independently.
+
+Setting up a host requires your own account, and no hosting account or live deployment is provisioned by these files. Authentication and confirmation are still required.
+
+[[About/Troubleshooting|Deployment troubleshooting]] · [[About/Documentation|Guide index]].
 `,
     },
     {
@@ -1423,33 +1610,37 @@ title: Documentation
 aliases: [Lattice documentation]
 category: documentation
 tags: [lattice, documentation]
-description: Setup, configuration, themes, Markdown, deployment, and safety for Lattice.
+description: Start with your own repository, build your note site, customize it, and put it online.
 ---
 
-**Lattice** turns your Obsidian vault into a website. To get started, clone the repo, copy your vault into the project folder, point \`publish.config.json\` at that folder, and run \`npm run dev\`. You do not need to convert notes or work through every setting.
+Want your Obsidian notes on the web? Start with [[About/Quick start|Quick start]]. You'll create your own repository from the Lattice template, add a vault, and open the site on your computer.
 
-**Start with [[About/Quick start|Quick start]].** The other guides are here when you need them. [[Projects/Lattice|The project overview]] describes the reader and its features.
+You don't need to read every page before starting. Follow the guides below as you reach each step.
 
-## Publish a vault
+## Build your first site
 
-1. [[About/Quick start|Quick start]] — clone, copy your vault, choose its folder, and run.
-2. [[About/Configuration|Configuration]] — choose a vault, homepage, navigation, and hidden paths.
-3. [[About/Obsidian themes|Obsidian themes]] — use the installed theme, snippets, and CSS assets.
-4. [[About/Markdown and Bases|Markdown and Bases]] — supported note syntax, transclusions, and data views.
-5. [[About/Security and privacy|Security and privacy]] — decide what may become public.
-6. [[About/Deployment|Deployment]] — verify output and publish to a static host.
+1. [[About/Quick start|Quick start]] — create your copy and get your notes on screen.
+2. [[About/Configuration|Make the site yours]] — pick a name, homepage, and navigation layout.
+3. [[About/Obsidian themes|Change the appearance]] — use Default, Publish, or your installed Obsidian theme.
+4. [[About/Markdown and Bases|Try linked content]] — add links, properties, embeds, and a Base table.
+5. [[About/Security and privacy|Choose what to share]] — leave private notes out before publishing.
+6. [[About/Deployment|Put it online]] — connect **your own repository** to a host or upload a local build.
 
-## Understand and maintain it
+## Need help with a specific problem?
 
-- [[About/Architecture|Architecture]] — what happens during compilation versus in the browser.
-- [[About/Troubleshooting|Troubleshooting]] — configuration errors, missing links, themes, and deployment paths.
-- [[About/Contributing|Contributing]] — code locations, regression checks, and demo-content standards.
+[[About/Troubleshooting|Troubleshooting]] covers missing folders, homepage errors, empty Bases, theme issues, and broken deployed URLs. Start with the message you see in the terminal, then find the matching section.
 
-## A useful boundary
+## Curious about how Lattice works?
 
-This is a **publisher**, not an Obsidian plugin host or a private workspace service. There is no plugin execution, Dataview runtime, Canvas editing, Sync, collaboration, account system, or password protection. Bases is a supported subset, not a promise of compatibility with every Obsidian expression.
+[[About/Architecture|Architecture]] explains what happens when you save a note and why the deployed site doesn't need Obsidian or a running compiler. [[About/Contributing|Contributing]] shows how to make and submit a project improvement.
 
-Sample notes are illustrative fixtures for rendering, navigation, and linked collections. Use them to explore the reader, then replace them with the notes you intend to publish.
+The [[Projects/Lattice|project overview]] is a good place to compare features. The sample essays and reading notes are here to demonstrate the reader, not to tell you what your vault must look like.
+
+## A few things to know
+
+Lattice publishes notes; it doesn't run Obsidian plugins or provide Sync, collaboration, or a login service. Bases supports the functions described in its guide, not every expression from Obsidian or community plugins.
+
+Your local preview is not public. Deploying the generated site makes it public unless you add access restrictions through your host. When you're ready for that step, use the privacy guide first.
 
 [[Welcome|Return to Welcome]].
 `,
@@ -1464,132 +1655,207 @@ tags: [lattice, documentation, markdown]
 description: Supported Markdown, wikilinks, transclusions, media, and the bounded Bases runtime.
 ---
 
-Lattice compiles notes on the build machine. Ordinary Markdown and supported Obsidian syntax become sanitized HTML. The browser receives rendered public pages and searchable note text/properties, not the original complete Markdown files. Nonliteral Obsidian comments are omitted from the searchable body; literal \`%%\` examples inside fenced or inline code are preserved. The browser does not upload or process local vault files or run Obsidian plugins.
+Create two linked notes, add a few useful properties, and turn a collection of notes into a Base table. Along the way, you will see how the published reader handles headings, callouts, embeds, and backlinks.
 
-## Note titles and properties
+Complete [[About/Quick start]] first and keep \`npm run dev\` running. Make changes in your copied vault, not the included demo. Examples for new notes are shown as code to copy; the live book table later on uses the existing demo notes.
 
-Put the page title in YAML frontmatter. The reader supplies the page heading, so avoid repeating it as a top-level heading in the body.
+## 1. Write your first page
+
+Create a \`Notes\` folder in your copied vault, then create \`Notes/My first note.md\` with:
 
 \`\`\`markdown
 ---
-title: My note
-aliases: [Another name]
-tags: [research]
-description: A short description for this page.
+title: My first note
+aliases: [My starting point]
+tags: [learning]
+description: A first page for my published notes.
 ---
 
-An opening paragraph.
+This is my first published note.
 
-## A useful section
+## Something worth keeping
 
-The note continues here.
+A small observation is enough to begin. ^first-thought
 \`\`\`
 
-Properties can drive Bases and are part of public compiled data even if the properties panel is hidden. When visible, the properties panel appears at the bottom of the note so reading begins with the title and note body. Wikilinks in property strings, lists, and nested values contribute to backlinks and graphs and become clickable links in the properties panel and Base cells. For example:
+Save the file, open **Notes** in the website's file tree, and click **My first note**. You should see its title above the opening paragraph. The reader supplies that heading from \`title\`, so you do not need another top-level \`# My first note\` in the body. Without a \`title\` property, the filename supplies the title.
+
+Open the page-information sidebar if it is closed. **On this page** should list **Something worth keeping**; clicking it scrolls to the section. Try searching for the alias **My starting point** with **Command+K** or **Ctrl+K**.
+
+## 2. Connect a second note
+
+Create \`Notes/Another note.md\` with:
+
+\`\`\`markdown
+---
+title: Another note
+---
+
+This idea grows out of [[Notes/My first note|my first page]].
+\`\`\`
+
+Save, open **Another note**, and click **my first page**. It should take you to the first note, where **Linked mentions** now includes **Another note**. The interactive graph also connects the two pages. If these sections are hidden, enable **Backlinks** and **Interactive graph** in Reader settings.
+
+The part before \`|\` identifies the target; the part after it changes the visible label. Using the full path inside the vault avoids confusion when different folders contain notes with the same name. Ordinary Markdown links work too: from \`Notes/Another note.md\`, \`[my first page](./My%20first%20note.md)\` points at the same file.
+
+Your note's filename and folders determine its published route. Changing \`title\` changes the heading, not the route; renaming the file can change the route, so update incoming links as well.
+
+## 3. Make properties into useful links
+
+Add these properties to the existing frontmatter of \`Notes/My first note.md\`, before the closing \`---\`:
 
 \`\`\`yaml
-category: "[[Field Notes/Digital gardens]]"
+category: "[[Notes/Another note]]"
 related:
-  - "[[Field Notes/Walking as research|Walking]]"
-  - "[[Field Notes/Digital gardens#A link should carry a thought|A useful link]]"
+  - "[[Notes/Another note|A related idea]]"
 \`\`\`
 
-Use unquoted YAML booleans for privacy flags, not strings; see [[About/Security and privacy]].
+Save and scroll to the bottom of **My first note**. If **Properties** is enabled in Reader settings, both values should be clickable. Follow the category link to **Another note**: it now has a linked mention from **My first note**.
 
-## Links and transclusions
+A category can be plain text such as \`category: book\`, or a link to another note. A link in a single property value, a list, or a nested property counts toward backlinks and graph connections just like a body link. Base cells can display these links too. Plain text categories are useful for filters; linked categories are useful when you want the category to have its own page.
 
-Use vault-relative wikilinks when filenames could be ambiguous. Aliases change displayed text without changing the target.
+Properties remain part of the published data even when their panel is hidden. Exclude private notes or folders using [[About/Configuration]] and [[About/Security and privacy]], rather than relying on a reader setting.
 
-\`\`\`markdown
-[[Field Notes/Digital gardens]]
-[[Field Notes/Digital gardens|Digital gardens]]
-[[Field Notes/Digital gardens#A link should carry a thought]]
-[[Field Notes/Digital gardens#^link-test]]
+## 4. Add a callout, tasks, math, and a footnote
 
-![[Field Notes/Digital gardens#^link-test]]
-![[Field Notes/Walking as research#A detail to return to]]
-![[Field Notes/The useful edge]]
-\`\`\`
-
-These examples point to existing sample notes. A block identifier such as \`^link-test\` marks the source block. Whole-note, heading, and block embeds are supported; recursion is bounded, so cyclic or excessively nested embeds are not an unlimited expansion mechanism.
-
-Markdown links and heading/block anchors also work. For a relative Markdown link from an About note, use \`[Digital gardens](../Field%20Notes/Digital%20gardens.md)\`; keep the \`.md\` filename and encode spaces. The build rewrites resolved internal links to published URLs. Filenames and folders determine routes, while frontmatter \`title\` changes the displayed heading. Renaming a file can change its route; update incoming links before rebuilding. Paths to project code such as \`src/App.tsx\` are not vault notes—write them as inline code, not local note links.
-
-## Reader syntax and media
-
-Supported forms include tables, native-style callouts, disabled task checkboxes, footnotes, highlighting, fenced code, and bundled LaTeX output. Tasks are rendered for reading, not synchronized back to the source. Fenced code is displayed, not executed.
+Append this to \`Notes/My first note.md\`:
 
 \`\`\`markdown
-> [!note] A useful boundary
-> Keep the source visible and name the uncertainty.
+> [!tip] Start small
+> One clear paragraph is enough for today.
 
-- [ ] An illustrative task
+- [x] Create my first page
+- [ ] Add another observation
 
 Inline math: $E = mc^2$.
+
+A note can leave room for a source.[^source]
+
+[^source]: Put the reference or extra explanation here.
 \`\`\`
 
-Local images, audio, video, and PDFs are supported, including wiki asset embeds and sanitized HTML media. Native playback depends on the browser and codec. Keep controls and text equivalents visible; [[Atlas/Media cabinet]] demonstrates offline SVG/audio/video. Remote frames are a separate trust and privacy decision, not a free extension of the local-media model.
+After saving, you should see a styled **Start small** callout, one checked and one unchecked task, formatted math, and a numbered footnote. Click the footnote number to move to its explanation.
 
-## Bases
+The website is read-only: task checkboxes show the source state but cannot update it. Change \`[ ]\` to \`[x]\` in your vault and save to change the published task. Ordinary fenced code is displayed rather than executed. Tables, highlighting with \`==text==\`, and block math between \`$$\` lines are also supported.
 
-Embed a \`.base\` file from a note. The [[Library/The reading room|reading room]] uses \`Data/Reading.base\`; [[Field Notes/Digital gardens]] uses \`Data/Related.base\`.
+## 5. Bring a section into another page
+
+Append this to \`Notes/Another note.md\`:
 
 \`\`\`markdown
-![[Data/Reading.base]]
+## A section to revisit
+
+![[Notes/My first note#Something worth keeping]]
+
+## Just the observation
+
+![[Notes/My first note#^first-thought]]
 \`\`\`
 
-A minimal Base file can select public notes and order a table:
+The second note should now show the heading section and, separately, the paragraph marked \`^first-thought\`. A leading \`!\` embeds content; leaving it out creates a link to the heading or block. To embed the whole note, use \`![[Notes/My first note]]\`. Avoid embedding pages back into each other: recursive expansion is limited.
 
-\`\`\`yaml
+For images and other media, keep files in your vault and embed their actual filenames. [[Atlas/Media cabinet]] demonstrates the demo's local image, audio, and video. Local PDFs are supported too; playback and display depend on the reader's browser and the media format. Remote resources can make external requests, so choose them deliberately rather than assuming everything will work offline.
+
+## 6. Turn notes into a Base table
+
+A Base is a saved description of which notes to show and which properties to display. You can write it directly in a note inside a code fence labeled \`base\`.
+
+For a table of your own tutorial notes, append this to \`Notes/Another note.md\`:
+
+\`\`\`\`markdown
+\`\`\`base
+filters:
+  and:
+    - 'file.inFolder("Notes")'
+views:
+  - type: table
+    name: My notes
+    order: [file.name, note.category, note.tags]
+    sort:
+      - property: file.name
+        direction: ASC
+\`\`\`
+\`\`\`\`
+
+Save and open the page. You should see a **My notes** table with the two notes you created, plus any other published notes already in \`Notes\`. Click a name to open that page. The category cell for your first note links to **Another note**. A fence labeled \`yaml\` only displays the definition; \`base\` renders it.
+
+Here is a working table on this documentation page, using the five books already in the demo vault:
+
+\`\`\`base
 filters:
   and:
     - 'file.inFolder("Library/Books")'
     - 'category == "book"'
 views:
   - type: table
-    name: Books
+    name: Demo bookshelf
     order: [file.name, note.author, note.rating]
     sort:
       - property: note.rating
         direction: DESC
-    limit: 10
+      - property: file.name
+        direction: ASC
 \`\`\`
 
-You can also put the Base definition directly in your note, in a fenced block labeled \`base\`:
+The demo books have plain \`category: book\` properties, so the filter matches them without needing properties on this host page. Click a column heading to change the table's sorting, or a book name to read it. In your own vault, change \`Library/Books\` to a folder you actually have and add \`category: book\` to the notes you want included.
+
+If you prefer a reusable file, save the definition without the surrounding backticks as a \`.base\` file, then embed its vault-relative filename in a note. The demo [[Library/The reading room|reading room]] embeds \`Data/Reading.base\`:
+
+\`\`\`markdown
+![[Data/Reading.base]]
+\`\`\`
+
+That particular Base also matches a book's \`collection\` against the host note's \`collection\`. The reading room has \`collection: books\`; copying that embed to a page without the property will not reproduce its shelf. The inline bookshelf above avoids that extra requirement.
+
+## 7. List notes that link to the current page
+
+Append this block to \`Notes/My first note.md\`:
 
 \`\`\`\`markdown
 \`\`\`base
 views:
   - type: table
-    name: Topic
+    name: Notes linking here
     filters:
       and:
         - file.links.contains(this.file)
-    order:
-      - file.name
+    order: [file.name]
     sort:
       - property: file.mtime
         direction: DESC
 \`\`\`
 \`\`\`\`
 
-This renders a table of public notes that link to the current note, with the most recently modified first. \`this.file\` is the note containing the block. Property wikilinks count too. \`file.mtime\` is the source file's filesystem modification timestamp in milliseconds; \`file.ctime\` uses creation time where available, otherwise filesystem change time. These are not frontmatter \`date\` values or revision history. Copying or freshly cloning a vault can change timestamps and therefore this ordering; use an explicit note property when you need dates preserved across machines.
+You should see **Another note** in **Notes linking here**, because it links to your first page. \`file\` is each possible row; \`this.file\` is the page containing the Base. Links in properties count too. With an embedded \`.base\` file, \`this.file\` still means the host note, not the Base file.
 
-Inline Bases use the same views and filters as embedded \`.base\` files. A fence labeled \`yaml\` is just a code example; label it \`base\` to render the view. Invalid configurations produce a visible Base error.
+\`file.mtime\` sorts by the source file's filesystem modification time, not a frontmatter date. Copying or cloning your vault can change those times. For dates you want to preserve across computers, add a note property and sort by that instead.
 
-Supported views are \`table\`, \`list\`, and \`cards\`. View-level filters combine with base-level filters; \`order\` chooses fields, \`sort\` defines initial sorting, and \`limit\` bounds displayed rows. A table's columns can also be sorted in the reader. Multiple configured views are rendered as sections, not an Obsidian editing interface.
+Bases only see included public notes. A folder excluded with \`hiddenPaths\`, or a note excluded with \`private: true\` or \`publish: false\`, cannot appear as a row. A missing property does not supply a guessed value; it can leave a cell empty or cause a filter not to match.
 
-## Expression context and limits
+## Optional: more Base expressions
 
-\`file\` describes the candidate row; \`note\` and bare property names access its frontmatter. \`this.file\` describes the **host note**, not the \`.base\` source file. For example, \`collection == this.file.properties.collection\` selects books for the reading room, while \`file.path != this.file.path\` excludes the host from related rows.
+The familiar building blocks are property access, comparisons, Boolean conditions, arithmetic, lists, and formulas. \`note.author\` and bare \`author\` both access a row's frontmatter. \`order\` chooses columns, \`sort\` sets initial ordering, and \`limit\` caps the displayed rows. Supported view types are \`table\`, \`list\`, and \`cards\`; multiple views appear as separate sections.
 
-\`file.hasLink("Field Notes/Digital gardens")\` tests whether a row links to a note, including links in its properties. \`file.hasLink(this.file)\` and \`file.links.contains(this.file)\` select notes that link to the host. String, \`link(...)\`, and \`file.link\` targets can resolve aliases and heading/block references. \`file.hasTag("research")\` matches tags case-insensitively, accepts an optional leading \`#\`, and includes nested tags such as \`research/methods\`. \`toString()\` converts supported values for display; for example, \`link("Field Notes/Digital gardens").toString()\` produces a wikilink string.
+A few useful expressions to try in filters or formulas are:
 
-The evaluator supports a bounded, no-eval subset: property access, comparisons, Boolean/arithmetic operators, lists, conditionals, formulas, and selected helpers such as \`contains\`, \`length\`, \`if\`, \`number\`, \`string\`, and \`file.inFolder\`. Supported list/string methods include \`contains\`, \`join\`, \`split\`, \`unique\`, \`map\`, and \`filter\`; this is not general JavaScript or every Obsidian Bases function. Formula cycles, excessive complexity, and unsupported expressions produce visible Base errors.
+\`\`\`text
+file.hasLink(this.file)
+file.hasLink("Field Notes/Digital gardens")
+file.hasTag("research")
+link("Field Notes/Digital gardens").toString()
+\`\`\`
 
-Only filtered public notes can become rows. A missing property usually means an empty value or no matching row, not an automatic inferred value. See [[About/Troubleshooting]] for diagnosing Base errors.
+\`file.hasLink(this.file)\` is another way to select notes linking to the host. Link targets can resolve note aliases and heading/block references. \`file.hasTag("research")\` accepts an optional leading \`#\`, ignores case, and also matches nested tags such as \`research/methods\`. \`toString()\` converts supported values for display; on a link, it produces a wikilink string.
 
-[[About/Documentation|Documentation index]].
+Helpers such as \`contains\`, \`length\`, \`if\`, \`number\`, and \`file.inFolder\` cover common cases, along with selected string/list methods. This is a supported subset, not every Obsidian Bases function or arbitrary JavaScript. Unsupported expressions and invalid definitions show a visible Base error; start with a small working table and add one expression at a time. [[About/Troubleshooting]] can help when a table is empty or reports an error.
+
+### What carries over from Obsidian?
+
+Ordinary Markdown, supported wikilinks, heading/block embeds, callouts, read-only tasks, footnotes, math, local media, properties, and the Base views above are good building blocks for published pages. Obsidian comments outside literal code are omitted from the rendered and searchable body.
+
+Obsidian plugins do not run in the reader. Dataview queries, plugin widgets, editing workflows, and unsupported Base functions do not become working website features simply by copying the note. For a page that uses them, replace the output with ordinary Markdown or a supported Base before publishing.
+
+[[About/Documentation|Back to the documentation index]].
 `,
     },
     {
@@ -1602,114 +1868,137 @@ tags: [lattice, documentation, themes]
 description: Publish with actual Obsidian theme CSS, enabled snippets, and local assets.
 ---
 
-Lattice uses **actual installed Obsidian CSS**, not approximations selected from a theme gallery. It reads your vault's \`.obsidian/appearance.json\` and loads the corresponding files at build time.
+Choose a look for your notes, add a small CSS snippet, and optionally let readers choose their own theme. You can use the built-in **Default (Obsidian)** and **Publish** themes without installing anything, or publish the original CSS from an installed Obsidian theme such as Minimal.
 
-**Default (Obsidian)** is the built-in baseline when neither configuration nor the vault selects another theme. The demo explicitly sets top-level \`"theme": "default"\`, so it starts there even though Minimal is installed. Omit that override for your own vault if you want to follow its selected theme.
+Before you begin, complete [[About/Quick start]] and keep your local site running. The examples assume your own vault is \`my-vault/\`. Keep the title and homepage settings you added in [[About/Configuration]].
 
-## Built-in Publish theme
+## 1. Try the two built-in themes
 
-Lattice also includes \`publish-theme\`, a built-in reader style based on the public Obsidian Publish layout: one reading scrollbar, a restrained file tree, a sticky page-context column, compact graph icons with a local-graph popover, hierarchical outlines, and Publish-sized titles. Choose it explicitly:
+Open \`publish.config.json\`. Add \`theme\` beside \`vault\`, not inside \`site\`:
 
 \`\`\`json
 {
-  "vault": "./vault",
-  "theme": "publish-theme",
-  "site": { "theme": "system" }
+  "vault": "./my-vault",
+  "theme": "default",
+  "site": {
+    "title": "My notes",
+    "home": "Home.md",
+    "theme": "system"
+  }
 }
 \`\`\`
 
-This theme ships with Lattice, so it does not need to exist in \`.obsidian/themes\`. It still respects your light/dark choice and loads snippets, \`publish.css\`, extra CSS, and configured appearance variables afterward. Use a real installed theme instead when you want that theme's original design.
+If you have not created \`Home.md\`, keep your existing homepage setting or leave \`home\` out. Save and open the site in a fresh private browser window so an earlier reader choice does not mask your new default. **Default (Obsidian)** gives you the built-in baseline appearance.
 
-## Follow the vault
+Change top-level \`theme\` to \`"publish-theme"\` and save again. You should see the **Publish** style, with a compact file tree, generous page titles, and a page-information column on wider screens. Both built-ins ship with Lattice; neither needs a folder in \`.obsidian/themes\`.
 
-For example, in \`.obsidian/appearance.json\`:
+Now open **Reader settings → Color scheme** and try **Light**, **Dark**, and **Adapt to system**. These change the color mode without changing the CSS theme. In the configuration, \`site.theme\` sets that color-mode default; top-level \`theme\` chooses the design.
+
+## 2. Use Minimal's original CSS
+
+If Minimal is not installed in your copied vault, open that vault in Obsidian. Go to **Settings → Appearance → Themes → Manage**, find **Minimal**, install it, and select it. No Obsidian plugin is needed.
+
+Obsidian saves the theme at \`.obsidian/themes/Minimal/theme.css\` inside the vault and records the selection in \`.obsidian/appearance.json\`. If you are copying a vault from elsewhere, include its hidden \`.obsidian\` folder so those files come along.
+
+Back in \`publish.config.json\`, change the top-level selection:
+
+\`\`\`json
+"theme": "Minimal"
+\`\`\`
+
+Save, then reload your private-window preview. The site should now use Minimal's installed CSS. This loads the theme's actual stylesheet, not a separate approximation of Minimal.
+
+Alternatively, remove the top-level \`theme\` setting altogether to follow the theme selected in Obsidian. Lattice reads \`cssTheme\` from \`.obsidian/appearance.json\`; if nothing selects a theme, it uses Default (Obsidian). The included demo explicitly selects \`"default"\`, so merely selecting Minimal in Obsidian will not override that configuration.
+
+If the build says Minimal is unavailable, check for \`.obsidian/themes/Minimal/theme.css\` in the vault named by \`vault\`. Choosing a name does not install or download a theme.
+
+## 3. Add one visible snippet
+
+In your copied vault, create \`.obsidian/snippets/roomier-paragraphs.css\` with:
+
+\`\`\`css
+.markdown-rendered p {
+  line-height: 1.8;
+}
+\`\`\`
+
+In Obsidian, open **Settings → Appearance → CSS snippets**, refresh the list if needed, and enable **roomier-paragraphs**. Leave \`snippets\` out of \`publish.config.json\` to follow Obsidian's enabled snippets.
+
+Save a note or reload the local preview. Paragraphs should look more spacious. Obsidian records the enabled name in \`enabledCssSnippets\`; the relevant part of \`.obsidian/appearance.json\` looks like this:
 
 \`\`\`json
 {
   "cssTheme": "Minimal",
-  "enabledCssSnippets": ["typography", "tables"],
-  "accentColor": "#8065da",
-  "baseFontSize": 18,
-  "textFontFamily": "Inter",
-  "monospaceFontFamily": "JetBrains Mono"
+  "enabledCssSnippets": ["roomier-paragraphs"]
 }
 \`\`\`
 
-This example expects \`.obsidian/themes/Minimal/theme.css\` and \`.obsidian/snippets/typography.css\` and \`tables.css\` to exist. The demo includes the original Minimal theme and its license, but its baseline appearance does not require selecting Minimal. Install and select any other theme in your own Obsidian vault before publishing it.
+You do not need to replace that file by hand. To select snippets only for the website, add top-level \`"snippets": ["roomier-paragraphs"]\` to your publish configuration. To publish without snippets, use \`"snippets": []\`. An omitted setting follows Obsidian; an empty array turns snippets off. A selected snippet file needs to exist.
 
-Fonts named in appearance settings must be available in the browser or supplied through trusted CSS; naming a font does not download it. Text size applies for numeric values from 8 to 72 pixels. A configured site accent takes precedence over the vault accent.
+## 4. Let readers choose a theme
 
-## Override deliberately
-
-In \`publish.config.json\`:
+Add \`allowThemeSwitching\` inside \`site\`:
 
 \`\`\`json
 {
-  "vault": "./vault",
+  "vault": "./my-vault",
   "theme": "Minimal",
-  "snippets": [],
-  "css": ["./site-overrides.css"],
-  "bodyClasses": ["minimal-style-default"],
-  "site": { "theme": "system", "showProperties": false }
+  "site": {
+    "title": "My notes",
+    "allowThemeSwitching": true
+  }
 }
 \`\`\`
 
-Top-level \`theme\` chooses the community theme; \`site.theme\` chooses light/dark/system mode. Set top-level \`theme\` to \`"default"\` to ignore the vault's selected theme. Omitted \`snippets\` follows \`enabledCssSnippets\`; an empty array disables them.
+Keep your existing \`home\` and other site settings when adding this option. Save, open **Reader settings**, and find **Obsidian theme**. Choose **Publish**, then **Default (Obsidian)**, then **Minimal**. Each selection should change the page's styling without navigating away or editing your vault. Try **Color scheme** too: it remains independent of the theme picker.
 
-Theme/snippet names resolve inside \`.obsidian\`. Explicit CSS paths and additional \`css\` entries resolve beside the configuration file. Files named by explicit settings must exist; unavailable selected themes or snippets fail compilation rather than silently switching styles.
+With switching enabled, Lattice includes both built-ins, the site's selected theme, and other installed themes it discovers in \`.obsidian/themes\`. Switching is off by default.
 
-## Let readers switch themes
-
-To show an **Obsidian theme** picker in Reader settings, enable it in \`publish.config.json\`:
+If you want to limit the installed choices, add a top-level allowlist:
 
 \`\`\`json
-{
-  "vault": "./vault",
-  "site": { "allowThemeSwitching": true }
-}
+"themes": ["Minimal"]
 \`\`\`
 
-Lattice includes Default (Obsidian), Publish, the site's selected theme, and discovered themes installed in \`.obsidian/themes\`. The reader can switch without rebuilding or changing your vault. The choice is saved in that browser; light/dark/system color mode remains a separate setting.
+Only name themes already installed, or use existing CSS file paths. **Default (Obsidian)**, **Publish**, and the selected site theme always remain available, even if they are not in the allowlist. \`"themes": []\` skips discovery and leaves those choices; omitting \`themes\` discovers installed themes. With only Minimal installed, this allowlist does not visibly change the picker yet, but it prevents future installations from being offered automatically.
 
-Want to offer only a few themes? Add a top-level allowlist:
+## 5. Check the default and reset saved choices
 
-\`\`\`json
-{
-  "vault": "./vault",
-  "themes": ["Minimal", "Things"],
-  "site": { "allowThemeSwitching": true }
-}
-\`\`\`
+Reload after choosing a theme. Your browser remembers that choice, along with its separate color-mode preference. A new configuration default does not replace a reader's saved, still-available theme choice.
 
-Only list themes already installed in your vault, or explicit CSS file paths. Default, Publish, and the site's selected theme remain available regardless of the allowlist. Use \`themes: []\` to skip installed-theme discovery and offer only those choices; the selected theme may already be one of the two built-ins. Theme switching is disabled by default, so other themes are not bundled unless you enable it.
+To see the configured default, use a fresh private window. To return your regular browser to the site defaults, close the site's tabs, clear its stored site data in your browser settings, and reopen it. Clearing site data also resets saved layout preferences and folder folds; there is no reset button in Reader settings.
 
-Theme styles are served as local CSS assets. The site's default CSS is included in each page; other theme layers are fetched when selected and cached in memory for the current reader session. Snippets, \`publish.css\`, and your other site overrides still apply afterward. A failed switch keeps the current appearance and shows an error. This does not install themes or execute Obsidian plugins.
+On startup, Lattice applies the saved or configured color mode early and, when needed, loads the saved theme before revealing the content. If that startup theme request fails or takes more than **four seconds**, the page opens with the site's default theme instead. A failed switch made in Reader settings keeps the current theme and shows an error. The selected theme styles are local website assets; snippets and site overrides continue to apply to every choice.
 
-On a fresh page load, an early script applies the saved or configured color mode and restores an available saved theme before revealing the content. Startup loading waits at most **four seconds**, then falls back to the site's default theme if the request fails or is too slow; the page is not hidden indefinitely. Blocked browser storage uses site defaults and makes new preferences session-only. Without JavaScript, the static content remains available with the site's default theme, but saved reader choices cannot be restored.
+## Optional: finishing touches and CSS limits
 
-## Loading order and assets
+### Reuse font and accent settings
 
-Reader baseline CSS is followed by the compiled theme layer. Within that layer, Lattice loads:
+Lattice also reads the vault's accent color, base text size, and text/monospace font names from \`.obsidian/appearance.json\`. A configured \`site.accent\` overrides the vault accent. Font names do not download fonts: visitors need the font installed, or you can supply it through CSS. Numeric base text sizes from 8 to 72 pixels are supported.
 
-1. The selected community theme.
-2. Selected snippets, in their listed order.
-3. Optional vault-root \`publish.css\`.
-4. Additional top-level \`css\` files.
+### Choose where an override belongs
+
+For a website-only style, put \`publish.css\` directly inside your vault. For a CSS file beside \`publish.config.json\`, add a top-level setting such as \`"css": ["./site-overrides.css"]\` after creating that file. Explicit theme and snippet CSS paths also start beside the configuration file, while simple names resolve inside the vault's \`.obsidian\` folder.
+
+After the reader baseline, the theme layer loads in this order:
+
+1. The selected theme's CSS.
+2. Selected snippets in their listed order.
+3. Vault-root \`publish.css\`, if present.
+4. Additional files listed in \`css\`.
 5. Appearance-derived variables and optional \`site.customCss\`.
 
-Local CSS imports are processed recursively. Supported local fonts and images are emitted with rewritten URLs under the configured deployment base. Import cycles, unsupported asset types, and references outside a file's allowed boundary are build errors. A named theme's assets must stay within that theme directory; a snippet or explicit CSS file's assets stay within its directory. Vault-root \`publish.css\` can reference allowed assets within the vault, but not hidden assets.
+Later rules can override earlier ones according to the usual CSS cascade. \`bodyClasses\` adds site-wide classes, and \`cssclasses\` on a note styles that note; homepage \`cssclasses\` also contribute site-wide classes.
 
-Remote imports and remote \`url(...)\` references remain remote. The build does not fetch them; readers need connectivity and may contact third-party servers. Only use CSS you trust.
+### Keep styles portable
 
-## Matching Obsidian, not running Obsidian
+Local CSS imports, fonts, and supported images are copied into the built site with rewritten URLs. Keep a theme's assets in its theme directory, and a snippet or explicit CSS file's assets within its own directory. Vault-root \`publish.css\` can use allowed assets elsewhere in the vault, but not excluded ones. Missing files, unsupported assets, or circular imports cause build errors.
 
-The reader exposes \`.theme-light\`, \`.theme-dark\`, workspace/file-tree classes, \`.markdown-preview-view\`, \`.markdown-rendered\`, callouts, metadata, and hover-popover classes. Native variables include \`--background-primary\`, \`--text-normal\`, \`--font-text\`, and \`--file-line-width\`. Homepage \`cssclasses\` can contribute body classes alongside configured \`bodyClasses\`.
+Use CSS you trust. Remote \`@import\` and \`url(...)\` references remain remote: readers may contact those third-party servers, and the styles may need an internet connection. The build does not download them for offline use.
 
-Obsidian is an Electron application. Plugin-only controls, editing panes, and Style Settings plugin state are not reproduced or executed. Use reviewed snippets, \`publish.css\`, or body classes for matching reader styles, and test both color modes and narrow screens.
+Lattice is a reader, not Obsidian running in the browser. Theme rules targeting reading content and familiar Obsidian classes can work; editor panes, plugin controls, and Style Settings plugin state are not reproduced. Check your chosen style in light and dark modes and on a narrow screen. See [[About/Troubleshooting]] if a style does not load, or [[About/Security and privacy]] for more on external resources.
 
-See [[About/Troubleshooting]] for missing CSS and [[About/Security and privacy]] for the trust boundary.
-
-[[About/Documentation|Documentation index]].
+[[About/Documentation|Back to the documentation index]].
 `,
     },
     {
@@ -1719,101 +2008,107 @@ See [[About/Troubleshooting]] for missing CSS and [[About/Security and privacy]]
 title: Quick start
 category: documentation
 tags: [lattice, documentation, setup]
-description: Clone Lattice, copy in your vault, choose its folder, and start your site.
+description: Create your own Lattice repository, add a vault, and open your first site.
 ---
 
-**Clone the repo, put your vault in the project folder, point Lattice at it, and run.** You do not need to upload notes, convert your Markdown, or configure every setting.
+By the end of this guide, your Obsidian notes will be running as a website on your computer. The whole setup is **create your repository, clone it, add a vault, choose its folder, and run**.
 
-You'll need Git and **Node.js 22.12 or newer** installed. Node includes npm, which runs the commands below.
+You'll need a GitHub account, Git, and **Node.js 22.12 or newer**. Installing Node also installs npm, which runs the commands below.
 
-## 1. Clone Lattice
+## 1. Create your own repository
 
-Open a terminal and run:
+Open [Lattice on GitHub](https://github.com/jgx0/lattice) and click **Use this template → Create a new repository**. You can also go straight to [Create from template](https://github.com/jgx0/lattice/generate).
+
+Choose your own account as the owner and name the repository something like **\`my-lattice\`**. Choose **Private** if you plan to keep your source notes there. Click **Create repository**.
+
+You now have your own copy of Lattice. This is the repository you'll edit and connect to a hosting provider—not \`jgx0/lattice\`.
+
+## 2. Clone your copy
+
+On your new repository page, click **Code**, select **HTTPS**, and copy its URL. Open a terminal and run:
 
 \`\`\`sh
-git clone https://github.com/jgx0/lattice.git
-cd lattice
+git clone https://github.com/YOUR-USERNAME/my-lattice.git
+cd my-lattice
 npm ci
 \`\`\`
 
-Keep this terminal open. Run the remaining commands from this \`lattice\` folder—not from inside your vault.
+Replace \`YOUR-USERNAME\` and \`my-lattice\` with the names in your copied URL. Keep the terminal open in this folder for the rest of the guide.
 
-## 2. Copy your vault into the folder
+Want a quick look before adding your notes? Run \`npm run dev\` now to see the included demo. Press **Ctrl+C** when you're ready to continue.
 
-Using Finder, File Explorer, or your usual file manager, copy your Obsidian vault into the \`lattice\` folder. For this guide, name the copied folder **\`my-vault\`**:
+## 3. Add your vault
+
+Use Finder or File Explorer to copy your Obsidian vault into the project folder. For this guide, call the copy **\`my-vault\`**:
 
 \`\`\`text
-lattice/
+my-lattice/
 ├── my-vault/
 │   ├── .obsidian/
 │   ├── Home.md
 │   ├── Notes/
 │   └── Attachments/
+├── vault/                 # the included demo
 ├── publish.config.json
 └── package.json
 \`\`\`
 
-Your notes and attachments stay as they are. Include the hidden \`.obsidian\` folder if you want Lattice to use your installed theme and enabled CSS snippets.
+Copy the whole vault, including its hidden \`.obsidian\` folder if you want its installed theme and snippets. Make sure \`my-vault\` directly contains your notes, not another folder around them. You can leave the demo folder alone.
 
-The included \`vault/\` folder is just the demo. Leave it alone; your own vault goes in a separate folder. Make sure \`my-vault\` is the actual vault folder containing your notes, not an extra folder wrapped around it.
+**Using a personal vault?** Add \`my-vault/\` on a new line in the project's \`.gitignore\` before committing anything. This keeps the copied notes out of your GitHub repository. You can still run and build the site locally. [[About/Security and privacy|Choose what to publish]] before putting the site online.
 
-## 3. Tell Lattice which folder to use
+You do not have to copy the vault if you prefer to keep it where it is. The next step accepts its full folder path instead.
 
-Open **\`publish.config.json\`** in the \`lattice\` folder. Replace its contents with:
+## 4. Point Lattice at the folder
+
+Open **\`publish.config.json\`** in your project folder and replace its contents with:
 
 \`\`\`json
 {
   "vault": "./my-vault",
-  "site": {
-    "title": "My notes"
-  }
+  "site": { "title": "My notes" }
 }
 \`\`\`
 
-That's the only configuration you need to start. If your folder has a different name, change \`./my-vault\` to match it. Lattice uses the other settings' defaults and picks a note as the homepage.
+Change \`my-vault\` if your folder has a different name. That's enough to start. Lattice fills in the other settings and picks a note for the homepage.
 
-If you want a specific homepage, add \`"home": "Home.md"\` inside \`site\`, using an existing note's full vault-relative filename, such as \`Notes/Home.md\`. This is a file path, not its frontmatter title or published URL. See [[About/Configuration]] for optional settings—you do not need them to get started.
+To use a vault outside the project, set \`vault\` to its full folder path. On Windows, use forward slashes, such as \`C:/Users/you/Documents/My Vault\`.
 
-## 4. Start your site
+## 5. Open your site
 
-Back in the terminal, run:
+Back in the terminal:
 
 \`\`\`sh
 npm run dev
 \`\`\`
 
-Open **http://localhost:5173**, or the address printed in the terminal. Your notes should now be on the site.
+Open **http://localhost:5173**, or the address printed in the terminal. Your notes should be there.
 
-**You're ready to go.** Edit a note in the copied vault and save it; Lattice rebuilds and refreshes the page. Leave the terminal running while you work. Press **Ctrl+C** when you want to stop the server.
+Try opening a note from the file tree. Press **Command+K** on Mac or **Ctrl+K** elsewhere to find a file quickly. Save an edit to a source note and watch the page refresh. Folder expansion choices are remembered in this browser.
 
-If you prefer to keep your vault somewhere else, you can use its full folder path in \`vault\` instead of copying it. Lattice reads the folder you choose; it does not move or rewrite your source notes.
+Leave the terminal running while you work. Press **Ctrl+C** to stop the local server.
 
-## Want to try the demo first?
+## Make it yours
 
-After step 1, run \`npm run dev\` without changing anything. The original configuration opens the included demo vault. Stop the server, then follow steps 2 and 3 when you want to use your own notes.
+You can stop here—you have a working local site. When you want to customize it:
 
-## Ready to put it online?
+- [[About/Configuration|Choose a homepage and site name]].
+- [[About/Obsidian themes|Try your Obsidian theme]].
+- [[About/Markdown and Bases|Add linked notes and an inline Base]].
 
-Local setup and public deployment are separate. When you are happy with your site:
+## Put it online when you're ready
 
-\`\`\`sh
-npm run build
-\`\`\`
+Running locally does not upload your vault or create a public site. Follow [[About/Deployment]] for Cloudflare Pages, Vercel, or Netlify.
 
-Lattice writes the website to **\`dist/\`**. Deploy that folder to Cloudflare Pages, Vercel, Netlify, or another static host; follow [[About/Deployment]] for the provider steps. \`npm run dev\` only starts a local preview—it does not publish your vault to the internet.
+A cloud builder can only use files it can access. If your vault is ignored by Git or lives elsewhere on your computer, use a local build and upload \`dist/\` yourself. For automatic cloud builds, put **only the notes and assets you're comfortable sharing** in your own repository. A private GitHub repository does not make the resulting website private.
 
-**Before pushing your repository or deploying:** keep your personal vault out of Git (for this example, add \`my-vault/\` to \`.gitignore\`) and review which notes should be public. Notes are included unless you exclude them. [[About/Security and privacy]] explains how to hide private notes and folders.
+## Stuck?
 
-## If something doesn't work
+- **Folder not found:** check that \`vault\` matches the folder containing your notes.
+- **Homepage not found:** remove \`site.home\` or change it to a note that exists.
+- **\`npm\` not found:** install Node.js, then reopen your terminal.
 
-- **Folder not found:** check that \`vault\` matches the folder name and that you're editing the project's \`publish.config.json\`.
-- **Homepage not found:** remove the optional \`home\` setting or point it at an existing note.
-- **Command not found:** check that Node.js and npm are installed, then reopen your terminal.
-- **A build error appears:** read the filename and message in the terminal; fix the note or setting and save again.
-
-More help: [[About/Troubleshooting]].
-
-[[About/Documentation|Documentation index]].
+[[About/Troubleshooting|Troubleshooting]] has more fixes. [[About/Documentation|Back to the guide index]].
 `,
     },
     {
@@ -1823,22 +2118,42 @@ More help: [[About/Troubleshooting]].
 title: Security and privacy
 category: documentation
 tags: [lattice, documentation, privacy]
-description: Exclude private notes before compilation and review public data, CSS, and embeds.
+description: Choose which notes to share, keep personal files out of GitHub, and check your public site.
 ---
 
-A published Lattice site is **public** unless your host separately restricts access. Lattice has no accounts, authorization service, or password protection. The build reads the vault locally and does not upload it; deploying the output is the step that makes the compiled material available to readers.
+Before putting your site online, decide which notes you're happy for anyone to read. Lattice publishes **every note it finds unless you exclude it**—not just the notes linked from the homepage.
 
-## Exclude, do not merely hide
+A private GitHub repository can protect your source files, but it doesn't make the hosted website private. Lattice itself has no login or password gate.
 
-Use \`site.hiddenPaths\` in configuration to exclude whole files or folders. **All surviving notes are published in full**; \`publish: true\` is not required. This is not a selection of only the notes linked from your homepage.
+## 1. Choose a publishing workflow
+
+If your vault contains personal notes, the easiest starting point is to leave it on your computer and build locally. Add its copied folder, for example \`my-vault/\`, to the project's \`.gitignore\`. This prevents new files in that folder from being committed to GitHub.
+
+For automatic cloud builds, make a smaller folder such as \`site-vault/\` containing only notes and assets you want to publish. Point Lattice at that folder and commit it to **your own repository**.
+
+Adding a folder to \`.gitignore\` does not remove files already committed or erase earlier history. If you're not sure whether a vault is tracked, check \`git status\` and the repository's file list before pushing.
+
+## 2. Exclude a private folder
+
+Suppose your vault has a \`Private/\` folder. Add \`hiddenPaths\` inside \`site\` in \`publish.config.json\`:
 
 \`\`\`json
 {
-  "site": { "hiddenPaths": ["Private", "Templates", "People/Contact details.md"] }
+  "vault": "./my-vault",
+  "site": {
+    "title": "My notes",
+    "hiddenPaths": ["Private", "Templates"]
+  }
 }
 \`\`\`
 
-Or use actual YAML booleans in a note:
+Both folders are left out of the site. You can also exclude a single note by its path, such as \`People/Contact details.md\`.
+
+These paths are relative to the vault, not to the project folder. Keep your other settings when adding this option; the example is a complete minimal configuration.
+
+## 3. Exclude a single note
+
+Add this at the very start of the note:
 
 \`\`\`yaml
 ---
@@ -1846,43 +2161,43 @@ publish: false
 ---
 \`\`\`
 
-\`private: true\` also excludes a Markdown note. Do not quote these booleans. Publication fails closed: malformed or unterminated frontmatter, non-object metadata, duplicate YAML keys, and non-Boolean \`publish\`/\`private\` values stop compilation rather than publishing a note with ignored privacy flags. Fix the reported error before deploying.
+If the note already has frontmatter, add \`publish: false\` inside the existing block instead of creating a second one. \`private: true\` works too. Use real booleans without quotation marks.
 
-Dot-prefixed paths and vault symlinks are skipped during scanning. Private/hidden notes are filtered **before rendering**, so they cannot enter note transclusions, Bases rows, hover previews, search, or graph data. A private homepage is a build error rather than a publishable fallback.
+Rebuild and try opening the note's URL. An excluded note won't appear in search, graphs, backlinks, Bases, or note transclusions. If a privacy setting is malformed, Lattice stops the build and names the problem rather than publishing with the setting ignored.
 
-\`showProperties: false\`, collapsed folders, and navigation ordering are **not** privacy controls. Published note text, properties, rendered HTML, and previews remain accessible through public pages and compiled reader/search data. The original complete Markdown file is not included in the browser payload: its \`content\` is empty, and nonliteral Obsidian comments are removed from the searchable body. Literal \`%%\` examples in fenced or inline code remain public. Keep secrets out of public prose, properties, and code examples; if a secret has already been copied into another public note, excluding its original source does not remove the copy.
+## 4. Check the public version
 
-## Files and assets
+\`\`\`sh
+npm run build
+npm run preview
+\`\`\`
 
-The builder does not blindly copy the vault, \`.obsidian\` source, or every attachment into output. Referenced permitted assets are emitted separately; selected trusted CSS and its supported local dependencies are included. Filesystem and CSS-import boundaries are checked, and hidden vault assets cannot be included through CSS references.
+Open **http://localhost:4173** and read the site as a visitor. Check a few notes, links, attachments, and properties.
 
-Vite's \`public/\` directory is a separate intentional static-asset input. Keep it reviewed: files placed there can be copied to the deployed output. The build rejects public-directory inputs that resolve into the vault/configuration, overlapping source/output directories, and conflicting published output paths; these checks do not classify arbitrary manually copied public files as non-sensitive.
+Remember:
 
-Direct development requests for vault sources are blocked. Nevertheless, keep local development bound to loopback when possible, and deploy only \`dist/\` to a static host, never the checkout or source vault.
+- **Collapsed folders are still public.** Folding navigation only changes the reader's view.
+- **Hidden properties are still public.** \`showProperties: false\` hides the panel, not the metadata in public search data.
+- **Copied text is still copied text.** Excluding a private note doesn't remove a quotation you've pasted into another public note.
+- **Comments in code examples are visible.** Ordinary Obsidian \`%% comments %%\` are omitted, but literal examples inside code remain.
 
-## HTML sanitization
+The generated site includes public note text, properties, HTML, previews, and referenced assets. It doesn't need your original complete Markdown files or private vault files on the host. Only deploy \`dist/\`.
 
-Rendered HTML is sanitized at compilation with DOMPurify. Scripts, event handlers, dangerous URLs, and raw \`srcdoc\` are removed. SVG assets are sanitized. External iframes are sandboxed, while generated PDF frames retain restrictive sandboxing.
+Files you deliberately put in the project's \`public/\` folder are also copied to the site. Don't put private files there.
 
-Sanitization is not an assurance that an external service is private, benign, or appropriate. A permitted remote frame can still execute scripts in its frame and contact its provider. Review the actual destination, permissions, and user-facing explanation; a plain link is often the safer choice. [[Atlas/Media cabinet]] demonstrates offline examples and shows a remote embed only as unexecuted code.
+## 5. Think about external resources
 
-## CSS is trusted input
+Local attachments stay local to your published site. Remote video frames, fonts, images, and CSS can contact third-party servers when a visitor opens a page. Use a plain link instead of an embed if you don't want that resource loading on the page.
 
-Themes, snippets, \`publish.css\`, and configured CSS are trusted author input, not sanitized untrusted content. Use sources you trust and respect their licenses. Local imports are bounded and cycle-checked; remote CSS imports and remote asset URLs remain remote and can make requests from readers' browsers.
+Lattice removes unsafe HTML such as script tags and event handlers and sanitizes SVGs. It also checks filesystem paths. Themes and snippets are different: they are **CSS you chose to trust**, so install them from sources you trust and respect their licenses. The [[Atlas/Media cabinet|media demo]] shows examples you can inspect.
 
-The build does not fetch those remote resources, so offline compilation does not imply an offline published page. Check themes for remote fonts, images, and imports if avoiding third-party contact matters.
+## If something private was already published
 
-## Pre-publication review
+Remove or exclude it, build again, and replace the deployment. Make sure the old page is no longer served; a host that leaves stale files behind can keep removed notes accessible. Review Git history separately if the source was committed.
 
-1. Keep secrets outside the publishing vault where practical; use explicit exclusions as defense in depth.
-2. Check configuration and valid frontmatter, then run tests and build.
-3. Inspect the generated output, including properties, previews, assets, and transcluded content.
-4. Review contact details, quoted conversations, permissions, and external embeds manually.
-5. Replace previous deployment files so newly excluded pages cannot remain available as stale output.
+If a credential was exposed, revoke or rotate it. Deleting the page doesn't make a published secret safe again, and caches or copies may remain outside your control.
 
-Sample notes are illustrative fixtures. Review any replacement notes and assets independently before publishing them. Keep a personal vault folder out of Git before committing; adding it to \`.gitignore\` does not remove files already tracked or erase an earlier public copy.
-
-[[About/Deployment|Deployment]] covers hosting boundaries. [[About/Documentation|Documentation index]].
+[[About/Deployment|Next: deploy the reviewed site]] · [[About/Documentation|Guide index]].
 `,
     },
     {
@@ -1892,73 +2207,116 @@ Sample notes are illustrative fixtures. Review any replacement notes and assets 
 title: Troubleshooting
 category: documentation
 tags: [lattice, documentation, troubleshooting]
-description: Diagnose configuration, link, Base, CSS, watcher, and static-host problems.
+description: Find a symptom, try a concrete fix, and get your site working again.
 ---
 
-Begin with the **first reported build or development error**. The live server preserves the last successful compilation, so a readable page after an error may be an older snapshot rather than proof that the edit worked.
+Find the symptom below and try its fix. Run npm commands from the project folder containing \`package.json\`, not from inside your vault.
 
-## Installation or compilation fails
+## “npm: command not found”
 
-- Check Node.js is 22.12 or newer.
-- Run \`npm ci --include=dev\` from the project root; the builder needs TypeScript, Vite, and JSDOM from development dependencies.
-- Verify the vault and configuration file exist and are readable.
-- Unknown configuration fields are rejected; do not add unsupported options hoping they will take effect.
-- Malformed or unterminated frontmatter and quoted/non-Boolean privacy flags fail compilation. Repair the YAML rather than removing a needed exclusion.
-- Published-route collisions are build errors; rename conflicting note paths rather than relying on one page to overwrite another.
-- Run \`npm run build\` to reproduce the error outside the watcher.
+Install **Node.js 22.12 or newer**, which includes npm, then close and reopen your terminal. Run \`node --version\` and \`npm --version\`; both should print a version.
 
-See [[About/Quick start]] and [[About/Configuration]] for working examples.
+In the project folder, run \`npm ci --include=dev\`, then \`npm run dev\`. The local site should start. If \`vite\` or \`tsc\` was missing, installing the development dependencies fixes that too. See [[About/Quick start]] for the full setup.
 
-## Homepage missing or no published notes
+## “Folder not found” or “Cannot load publish configuration”
 
-\`site.home\` must resolve to an existing public Markdown note. Check spelling, folder path, extension, \`hiddenPaths\`, and privacy frontmatter. If all notes are excluded, compilation cannot create a site. Do not weaken privacy settings merely to make an error disappear; choose a genuinely public homepage.
+Open the project's \`publish.config.json\`. Set \`vault\` to the **actual folder containing your notes**, for example \`"vault": "./my-vault"\` when \`my-vault\` sits beside that configuration file.
 
-## A link or transclusion is unresolved
+If a copied folder contains another folder that holds the notes, point at the inner folder—not its wrapper. Relative vault paths start beside the configuration file; you can also use a full folder path.
 
-Use an exact vault-relative path, especially when several folders contain the same filename. Check the heading text or block identifier as well as the note name. A link cannot reveal a filtered private note. Update incoming links after renaming a source file.
+If you previously set \`OBSIDIAN_VAULT\` or \`PUBLISH_CONFIG\`, remove the unwanted override from your terminal environment (\`unset OBSIDIAN_VAULT PUBLISH_CONFIG\` in bash/zsh). Then run \`npm run dev\` again. Your chosen vault should appear.
 
-A cyclic or overly nested embed can reach the renderer's limit. Prefer a direct link or a smaller heading/block embed rather than an endless whole-note chain. [[About/Markdown and Bases]] shows valid targets from this vault.
+## “Configured home note is missing or private”
 
-## A Base is empty or reports an error
+Remove the optional \`home\` entry from \`site\` to let Lattice choose a public note, or set it to an existing public filename such as \`"home": "Home.md"\` or \`"home": "Notes/Home.md"\`.
 
-An empty view can be correct: no public notes match its filters. Check property names, YAML value types, folder paths, and the host note's properties. \`this.file\` means the host Markdown note; it is not the \`.base\` file. For inline views, the fence must be labeled \`base\`, not \`yaml\`. If modification-date order changed after a copy or clone, check the source filesystem timestamps; \`file.mtime\` is not a frontmatter date.
+Use the vault-relative file path, not the displayed title or website URL. Keep private notes excluded. Save the configuration; the site should open with a valid homepage. If there are no published notes at all, add a public note or select the correct vault folder.
 
-A visible “Unable to render Base” message indicates invalid YAML, an unsupported view/expression, a circular formula, or an evaluator limit. Reduce the expression to supported operations and verify the result on a small collection. Obsidian's complete Bases runtime and general JavaScript are not supported.
+## A build stops on frontmatter, a setting, or a route collision
 
-## A theme or CSS asset fails
+For an unknown setting, remove it or use a supported option from [[About/Configuration]]. For frontmatter errors, close the YAML block with \`---\` and use unquoted booleans such as \`private: true\` or \`publish: false\`; keep the intended exclusion.
 
-- Check \`.obsidian/appearance.json\` is valid JSON.
-- Verify the selected theme's \`theme.css\` and enabled snippet files exist.
-- Distinguish top-level \`theme\` from \`site.theme\` color mode.
-- Set top-level \`theme: "default"\` and \`snippets: []\` temporarily to isolate a CSS issue, then restore the intended configuration.
-- Check local import/asset paths, supported extensions, allowed directories, and import cycles.
-- Check connectivity for remote CSS resources; the build leaves their URLs remote.
+For a route collision, rename one of the conflicting note files and update its incoming links. Run \`npm run build\` again. It should finish and write \`dist/\`.
 
-Style Settings plugin state, editing controls, and plugin-only components cannot appear merely by loading their CSS. See [[About/Obsidian themes]] for the compatibility boundary.
+## A link or embed says it is missing
 
-## Reader choices do not match configuration
+Change the target to its full vault-relative path, especially if two notes share a filename. Check the heading text or \`^block-id\` when linking to a section. After renaming a file, update the links pointing to it.
 
-Saved browser preferences take precedence over reader defaults. Check **Reader settings** for color mode, the selected theme, and Quick switcher; when the switcher is disabled, Command/Ctrl+K focuses sidebar search instead. Clear this site's browser storage to start from defaults, noting that this also resets other saved reader choices.
+Excluded notes cannot be linked or embedded on the public site; remove that reference or link to a public alternative. For an “embed recursion limit” message, replace the repeating whole-note embed with a direct link or a smaller section. Save the note; the corrected target should resolve. See [[About/Markdown and Bases]].
 
-Folder folds survive reloads and rebuilds for the same site. Removed or renamed folder paths are discarded, and new folders start open. Moving the deployment base or changing the homepage file starts a separate folder preference set. If browser storage is blocked, controls still work during the session but their choices cannot survive a reload. This state never changes your source notes or their publication status.
+## A Base is empty
 
-## Saved edits do not appear
+Temporarily remove its filters and use a \`table\` view with \`order: [file.name]\`. Public notes should appear. Add the filters back one at a time to find which condition removes the rows.
 
-Read terminal and browser error output first. A failed edit intentionally leaves the previous snapshot live. Fix the cause and save again; a successful compile refreshes readers. If changes involve configuration base paths, verify the new URL and restart the local command if needed. \`npm run preview\` does not watch or compile source changes; rerun \`npm run build\` before previewing.
+Check property spelling and YAML types: \`rating: 5\` is a number, while \`rating: "5"\` is text; a list is different from a single string. Check folder paths and the properties of the **host Markdown note**: \`this.file\` means that note, not the \`.base\` file.
 
-## Deep links or assets fail after deployment
+If sorting by \`file.mtime\` changed after copying or cloning, use an explicit frontmatter date property for stable ordering. The filesystem timestamp is not your note's \`date\` property.
 
-Verify the configured \`base\` equals the host's mount path, then rebuild. Mount \`dist/\` contents there, including \`_assets/\`, \`_theme/\`, and application assets. The host must serve note-directory \`index.html\` files. Test a direct note URL and a nonexistent URL rather than relying only on client-side clicks or a universal homepage fallback.
+## An inline Base appears as code, or says “Unable to render Base”
 
-If renamed or excluded pages remain available, replace or clean the old deployment. Local output changes do not delete stale files from a remote host. [[About/Deployment]] provides the complete checklist.
+For an inline view, change the opening fence from \`yaml\` to \`base\`:
 
-## Media will not play
+\`\`\`\`markdown
+\`\`\`base
+views:
+  - type: table
+    order: [file.name]
+\`\`\`
+\`\`\`\`
 
-Check the emitted file URL, browser codec support, and visible playback controls. Development serves generated assets with single-byte-range responses for media seeking and ETags for conditional requests; the production static host must provide appropriate file-serving behavior. No autoplay is required by the offline examples. A working file does not guarantee every browser can decode its format; provide a useful text description or download link.
+Save the note; this should display a table of public notes. For an embedded file, use \`![[Data/Reading.base]]\` (the demo's example) or replace that path with your own Base.
 
-## Reporting a reproducible issue
+For a render error, start with the table above and add expressions back gradually. \`file.hasLink(this.file)\` **is supported** for finding notes that link to the host. Replace other unsupported functions with simpler supported filters; use \`table\`, \`list\`, or \`cards\` views and remove circular formulas. [[About/Markdown and Bases]] lists supported expressions.
 
-Include the command, Node/npm versions, minimal configuration, exact error, expected behavior, and a non-sensitive sample note/Base/CSS file. Never attach a private vault or unredacted secrets. See [[About/Contributing]] for tests and source locations.
+## Dark mode or the theme ignores my configuration
+
+Open **Reader settings** and choose the color mode you want. If the Obsidian theme picker is available, choose the theme there too. Saved browser choices take precedence over the site's defaults and should survive a reload.
+
+To try the configured defaults without changing your saved choices, open the site in a fresh private window. To reset saved choices, clear this site's browser storage; this also resets other reader preferences.
+
+If a saved theme cannot load at startup, the page uses the site's default theme after a failed request or at most four seconds. Re-upload the complete build, including \`_theme/\`, then select the desired theme again. A failed switch in Reader settings keeps the current theme.
+
+## Theme CSS fails to build, or plugin styling is missing
+
+Check that \`.obsidian/appearance.json\` is valid JSON and that the selected \`theme.css\` and enabled snippet files exist. Top-level \`theme\` selects a theme; \`site.theme\` must be \`light\`, \`dark\`, or \`system\`.
+
+To isolate the problem, temporarily set top-level \`"theme": "default"\`, \`"themes": []\`, and \`"snippets": []\`. If the error names extra CSS or a local import, fix that file path too. Rebuild; then restore one style at a time.
+
+Plugin controls and Style Settings state do not run on the website. Use a snippet or vault-root \`publish.css\` for the reader styling you need. [[About/Obsidian themes]] explains the options.
+
+## Folder folds reset or seem different on another visit
+
+Fold a sidebar folder, then reload. It should stay folded in the same browser when storage is allowed. Removed or renamed folders lose their old fold state; new folders start open.
+
+The folder preference key includes the homepage URL and source filename. Changing \`base\` or \`site.home\` starts a separate set of folds. Fold the folders again for the new site location; this does not change your notes. If all preferences reset on reload, allow site storage or use a normal window instead of a private session.
+
+## Saved changes do not appear
+
+**Using \`npm run preview\`?** Stop it with Ctrl+C, run \`npm run build\`, then \`npm run preview\` again. Preview serves the previous \`dist/\` and does not watch edits. Use \`npm run dev\` while writing notes.
+
+**Using \`npm run dev\`?** Save in the vault selected by \`publish.config.json\`. If an error overlay appears, fix the named file or setting and save again; Lattice keeps the last working page until the edit succeeds. After changing \`base\`, restart the server and open the new base URL.
+
+**Already deployed?** Upload the new build or trigger your host's deployment. A local save alone does not update the public site.
+
+## A font, image, or video is missing
+
+Open the resource URL directly. For a local attachment, correct its path and rebuild; upload all of \`dist/\`, including \`_assets/\` and \`_theme/\`. The resource should load at its generated URL.
+
+Remote fonts, CSS imports, and media stay remote; they are not downloaded into the build. Check that their HTTPS URLs work and that your browser or host policy allows them, or replace them with local files. A font name alone does not supply the font.
+
+If audio or video loads but will not play, try a browser-supported encoding and keep playback controls visible. If seeking fails only after deployment, use a static host that supports byte-range media requests. Provide a download link or text alternative where useful.
+
+## The homepage works, but a direct note URL fails
+
+Set \`base\` to the hosting path: \`"/"\` for a domain root or, for example, \`"/notes/"\` for a subdirectory. Rebuild and mount the **contents** of \`dist/\` there; \`base\` does not create an extra \`notes/\` output folder.
+
+Configure the host to serve each note directory's \`index.html\`. Remove any blanket SPA rewrite to the homepage, and configure \`404.html\` for missing URLs with a 404 status. A direct note URL should open that note; an invented URL should show the missing-page page, not the homepage.
+
+If renamed or excluded pages still open, replace the old deployment rather than leaving its files alongside the new build. See [[About/Deployment]] for host-specific steps.
+
+## Still stuck?
+
+[Open an issue](https://github.com/jgx0/lattice/issues) with the command, Node/npm versions, exact error, expected result, and a small non-sensitive note, Base, or CSS example. Leave out private vaults and secrets. [[About/Contributing]] explains how to propose a fix.
 
 [[About/Documentation|Documentation index]].
 `,

@@ -4,9 +4,11 @@ import { JSDOM } from 'jsdom';
 import { describe, expect, it } from 'vitest';
 
 describe('GitHub README',()=>{
-  it('keeps clone setup prominent and links only to existing project guides/assets',async()=>{
+  it('keeps template setup prominent and links only to existing project guides/assets',async()=>{
     const markdown=await readFile('README.md','utf8');
-    expect(markdown).toContain('git clone https://github.com/jgx0/lattice.git');
+    expect(markdown).toContain('https://github.com/jgx0/lattice/generate');
+    expect(markdown).toContain('Use this template → Create a new repository');
+    expect(markdown).toContain('git clone https://github.com/YOUR-USERNAME/my-lattice.git');
     expect(markdown).toContain('"vault": "./my-vault"');
     expect(markdown).toContain('### 4. Run');
     const local=[...markdown.matchAll(/\]\(([^)]+)\)/g)].map(match=>match[1]).filter(url=>!url.startsWith('#')&&!/^[a-z]+:\/\//i.test(url));

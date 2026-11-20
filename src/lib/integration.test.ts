@@ -50,22 +50,43 @@ describe('shared demo integration', () => {
       expect(fixture.content.trim(), path).toBe(source.trim());
     }
   });
-  it('documents static Cloudflare Pages and Vercel setup without promising a provisioned deployment', () => {
+  it('guides personal sites through the template and contributors through a fork', () => {
+    const quickStart = notes.find(note => note.path === 'About/Quick start.md')!;
+    expect(quickStart.body).toContain('https://github.com/jgx0/lattice/generate');
+    expect(quickStart.body).toContain('Use this template → Create a new repository');
+    expect(quickStart.body).toContain('git clone https://github.com/YOUR-USERNAME/my-lattice.git');
+    expect(quickStart.body).not.toContain('git clone https://github.com/jgx0/lattice.git');
+    expect(quickStart.body).toContain('my-vault/');
+    expect(quickStart.body).toContain('.gitignore');
+    expect(quickStart.body).toContain('A private GitHub repository does not make the resulting website private');
+    const contributing = notes.find(note => note.path === 'About/Contributing.md')!;
+    expect(contributing.body).toContain('does **not** create a fork relationship');
+    expect(contributing.body).toContain('git clone https://github.com/YOUR-USERNAME/lattice.git');
+    expect(contributing.body).toContain('compare across forks');
+    expect(contributing.body).toContain('git add vault/About/Troubleshooting.md src/demo.ts');
+  });
+  it('documents deployment from the reader\'s repository or a local build', () => {
     const deployment = notes.find(note => note.path === 'About/Deployment.md')!;
     expect(deployment.headings.map(heading => heading.text)).toEqual(expect.arrayContaining(['Cloudflare Pages', 'Git integration', 'CLI upload', 'Vercel', 'Deploy under a subdirectory']));
     for (const setting of ['wrangler.jsonc', 'name: "lattice"', 'pages_build_output_dir: "./dist"', 'compatibility_date',
       'NODE_VERSION=22', 'NPM_CONFIG_INCLUDE=dev', 'npm ci --include=dev', 'npm run build',
-      'npx wrangler pages project create lattice', 'npx wrangler pages deploy dist --project-name=lattice',
+      'npx wrangler pages project create my-lattice', 'npx wrangler pages deploy dist --project-name=my-lattice',
       'vercel.json', 'framework: null', 'cleanUrls: true', 'outputDirectory: "dist"',
       'installCommand: "npm ci --include=dev"', 'buildCommand: "npm run build"', 'public/_headers', 'base: "/"']) {
       expect(deployment.body, setting).toContain(setting);
     }
-    expect(deployment.body).toContain('https://github.com/jgx0/lattice');
-    expect(deployment.body).toContain('https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjgx0%2Flattice');
-    expect(deployment.body).toContain('authentication and confirmation are still required');
-    expect(deployment.body).not.toContain('No public repository URL is configured');
+    expect(deployment.body).toContain('YOUR-USERNAME/my-lattice');
+    expect(deployment.body).toContain('https://vercel.com/new');
+    expect(deployment.body).not.toContain('repository-url=');
+    expect(deployment.body).toContain('your own template-created repository');
+    expect(deployment.body).toContain('"vault": "./site-vault"');
+    expect(deployment.body).toContain('if your vault is ignored by Git or lives outside the project, build locally');
+    expect(deployment.body).toContain('Authentication and confirmation are still required');
     expect(deployment.body).toContain('no hosting account or live deployment is provisioned');
     expect(deployment.body).toContain('Revisit host routing and the path patterns');
+    expect(deployment.body).toContain('Disable workflow');
+    expect(deployment.body).toContain('some tests expect the demo');
+    expect(deployment.body).toContain('Press **Ctrl+C** to stop preview');
   });
   it('renders every note/preview with no broken note links, section embeds or Base errors', () => {
     expect(notes.length).toBeGreaterThanOrEqual(20);
@@ -88,6 +109,9 @@ describe('shared demo integration', () => {
     expect(readingDocument.querySelectorAll('.base-embed tbody tr')).toHaveLength(5);
     expect(relatedDocument.querySelectorAll('.base-embed tbody tr')).toHaveLength(4);
     expect(relatedDocument.querySelector('.base-embed [data-note="Field Notes/Digital gardens.md"]')).toBeNull();
+    const guide = notes.find(note => note.path === 'About/Markdown and Bases.md')!;
+    const guideDocument = new DOMParser().parseFromString(renderMarkdown(guide, notes, demoVault.files), 'text/html');
+    expect(guideDocument.querySelectorAll('.base-view[data-base="Demo bookshelf"] tbody tr')).toHaveLength(5);
     const media = notes.find(note => note.path === 'Atlas/Media cabinet.md')!;
     const mediaDocument = new DOMParser().parseFromString(renderMarkdown(media, notes, demoVault.files), 'text/html');
     expect(mediaDocument.querySelector('img[src^="data:image/svg+xml"]')).not.toBeNull();

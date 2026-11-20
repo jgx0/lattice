@@ -2,22 +2,42 @@
 title: Security and privacy
 category: documentation
 tags: [lattice, documentation, privacy]
-description: Exclude private notes before compilation and review public data, CSS, and embeds.
+description: Choose which notes to share, keep personal files out of GitHub, and check your public site.
 ---
 
-A published Lattice site is **public** unless your host separately restricts access. Lattice has no accounts, authorization service, or password protection. The build reads the vault locally and does not upload it; deploying the output is the step that makes the compiled material available to readers.
+Before putting your site online, decide which notes you're happy for anyone to read. Lattice publishes **every note it finds unless you exclude it**—not just the notes linked from the homepage.
 
-## Exclude, do not merely hide
+A private GitHub repository can protect your source files, but it doesn't make the hosted website private. Lattice itself has no login or password gate.
 
-Use `site.hiddenPaths` in configuration to exclude whole files or folders. **All surviving notes are published in full**; `publish: true` is not required. This is not a selection of only the notes linked from your homepage.
+## 1. Choose a publishing workflow
+
+If your vault contains personal notes, the easiest starting point is to leave it on your computer and build locally. Add its copied folder, for example `my-vault/`, to the project's `.gitignore`. This prevents new files in that folder from being committed to GitHub.
+
+For automatic cloud builds, make a smaller folder such as `site-vault/` containing only notes and assets you want to publish. Point Lattice at that folder and commit it to **your own repository**.
+
+Adding a folder to `.gitignore` does not remove files already committed or erase earlier history. If you're not sure whether a vault is tracked, check `git status` and the repository's file list before pushing.
+
+## 2. Exclude a private folder
+
+Suppose your vault has a `Private/` folder. Add `hiddenPaths` inside `site` in `publish.config.json`:
 
 ```json
 {
-  "site": { "hiddenPaths": ["Private", "Templates", "People/Contact details.md"] }
+  "vault": "./my-vault",
+  "site": {
+    "title": "My notes",
+    "hiddenPaths": ["Private", "Templates"]
+  }
 }
 ```
 
-Or use actual YAML booleans in a note:
+Both folders are left out of the site. You can also exclude a single note by its path, such as `People/Contact details.md`.
+
+These paths are relative to the vault, not to the project folder. Keep your other settings when adding this option; the example is a complete minimal configuration.
+
+## 3. Exclude a single note
+
+Add this at the very start of the note:
 
 ```yaml
 ---
@@ -25,40 +45,40 @@ publish: false
 ---
 ```
 
-`private: true` also excludes a Markdown note. Do not quote these booleans. Publication fails closed: malformed or unterminated frontmatter, non-object metadata, duplicate YAML keys, and non-Boolean `publish`/`private` values stop compilation rather than publishing a note with ignored privacy flags. Fix the reported error before deploying.
+If the note already has frontmatter, add `publish: false` inside the existing block instead of creating a second one. `private: true` works too. Use real booleans without quotation marks.
 
-Dot-prefixed paths and vault symlinks are skipped during scanning. Private/hidden notes are filtered **before rendering**, so they cannot enter note transclusions, Bases rows, hover previews, search, or graph data. A private homepage is a build error rather than a publishable fallback.
+Rebuild and try opening the note's URL. An excluded note won't appear in search, graphs, backlinks, Bases, or note transclusions. If a privacy setting is malformed, Lattice stops the build and names the problem rather than publishing with the setting ignored.
 
-`showProperties: false`, collapsed folders, and navigation ordering are **not** privacy controls. Published note text, properties, rendered HTML, and previews remain accessible through public pages and compiled reader/search data. The original complete Markdown file is not included in the browser payload: its `content` is empty, and nonliteral Obsidian comments are removed from the searchable body. Literal `%%` examples in fenced or inline code remain public. Keep secrets out of public prose, properties, and code examples; if a secret has already been copied into another public note, excluding its original source does not remove the copy.
+## 4. Check the public version
 
-## Files and assets
+```sh
+npm run build
+npm run preview
+```
 
-The builder does not blindly copy the vault, `.obsidian` source, or every attachment into output. Referenced permitted assets are emitted separately; selected trusted CSS and its supported local dependencies are included. Filesystem and CSS-import boundaries are checked, and hidden vault assets cannot be included through CSS references.
+Open **http://localhost:4173** and read the site as a visitor. Check a few notes, links, attachments, and properties.
 
-Vite's `public/` directory is a separate intentional static-asset input. Keep it reviewed: files placed there can be copied to the deployed output. The build rejects public-directory inputs that resolve into the vault/configuration, overlapping source/output directories, and conflicting published output paths; these checks do not classify arbitrary manually copied public files as non-sensitive.
+Remember:
 
-Direct development requests for vault sources are blocked. Nevertheless, keep local development bound to loopback when possible, and deploy only `dist/` to a static host, never the checkout or source vault.
+- **Collapsed folders are still public.** Folding navigation only changes the reader's view.
+- **Hidden properties are still public.** `showProperties: false` hides the panel, not the metadata in public search data.
+- **Copied text is still copied text.** Excluding a private note doesn't remove a quotation you've pasted into another public note.
+- **Comments in code examples are visible.** Ordinary Obsidian `%% comments %%` are omitted, but literal examples inside code remain.
 
-## HTML sanitization
+The generated site includes public note text, properties, HTML, previews, and referenced assets. It doesn't need your original complete Markdown files or private vault files on the host. Only deploy `dist/`.
 
-Rendered HTML is sanitized at compilation with DOMPurify. Scripts, event handlers, dangerous URLs, and raw `srcdoc` are removed. SVG assets are sanitized. External iframes are sandboxed, while generated PDF frames retain restrictive sandboxing.
+Files you deliberately put in the project's `public/` folder are also copied to the site. Don't put private files there.
 
-Sanitization is not an assurance that an external service is private, benign, or appropriate. A permitted remote frame can still execute scripts in its frame and contact its provider. Review the actual destination, permissions, and user-facing explanation; a plain link is often the safer choice. [[Atlas/Media cabinet]] demonstrates offline examples and shows a remote embed only as unexecuted code.
+## 5. Think about external resources
 
-## CSS is trusted input
+Local attachments stay local to your published site. Remote video frames, fonts, images, and CSS can contact third-party servers when a visitor opens a page. Use a plain link instead of an embed if you don't want that resource loading on the page.
 
-Themes, snippets, `publish.css`, and configured CSS are trusted author input, not sanitized untrusted content. Use sources you trust and respect their licenses. Local imports are bounded and cycle-checked; remote CSS imports and remote asset URLs remain remote and can make requests from readers' browsers.
+Lattice removes unsafe HTML such as script tags and event handlers and sanitizes SVGs. It also checks filesystem paths. Themes and snippets are different: they are **CSS you chose to trust**, so install them from sources you trust and respect their licenses. The [[Atlas/Media cabinet|media demo]] shows examples you can inspect.
 
-The build does not fetch those remote resources, so offline compilation does not imply an offline published page. Check themes for remote fonts, images, and imports if avoiding third-party contact matters.
+## If something private was already published
 
-## Pre-publication review
+Remove or exclude it, build again, and replace the deployment. Make sure the old page is no longer served; a host that leaves stale files behind can keep removed notes accessible. Review Git history separately if the source was committed.
 
-1. Keep secrets outside the publishing vault where practical; use explicit exclusions as defense in depth.
-2. Check configuration and valid frontmatter, then run tests and build.
-3. Inspect the generated output, including properties, previews, assets, and transcluded content.
-4. Review contact details, quoted conversations, permissions, and external embeds manually.
-5. Replace previous deployment files so newly excluded pages cannot remain available as stale output.
+If a credential was exposed, revoke or rotate it. Deleting the page doesn't make a published secret safe again, and caches or copies may remain outside your control.
 
-Sample notes are illustrative fixtures. Review any replacement notes and assets independently before publishing them. Keep a personal vault folder out of Git before committing; adding it to `.gitignore` does not remove files already tracked or erase an earlier public copy.
-
-[[About/Deployment|Deployment]] covers hosting boundaries. [[About/Documentation|Documentation index]].
+[[About/Deployment|Next: deploy the reviewed site]] · [[About/Documentation|Guide index]].

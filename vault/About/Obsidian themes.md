@@ -5,111 +5,134 @@ tags: [lattice, documentation, themes]
 description: Publish with actual Obsidian theme CSS, enabled snippets, and local assets.
 ---
 
-Lattice uses **actual installed Obsidian CSS**, not approximations selected from a theme gallery. It reads your vault's `.obsidian/appearance.json` and loads the corresponding files at build time.
+Choose a look for your notes, add a small CSS snippet, and optionally let readers choose their own theme. You can use the built-in **Default (Obsidian)** and **Publish** themes without installing anything, or publish the original CSS from an installed Obsidian theme such as Minimal.
 
-**Default (Obsidian)** is the built-in baseline when neither configuration nor the vault selects another theme. The demo explicitly sets top-level `"theme": "default"`, so it starts there even though Minimal is installed. Omit that override for your own vault if you want to follow its selected theme.
+Before you begin, complete [[About/Quick start]] and keep your local site running. The examples assume your own vault is `my-vault/`. Keep the title and homepage settings you added in [[About/Configuration]].
 
-## Built-in Publish theme
+## 1. Try the two built-in themes
 
-Lattice also includes `publish-theme`, a built-in reader style based on the public Obsidian Publish layout: one reading scrollbar, a restrained file tree, a sticky page-context column, compact graph icons with a local-graph popover, hierarchical outlines, and Publish-sized titles. Choose it explicitly:
+Open `publish.config.json`. Add `theme` beside `vault`, not inside `site`:
 
 ```json
 {
-  "vault": "./vault",
-  "theme": "publish-theme",
-  "site": { "theme": "system" }
+  "vault": "./my-vault",
+  "theme": "default",
+  "site": {
+    "title": "My notes",
+    "home": "Home.md",
+    "theme": "system"
+  }
 }
 ```
 
-This theme ships with Lattice, so it does not need to exist in `.obsidian/themes`. It still respects your light/dark choice and loads snippets, `publish.css`, extra CSS, and configured appearance variables afterward. Use a real installed theme instead when you want that theme's original design.
+If you have not created `Home.md`, keep your existing homepage setting or leave `home` out. Save and open the site in a fresh private browser window so an earlier reader choice does not mask your new default. **Default (Obsidian)** gives you the built-in baseline appearance.
 
-## Follow the vault
+Change top-level `theme` to `"publish-theme"` and save again. You should see the **Publish** style, with a compact file tree, generous page titles, and a page-information column on wider screens. Both built-ins ship with Lattice; neither needs a folder in `.obsidian/themes`.
 
-For example, in `.obsidian/appearance.json`:
+Now open **Reader settings → Color scheme** and try **Light**, **Dark**, and **Adapt to system**. These change the color mode without changing the CSS theme. In the configuration, `site.theme` sets that color-mode default; top-level `theme` chooses the design.
+
+## 2. Use Minimal's original CSS
+
+If Minimal is not installed in your copied vault, open that vault in Obsidian. Go to **Settings → Appearance → Themes → Manage**, find **Minimal**, install it, and select it. No Obsidian plugin is needed.
+
+Obsidian saves the theme at `.obsidian/themes/Minimal/theme.css` inside the vault and records the selection in `.obsidian/appearance.json`. If you are copying a vault from elsewhere, include its hidden `.obsidian` folder so those files come along.
+
+Back in `publish.config.json`, change the top-level selection:
+
+```json
+"theme": "Minimal"
+```
+
+Save, then reload your private-window preview. The site should now use Minimal's installed CSS. This loads the theme's actual stylesheet, not a separate approximation of Minimal.
+
+Alternatively, remove the top-level `theme` setting altogether to follow the theme selected in Obsidian. Lattice reads `cssTheme` from `.obsidian/appearance.json`; if nothing selects a theme, it uses Default (Obsidian). The included demo explicitly selects `"default"`, so merely selecting Minimal in Obsidian will not override that configuration.
+
+If the build says Minimal is unavailable, check for `.obsidian/themes/Minimal/theme.css` in the vault named by `vault`. Choosing a name does not install or download a theme.
+
+## 3. Add one visible snippet
+
+In your copied vault, create `.obsidian/snippets/roomier-paragraphs.css` with:
+
+```css
+.markdown-rendered p {
+  line-height: 1.8;
+}
+```
+
+In Obsidian, open **Settings → Appearance → CSS snippets**, refresh the list if needed, and enable **roomier-paragraphs**. Leave `snippets` out of `publish.config.json` to follow Obsidian's enabled snippets.
+
+Save a note or reload the local preview. Paragraphs should look more spacious. Obsidian records the enabled name in `enabledCssSnippets`; the relevant part of `.obsidian/appearance.json` looks like this:
 
 ```json
 {
   "cssTheme": "Minimal",
-  "enabledCssSnippets": ["typography", "tables"],
-  "accentColor": "#8065da",
-  "baseFontSize": 18,
-  "textFontFamily": "Inter",
-  "monospaceFontFamily": "JetBrains Mono"
+  "enabledCssSnippets": ["roomier-paragraphs"]
 }
 ```
 
-This example expects `.obsidian/themes/Minimal/theme.css` and `.obsidian/snippets/typography.css` and `tables.css` to exist. The demo includes the original Minimal theme and its license, but its baseline appearance does not require selecting Minimal. Install and select any other theme in your own Obsidian vault before publishing it.
+You do not need to replace that file by hand. To select snippets only for the website, add top-level `"snippets": ["roomier-paragraphs"]` to your publish configuration. To publish without snippets, use `"snippets": []`. An omitted setting follows Obsidian; an empty array turns snippets off. A selected snippet file needs to exist.
 
-Fonts named in appearance settings must be available in the browser or supplied through trusted CSS; naming a font does not download it. Text size applies for numeric values from 8 to 72 pixels. A configured site accent takes precedence over the vault accent.
+## 4. Let readers choose a theme
 
-## Override deliberately
-
-In `publish.config.json`:
+Add `allowThemeSwitching` inside `site`:
 
 ```json
 {
-  "vault": "./vault",
+  "vault": "./my-vault",
   "theme": "Minimal",
-  "snippets": [],
-  "css": ["./site-overrides.css"],
-  "bodyClasses": ["minimal-style-default"],
-  "site": { "theme": "system", "showProperties": false }
+  "site": {
+    "title": "My notes",
+    "allowThemeSwitching": true
+  }
 }
 ```
 
-Top-level `theme` chooses the community theme; `site.theme` chooses light/dark/system mode. Set top-level `theme` to `"default"` to ignore the vault's selected theme. Omitted `snippets` follows `enabledCssSnippets`; an empty array disables them.
+Keep your existing `home` and other site settings when adding this option. Save, open **Reader settings**, and find **Obsidian theme**. Choose **Publish**, then **Default (Obsidian)**, then **Minimal**. Each selection should change the page's styling without navigating away or editing your vault. Try **Color scheme** too: it remains independent of the theme picker.
 
-Theme/snippet names resolve inside `.obsidian`. Explicit CSS paths and additional `css` entries resolve beside the configuration file. Files named by explicit settings must exist; unavailable selected themes or snippets fail compilation rather than silently switching styles.
+With switching enabled, Lattice includes both built-ins, the site's selected theme, and other installed themes it discovers in `.obsidian/themes`. Switching is off by default.
 
-## Let readers switch themes
-
-To show an **Obsidian theme** picker in Reader settings, enable it in `publish.config.json`:
+If you want to limit the installed choices, add a top-level allowlist:
 
 ```json
-{
-  "vault": "./vault",
-  "site": { "allowThemeSwitching": true }
-}
+"themes": ["Minimal"]
 ```
 
-Lattice includes Default (Obsidian), Publish, the site's selected theme, and discovered themes installed in `.obsidian/themes`. The reader can switch without rebuilding or changing your vault. The choice is saved in that browser; light/dark/system color mode remains a separate setting.
+Only name themes already installed, or use existing CSS file paths. **Default (Obsidian)**, **Publish**, and the selected site theme always remain available, even if they are not in the allowlist. `"themes": []` skips discovery and leaves those choices; omitting `themes` discovers installed themes. With only Minimal installed, this allowlist does not visibly change the picker yet, but it prevents future installations from being offered automatically.
 
-Want to offer only a few themes? Add a top-level allowlist:
+## 5. Check the default and reset saved choices
 
-```json
-{
-  "vault": "./vault",
-  "themes": ["Minimal", "Things"],
-  "site": { "allowThemeSwitching": true }
-}
-```
+Reload after choosing a theme. Your browser remembers that choice, along with its separate color-mode preference. A new configuration default does not replace a reader's saved, still-available theme choice.
 
-Only list themes already installed in your vault, or explicit CSS file paths. Default, Publish, and the site's selected theme remain available regardless of the allowlist. Use `themes: []` to skip installed-theme discovery and offer only those choices; the selected theme may already be one of the two built-ins. Theme switching is disabled by default, so other themes are not bundled unless you enable it.
+To see the configured default, use a fresh private window. To return your regular browser to the site defaults, close the site's tabs, clear its stored site data in your browser settings, and reopen it. Clearing site data also resets saved layout preferences and folder folds; there is no reset button in Reader settings.
 
-Theme styles are served as local CSS assets. The site's default CSS is included in each page; other theme layers are fetched when selected and cached in memory for the current reader session. Snippets, `publish.css`, and your other site overrides still apply afterward. A failed switch keeps the current appearance and shows an error. This does not install themes or execute Obsidian plugins.
+On startup, Lattice applies the saved or configured color mode early and, when needed, loads the saved theme before revealing the content. If that startup theme request fails or takes more than **four seconds**, the page opens with the site's default theme instead. A failed switch made in Reader settings keeps the current theme and shows an error. The selected theme styles are local website assets; snippets and site overrides continue to apply to every choice.
 
-On a fresh page load, an early script applies the saved or configured color mode and restores an available saved theme before revealing the content. Startup loading waits at most **four seconds**, then falls back to the site's default theme if the request fails or is too slow; the page is not hidden indefinitely. Blocked browser storage uses site defaults and makes new preferences session-only. Without JavaScript, the static content remains available with the site's default theme, but saved reader choices cannot be restored.
+## Optional: finishing touches and CSS limits
 
-## Loading order and assets
+### Reuse font and accent settings
 
-Reader baseline CSS is followed by the compiled theme layer. Within that layer, Lattice loads:
+Lattice also reads the vault's accent color, base text size, and text/monospace font names from `.obsidian/appearance.json`. A configured `site.accent` overrides the vault accent. Font names do not download fonts: visitors need the font installed, or you can supply it through CSS. Numeric base text sizes from 8 to 72 pixels are supported.
 
-1. The selected community theme.
-2. Selected snippets, in their listed order.
-3. Optional vault-root `publish.css`.
-4. Additional top-level `css` files.
+### Choose where an override belongs
+
+For a website-only style, put `publish.css` directly inside your vault. For a CSS file beside `publish.config.json`, add a top-level setting such as `"css": ["./site-overrides.css"]` after creating that file. Explicit theme and snippet CSS paths also start beside the configuration file, while simple names resolve inside the vault's `.obsidian` folder.
+
+After the reader baseline, the theme layer loads in this order:
+
+1. The selected theme's CSS.
+2. Selected snippets in their listed order.
+3. Vault-root `publish.css`, if present.
+4. Additional files listed in `css`.
 5. Appearance-derived variables and optional `site.customCss`.
 
-Local CSS imports are processed recursively. Supported local fonts and images are emitted with rewritten URLs under the configured deployment base. Import cycles, unsupported asset types, and references outside a file's allowed boundary are build errors. A named theme's assets must stay within that theme directory; a snippet or explicit CSS file's assets stay within its directory. Vault-root `publish.css` can reference allowed assets within the vault, but not hidden assets.
+Later rules can override earlier ones according to the usual CSS cascade. `bodyClasses` adds site-wide classes, and `cssclasses` on a note styles that note; homepage `cssclasses` also contribute site-wide classes.
 
-Remote imports and remote `url(...)` references remain remote. The build does not fetch them; readers need connectivity and may contact third-party servers. Only use CSS you trust.
+### Keep styles portable
 
-## Matching Obsidian, not running Obsidian
+Local CSS imports, fonts, and supported images are copied into the built site with rewritten URLs. Keep a theme's assets in its theme directory, and a snippet or explicit CSS file's assets within its own directory. Vault-root `publish.css` can use allowed assets elsewhere in the vault, but not excluded ones. Missing files, unsupported assets, or circular imports cause build errors.
 
-The reader exposes `.theme-light`, `.theme-dark`, workspace/file-tree classes, `.markdown-preview-view`, `.markdown-rendered`, callouts, metadata, and hover-popover classes. Native variables include `--background-primary`, `--text-normal`, `--font-text`, and `--file-line-width`. Homepage `cssclasses` can contribute body classes alongside configured `bodyClasses`.
+Use CSS you trust. Remote `@import` and `url(...)` references remain remote: readers may contact those third-party servers, and the styles may need an internet connection. The build does not download them for offline use.
 
-Obsidian is an Electron application. Plugin-only controls, editing panes, and Style Settings plugin state are not reproduced or executed. Use reviewed snippets, `publish.css`, or body classes for matching reader styles, and test both color modes and narrow screens.
+Lattice is a reader, not Obsidian running in the browser. Theme rules targeting reading content and familiar Obsidian classes can work; editor panes, plugin controls, and Style Settings plugin state are not reproduced. Check your chosen style in light and dark modes and on a narrow screen. See [[About/Troubleshooting]] if a style does not load, or [[About/Security and privacy]] for more on external resources.
 
-See [[About/Troubleshooting]] for missing CSS and [[About/Security and privacy]] for the trust boundary.
-
-[[About/Documentation|Documentation index]].
+[[About/Documentation|Back to the documentation index]].

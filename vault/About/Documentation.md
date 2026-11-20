@@ -3,32 +3,36 @@ title: Documentation
 aliases: [Lattice documentation]
 category: documentation
 tags: [lattice, documentation]
-description: Setup, configuration, themes, Markdown, deployment, and safety for Lattice.
+description: Start with your own repository, build your note site, customize it, and put it online.
 ---
 
-**Lattice** turns your Obsidian vault into a website. To get started, clone the repo, copy your vault into the project folder, point `publish.config.json` at that folder, and run `npm run dev`. You do not need to convert notes or work through every setting.
+Want your Obsidian notes on the web? Start with [[About/Quick start|Quick start]]. You'll create your own repository from the Lattice template, add a vault, and open the site on your computer.
 
-**Start with [[About/Quick start|Quick start]].** The other guides are here when you need them. [[Projects/Lattice|The project overview]] describes the reader and its features.
+You don't need to read every page before starting. Follow the guides below as you reach each step.
 
-## Publish a vault
+## Build your first site
 
-1. [[About/Quick start|Quick start]] — clone, copy your vault, choose its folder, and run.
-2. [[About/Configuration|Configuration]] — choose a vault, homepage, navigation, and hidden paths.
-3. [[About/Obsidian themes|Obsidian themes]] — use the installed theme, snippets, and CSS assets.
-4. [[About/Markdown and Bases|Markdown and Bases]] — supported note syntax, transclusions, and data views.
-5. [[About/Security and privacy|Security and privacy]] — decide what may become public.
-6. [[About/Deployment|Deployment]] — verify output and publish to a static host.
+1. [[About/Quick start|Quick start]] — create your copy and get your notes on screen.
+2. [[About/Configuration|Make the site yours]] — pick a name, homepage, and navigation layout.
+3. [[About/Obsidian themes|Change the appearance]] — use Default, Publish, or your installed Obsidian theme.
+4. [[About/Markdown and Bases|Try linked content]] — add links, properties, embeds, and a Base table.
+5. [[About/Security and privacy|Choose what to share]] — leave private notes out before publishing.
+6. [[About/Deployment|Put it online]] — connect **your own repository** to a host or upload a local build.
 
-## Understand and maintain it
+## Need help with a specific problem?
 
-- [[About/Architecture|Architecture]] — what happens during compilation versus in the browser.
-- [[About/Troubleshooting|Troubleshooting]] — configuration errors, missing links, themes, and deployment paths.
-- [[About/Contributing|Contributing]] — code locations, regression checks, and demo-content standards.
+[[About/Troubleshooting|Troubleshooting]] covers missing folders, homepage errors, empty Bases, theme issues, and broken deployed URLs. Start with the message you see in the terminal, then find the matching section.
 
-## A useful boundary
+## Curious about how Lattice works?
 
-This is a **publisher**, not an Obsidian plugin host or a private workspace service. There is no plugin execution, Dataview runtime, Canvas editing, Sync, collaboration, account system, or password protection. Bases is a supported subset, not a promise of compatibility with every Obsidian expression.
+[[About/Architecture|Architecture]] explains what happens when you save a note and why the deployed site doesn't need Obsidian or a running compiler. [[About/Contributing|Contributing]] shows how to make and submit a project improvement.
 
-Sample notes are illustrative fixtures for rendering, navigation, and linked collections. Use them to explore the reader, then replace them with the notes you intend to publish.
+The [[Projects/Lattice|project overview]] is a good place to compare features. The sample essays and reading notes are here to demonstrate the reader, not to tell you what your vault must look like.
+
+## A few things to know
+
+Lattice publishes notes; it doesn't run Obsidian plugins or provide Sync, collaboration, or a login service. Bases supports the functions described in its guide, not every expression from Obsidian or community plugins.
+
+Your local preview is not public. Deploying the generated site makes it public unless you add access restrictions through your host. When you're ready for that step, use the privacy guide first.
 
 [[Welcome|Return to Welcome]].

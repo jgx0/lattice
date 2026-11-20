@@ -13,10 +13,10 @@ description: Publish connected Obsidian notes with Lattice, and explore the docu
 
 ## Get started
 
-Clone the repo, copy your vault into the project folder, point Lattice at it in `publish.config.json`, and run `npm run dev`. **That's all you need to start.** Follow [[About/Quick start|Quick start]] for the commands and a small configuration example.
+Use **Use this template → Create a new repository** on GitHub to make your own Lattice site. Clone your copy, add a vault, point Lattice at its folder, and run `npm run dev`. [[About/Quick start|Quick start]] walks through it from the first button click to your notes on screen.
 
 - [[About/Documentation|Documentation]] — the guides, when you need them.
-- [[About/Quick start|Quick start]] — clone, copy your vault, choose its folder, and run.
+- [[About/Quick start|Quick start]] — create your repository, add a vault, and open your site.
 - [[About/Obsidian themes|Obsidian themes]] — use an installed theme, enabled snippets, and `publish.css`.
 - [[About/Deployment|Deployment]] — review the static output and deploy to Cloudflare Pages, Vercel, or Netlify.
 
