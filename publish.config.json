@@ -22,6 +22,14 @@
       "Atlas",
       "About"
     ],
+    "collapsedFolders": [
+      "Field Notes",
+      "Essays",
+      "Library",
+      "Library/Books",
+      "Projects",
+      "Atlas"
+    ],
     "hiddenPaths": ["Templates"]
   }
 }

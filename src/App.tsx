@@ -28,7 +28,7 @@ import { searchNotes } from "./lib/search";
 import SidebarTree from "./SidebarTree";
 import MarkdownContent from "./MarkdownContent";
 import GraphView from "./GraphView";
-import LocalGraphPopover from "./LocalGraphPopover";
+import GraphPopover from "./GraphPopover";
 import QuickSwitcher from "./QuickSwitcher";
 import { usePublishedTheme } from "./usePublishedTheme";
 import { useFolderState } from "./useFolderState";
@@ -101,10 +101,9 @@ export default function App({ site }: { site: CompiledSite }) {
     if (!rightSidebar && innerWidth <= 1100) setSidebar(false);
   }
   const { collapsed, toggleFolder } = useFolderState(site);
-  const [view, setView] = useState<"note" | "graph">("note");
   const [query, setQuery] = useState("");
-  const [localGraphOpen, setLocalGraphOpen] = useState(false);
-  const closeLocalGraph = useCallback(() => setLocalGraphOpen(false), []);
+  const [graphScope, setGraphScope] = useState<"local" | "vault" | null>(null);
+  const closeGraph = useCallback(() => setGraphScope(null), []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const closeQuickSwitcher = useCallback(() => setQuickSwitcherOpen(false), []);
@@ -173,7 +172,7 @@ export default function App({ site }: { site: CompiledSite }) {
     bodyClasses.forEach((c) => document.body.classList.add(c));
     apply();
     media.addEventListener("change", apply);
-    document.title = `${view === "graph" ? "Graph view" : current?.title || site.name} - ${settings.title}`;
+    document.title = `${current?.title || site.name} - ${settings.title}`;
     return () => {
       media.removeEventListener("change", apply);
       bodyClasses.forEach((c) => document.body.classList.remove(c));
@@ -184,7 +183,6 @@ export default function App({ site }: { site: CompiledSite }) {
     current?.title,
     site.bodyClasses,
     site.name,
-    view,
   ]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
@@ -197,9 +195,9 @@ export default function App({ site }: { site: CompiledSite }) {
         e.key.toLowerCase() === "k"
       ) {
         e.preventDefault();
+        setGraphScope(null);
         if (settings.quickSwitcher) {
           setSettingsOpen(false);
-          setLocalGraphOpen(false);
           setHover(null);
           if (timer.current) clearTimeout(timer.current);
           setQuickSwitcherOpen((open) => !open);
@@ -278,7 +276,7 @@ export default function App({ site }: { site: CompiledSite }) {
         (n) => n.path === target || n.url === target || n.slug === target,
       );
       if (!note) return;
-      setView("note");
+      setGraphScope(null);
       setHover(null);
       setPath(note.path);
       setQuery("");
@@ -308,7 +306,7 @@ export default function App({ site }: { site: CompiledSite }) {
       if (note) {
         setPath(note.path);
         setPanes([note.path]);
-        setView("note");
+        setGraphScope(null);
         let anchor = location.hash.slice(1);
         try {
           anchor = decodeURIComponent(anchor);
@@ -326,7 +324,7 @@ export default function App({ site }: { site: CompiledSite }) {
     };
   }, [site, scrollTo]);
   useEffect(() => {
-    if (!reader.current || view !== "note") return;
+    if (!reader.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries)
@@ -338,7 +336,7 @@ export default function App({ site }: { site: CompiledSite }) {
       .querySelectorAll("h1[id],h2[id],h3[id]")
       .forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, [current, view, panes]);
+  }, [current, panes]);
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -407,10 +405,12 @@ export default function App({ site }: { site: CompiledSite }) {
       }
     }
   }
-  function showGraph() {
-    setView("graph");
+  function showGraph(scope: "local" | "vault" = "vault") {
+    setSettingsOpen(false);
+    setQuickSwitcherOpen(false);
     setHover(null);
-    if (innerWidth <= 760) setSidebar(false);
+    if (timer.current) clearTimeout(timer.current);
+    setGraphScope(scope);
   }
   if (!current)
     return (
@@ -422,8 +422,7 @@ export default function App({ site }: { site: CompiledSite }) {
     .map((p) => notes.find((n) => n.path === p))
     .filter((n): n is PublishedNote => !!n);
   const headingItems = current.headings.filter((h) => h.level < 5);
-  const pageInformationAvailable =
-    view === "note" && !(settings.stacked && panes.length > 1);
+  const pageInformationAvailable = !(settings.stacked && panes.length > 1);
   const rightSidebarVisible = rightSidebar && pageInformationAvailable;
   function propertyIcon(key: string, value: unknown) {
     if (key === "tags" || key === "tag") return <Hash size={15} />;
@@ -631,7 +630,7 @@ export default function App({ site }: { site: CompiledSite }) {
                 className="clickable-icon"
                 aria-label="Graph view"
                 title="Graph view"
-                onClick={showGraph}
+                onClick={() => showGraph()}
               >
                 <GitBranch size={16} />
               </button>
@@ -690,9 +689,7 @@ export default function App({ site }: { site: CompiledSite }) {
                 <PanelLeftOpen size={17} />
               )}
             </button>
-            <div className="view-header-title">
-              {view === "graph" ? "Graph view" : current.title}
-            </div>
+            <div className="view-header-title">{current.title}</div>
           </div>
           <div className="view-actions">
             <button
@@ -736,16 +733,7 @@ export default function App({ site }: { site: CompiledSite }) {
           id="main-content"
         >
           <div className="reader-page-content">
-            {view === "graph" ? (
-              <section className="graph-page">
-                <h1>Graph view</h1>
-                <GraphView
-                  notes={notes}
-                  current={current.path}
-                  onNavigate={navigate}
-                />
-              </section>
-            ) : settings.stacked && panes.length > 1 ? (
+            {settings.stacked && panes.length > 1 ? (
               <div className="page-stack">
                 {panes.map((p) => {
                   const n = notes.find((note) => note.path === p);
@@ -811,7 +799,7 @@ export default function App({ site }: { site: CompiledSite }) {
                             className="clickable-icon graph-icon graph-expand"
                             aria-label="Expand graph"
                             title="Expand local graph"
-                            onClick={() => setLocalGraphOpen(true)}
+                            onClick={() => showGraph("local")}
                           >
                             <ArrowUpRight size={16} />
                           </button>
@@ -819,7 +807,7 @@ export default function App({ site }: { site: CompiledSite }) {
                             className="clickable-icon graph-icon graph-global"
                             aria-label="Global Graph"
                             title="Global graph"
-                            onClick={showGraph}
+                            onClick={() => showGraph()}
                           >
                             <GitFork size={16} />
                           </button>
@@ -917,16 +905,14 @@ export default function App({ site }: { site: CompiledSite }) {
           onClose={closeQuickSwitcher}
         />
       )}
-      {localGraphOpen && (
-        <LocalGraphPopover
+      {graphScope && (
+        <GraphPopover
           notes={notes}
           current={current.path}
+          scope={graphScope}
+          onScopeChange={setGraphScope}
           onNavigate={navigate}
-          onGlobal={() => {
-            closeLocalGraph();
-            showGraph();
-          }}
-          onClose={closeLocalGraph}
+          onClose={closeGraph}
         />
       )}
       {hover && (

@@ -72,6 +72,7 @@ export interface SiteSettings {
   navigation: string[];
   hiddenPaths: string[];
   navigationFolders?: Record<string, string>;
+  collapsedFolders?: string[];
   allowThemeSwitching?: boolean;
   quickSwitcher?: boolean;
 }

@@ -8,17 +8,24 @@ export function folderStateKey(site: CompiledSite): string {
   return `publish-reader-folders:${encodeURIComponent(home?.url ?? "/")}:${encodeURIComponent(home?.path ?? "")}`;
 }
 
-function readCollapsed(key: string, folders: ReadonlySet<string>): Set<string> {
+function readCollapsed(
+  key: string,
+  folders: ReadonlySet<string>,
+  defaults: readonly string[],
+): Set<string> {
+  const initial = () => new Set(defaults.filter((path) => folders.has(path)));
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
-    if (!Array.isArray(stored)) return new Set();
+    const raw = localStorage.getItem(key);
+    if (raw === null) return initial();
+    const stored: unknown = JSON.parse(raw);
+    if (!Array.isArray(stored)) return initial();
     return new Set(
       stored.filter(
         (path): path is string => typeof path === "string" && folders.has(path),
       ),
     );
   } catch {
-    return new Set();
+    return initial();
   }
 }
 
@@ -41,14 +48,14 @@ export function useFolderState(site: CompiledSite) {
   }, [site.notes, site.settings.navigationFolders]);
   const [state, setState] = useState(() => ({
     key,
-    collapsed: readCollapsed(key, folders),
+    collapsed: readCollapsed(key, folders, site.settings.collapsedFolders ?? []),
   }));
   const collapsed = useMemo(
     () =>
       state.key === key
         ? new Set([...state.collapsed].filter((path) => folders.has(path)))
-        : readCollapsed(key, folders),
-    [state, key, folders],
+        : readCollapsed(key, folders, site.settings.collapsedFolders ?? []),
+    [state, key, folders, site.settings.collapsedFolders],
   );
 
   useEffect(() => {

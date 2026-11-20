@@ -7,6 +7,8 @@ type Props = {
   current?: string;
   onNavigate: (path: string) => void;
   compact?: boolean;
+  scope?: "local" | "vault";
+  onScopeChange?: (scope: "local" | "vault") => void;
   onExpand?: () => void;
 };
 export default function GraphView({
@@ -14,6 +16,8 @@ export default function GraphView({
   current,
   onNavigate,
   compact = false,
+  scope,
+  onScopeChange,
   onExpand,
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
@@ -26,7 +30,8 @@ export default function GraphView({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [query, setQuery] = useState("");
   const [hover, setHover] = useState<string | null>(null);
-  const [local, setLocal] = useState(compact);
+  const [localOnly, setLocalOnly] = useState(compact);
+  const local = scope ? scope === "local" : localOnly;
   const drag = useRef<{
     path?: string;
     x: number;
@@ -143,7 +148,7 @@ export default function GraphView({
   const colors = ["#8b73d6", "#66a89d", "#d8ae6a", "#83a1cc", "#be8ba3"];
   const folders = [...new Set(notes.map((n) => n.folder))];
   return (
-    <div className={`graph-view ${compact ? "compact" : ""}`}>
+    <div className={`graph-view ${compact ? "compact" : "full"}`}>
       {!compact && (
         <div className="graph-toolbar">
           <div className="graph-search">
@@ -167,7 +172,11 @@ export default function GraphView({
             <input
               type="checkbox"
               checked={local}
-              onChange={(e) => setLocal(e.target.checked)}
+              onChange={(e) => {
+                if (onScopeChange)
+                  onScopeChange(e.target.checked ? "local" : "vault");
+                else setLocalOnly(e.target.checked);
+              }}
             />{" "}
             Current page only
           </label>
@@ -252,7 +261,7 @@ export default function GraphView({
               <g
                 key={n.path}
                 transform={`translate(${p.x},${p.y})`}
-                className="graph-node"
+                className={`graph-node${active ? " is-active" : ""}`}
                 role="link"
                 tabIndex={0}
                 aria-label={`Open ${n.title}`}
@@ -342,14 +351,16 @@ export default function GraphView({
               <RotateCcw size={15} />
             </button>
           </div>
-          <div className="graph-legend">
-            {folders.map((f, i) => (
-              <span key={f}>
-                <i style={{ background: colors[i % colors.length] }} />
-                {f || "Home"}
-              </span>
-            ))}
-          </div>
+          {!scope && (
+            <div className="graph-legend">
+              {folders.map((f, i) => (
+                <span key={f}>
+                  <i style={{ background: colors[i % colors.length] }} />
+                  {f || "Home"}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="graph-hint">
             Drag to explore · Scroll to zoom · Select a note to open
           </p>

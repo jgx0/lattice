@@ -172,6 +172,7 @@ function buildNavigation(site: CompiledSite): Navigation {
     }
     parent.notes.push(note);
   }
+  const collapsed = new Set(site.settings.collapsedFolders ?? []);
   const ranks = new Map<string, number>();
   site.settings.navigation.forEach((path, index) => {
     if (!ranks.has(path)) ranks.set(path, index);
@@ -193,7 +194,7 @@ function buildNavigation(site: CompiledSite): Navigation {
     );
     for (const child of folders) {
       append(
-        `<details class="tree-item nav-folder" open><summary class="tree-item-self nav-folder-title folder-toggle"><span class="tree-item-icon collapse-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span><span class="tree-item-inner nav-folder-title-content">${escapeHtml(child.label)}</span></summary><div class="tree-item-children nav-folder-children folder-notes">`,
+        `<details class="tree-item nav-folder"${collapsed.has(child.path) ? "" : " open"}><summary class="tree-item-self nav-folder-title folder-toggle"><span class="tree-item-icon collapse-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span><span class="tree-item-inner nav-folder-title-content">${escapeHtml(child.label)}</span></summary><div class="tree-item-children nav-folder-children folder-notes">`,
       );
       tree(child);
       append("</div></details>");

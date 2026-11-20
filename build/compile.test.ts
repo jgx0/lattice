@@ -93,6 +93,16 @@ describe("filesystem build configuration", () => {
     expect(override.vaultPath).toBe(path.join(root, "second"));
     expect(override.settings.title).toBe("Override");
   });
+  it("validates initial collapsed folder paths without making them global defaults", async () => {
+    const { root, put } = await fixture({ site: { collapsedFolders: ["Library", "Library/Books"] } });
+    expect((await loadConfig(root)).settings.collapsedFolders).toEqual(["Library", "Library/Books"]);
+    for (const collapsedFolders of [true, "Library", [123], ["../Library"], ["/Library"], [""]]) {
+      await put("publish.config.json", JSON.stringify({ site: { collapsedFolders } }));
+      await expect(loadConfig(root)).rejects.toThrow(/collapsedFolders/);
+    }
+    await put("publish.config.json", JSON.stringify({ site: { title: "My notes" } }));
+    expect((await loadConfig(root)).settings.collapsedFolders).toBeUndefined();
+  });
   it("validates theme allowlists even when disabled and resolves CSS paths beside the config", async () => {
     const { root, put } = await fixture();
     await put("config/vault/Welcome.md", "# Welcome");

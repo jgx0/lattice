@@ -455,6 +455,43 @@ afterEach(async () => {
 
 describe("compiled-site reader", () => {
   describe("persisted navigation folders", () => {
+    it("starts the demo with only About expanded and preserves a reader's changes on reload", async () => {
+      const config = JSON.parse(await readFile("publish.config.json", "utf8"));
+      const demoSite: CompiledSite = {
+        ...site,
+        settings: {
+          ...site.settings,
+          collapsedFolders: config.site.collapsedFolders,
+        },
+      };
+      localStorage.removeItem(folderStateKey(demoSite));
+      await remount(demoSite);
+      for (const folder of [
+        "Field Notes",
+        "Essays",
+        "Library",
+        "Projects",
+        "Atlas",
+      ]) {
+        expect(folderButton(folder).getAttribute("aria-expanded"), folder).toBe(
+          "false",
+        );
+      }
+      expect(folderButton("About").getAttribute("aria-expanded")).toBe("true");
+      await click(folderButton("Library"));
+      const books = folderButton(
+        "Books",
+        folderButton("Library").parentElement!,
+      );
+      expect(books.getAttribute("aria-expanded")).toBe("false");
+      await click(folderButton("About"));
+      await remount(demoSite);
+      expect(folderButton("Library").getAttribute("aria-expanded")).toBe(
+        "true",
+      );
+      expect(folderButton("About").getAttribute("aria-expanded")).toBe("false");
+    });
+
     it("restores collapsed and expanded folders on nested-route reloads without depending on the route or display title", async () => {
       const key = folderStateKey(site);
       expect(folderButton("Field Notes").getAttribute("aria-expanded")).toBe(
@@ -720,10 +757,13 @@ describe("compiled-site reader", () => {
     expect(titles()).toEqual(["Welcome to Lattice"]);
     expect(one(".note-header").textContent).toBe("Welcome to Lattice");
     expect(one(".markdown-body").innerHTML).toBe(compiled("Welcome.md").html);
-    const tip=one('[data-callout="tip"]');
-    expect(tip.textContent).toContain('Find any note in a few keystrokes');
-    expect(tip.textContent).toContain('Command+K');
-    expect(tip.compareDocumentPosition(one('.markdown-body h2')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const tip = one('[data-callout="tip"]');
+    expect(tip.textContent).toContain("Find any note in a few keystrokes");
+    expect(tip.textContent).toContain("Command+K");
+    expect(
+      tip.compareDocumentPosition(one(".markdown-body h2")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(one(".site-header").textContent).toBe("Notes");
     expect(
       container.querySelector(
@@ -1763,8 +1803,10 @@ describe("compiled-site reader", () => {
 
   it("opens and zooms the graph, filters compiled nodes and navigates a node with Enter", async () => {
     await click(label("Graph view", label("Site navigation")));
-    expect(one(".graph-page h1").textContent).toBe("Graph view");
-    const graph = label("Interactive graph of connected notes");
+    const popup = one('[role="dialog"][aria-label="Vault graph"]');
+    expect(one("h2", popup).textContent).toBe("Vault graph");
+    expect(titles()).toEqual(["Welcome to Lattice"]);
+    const graph = label("Interactive graph of connected notes", popup);
     expect(graph.querySelectorAll(".graph-node")).toHaveLength(
       site.notes.length,
     );
@@ -1831,10 +1873,22 @@ describe("compiled-site reader", () => {
     const dialog = one('[role="dialog"][aria-label="Local graph"]', overlay);
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(document.activeElement).toBe(label("Open global graph", dialog));
-    expect(one(".graph-view", dialog).classList.contains("compact")).toBe(true);
+    expect(one(".graph-view", dialog).classList.contains("compact")).toBe(
+      false,
+    );
+    expect(label("Filter graph", dialog)).toBeDefined();
+    expect(label("Zoom in", dialog)).toBeDefined();
     expect(
-      dialog.querySelector(".graph-toolbar, .graph-controls, .graph-legend"),
-    ).toBeNull();
+      (one('input[type="checkbox"]', dialog) as HTMLInputElement).checked,
+    ).toBe(true);
+    const expectedLocal = new Set([
+      page.getAttribute("data-note-path"),
+      ...compiled("Field Notes/Digital gardens.md").outgoing,
+      ...compiled("Field Notes/Digital gardens.md").backlinks,
+    ]);
+    expect(dialog.querySelectorAll(".graph-node")).toHaveLength(
+      expectedLocal.size,
+    );
     expect(one(".reader-page-content .note-page")).toBe(page);
     expect(window.location.href).toBe(url);
     const patterns = [...container.querySelectorAll(".graph-view svg pattern")];
@@ -1846,7 +1900,7 @@ describe("compiled-site reader", () => {
         `url(#${pattern.id})`,
       );
     }
-    for (const graph of [sidebarGraph, one(".graph-view.compact", dialog)]) {
+    for (const graph of [sidebarGraph]) {
       const svg = one("svg", graph);
       const transform = one("g[transform]", svg);
       const before = transform.getAttribute("transform");
@@ -1861,6 +1915,16 @@ describe("compiled-site reader", () => {
       expect(event.defaultPrevented).toBe(false);
       expect(transform.getAttribute("transform")).toBe(before);
     }
+    const popupSvg = one(".graph-view > svg", dialog);
+    const beforeZoom = one("g[transform]", popupSvg).getAttribute("transform");
+    await act(async () =>
+      popupSvg.dispatchEvent(
+        new WheelEvent("wheel", { deltaY: -100, bubbles: true }),
+      ),
+    );
+    expect(one("g[transform]", popupSvg).getAttribute("transform")).not.toBe(
+      beforeZoom,
+    );
     await key(label("Open Attention is a material", dialog), "Enter");
     expect(container.querySelector(".graph-popover-overlay")).toBeNull();
     expect(titles()).toEqual(["Attention is a material"]);
@@ -1899,10 +1963,129 @@ describe("compiled-site reader", () => {
     expect(window.location.href).toBe(url);
   });
 
+  it("switches local and vault scope in one popup without replacing the note, URL, focus, or sidebar state", async () => {
+    await remount(
+      site,
+      compiled("Field Notes/Digital gardens.md").url +
+        "#a-link-should-carry-a-thought",
+    );
+    const trigger = label("Global Graph", one("#page-information"));
+    const page = one(".note-page");
+    const reader = one<HTMLElement>(".reader");
+    reader.scrollTop = 240;
+    const url = location.href;
+    const title = document.title;
+    await act(async () => trigger.focus());
+    await click(trigger);
+    const dialog = one('[role="dialog"][aria-label="Vault graph"]');
+    expect(one("#site-navigation").hasAttribute("inert")).toBe(true);
+    expect(dialog.querySelectorAll(".graph-node")).toHaveLength(
+      site.notes.length,
+    );
+    const switchScope = label("Open local graph", dialog);
+    await click(switchScope);
+    expect(one('[role="dialog"][aria-label="Local graph"]')).toBe(dialog);
+    expect(dialog.querySelectorAll(".graph-node").length).toBeLessThan(
+      site.notes.length,
+    );
+    expect(document.activeElement).toBe(switchScope);
+    await click(label("Open global graph", dialog));
+    expect(one('[role="dialog"][aria-label="Vault graph"]')).toBe(dialog);
+    expect(dialog.querySelectorAll(".graph-node")).toHaveLength(
+      site.notes.length,
+    );
+    const close = label("Close vault graph", dialog);
+    const reset = label("Reset graph", dialog);
+    await act(async () => reset.focus());
+    await key(reset, "Tab");
+    expect(document.activeElement).toBe(switchScope);
+    await key(switchScope, "Tab", { shiftKey: true });
+    expect(document.activeElement).toBe(reset);
+    expect(one(".note-page")).toBe(page);
+    expect(reader.scrollTop).toBe(240);
+    expect(location.href).toBe(url);
+    expect(document.title).toBe(title);
+    await click(close);
+    expect(document.activeElement).toBe(trigger);
+    expect(one("#site-navigation").hasAttribute("inert")).toBe(false);
+    expect(one(".note-page")).toBe(page);
+  });
+
+  it("keeps sidebar search intact when Escape dismisses the vault graph", async () => {
+    const search = label("Search page or heading...") as HTMLInputElement;
+    await input(search, "Digital gardens");
+    await click(label("Graph view", label("Site navigation")));
+    await key(label("Close vault graph"), "Escape");
+    expect(container.querySelector(".graph-popover-overlay")).toBeNull();
+    expect(search.value).toBe("Digital gardens");
+  });
+
+  it("opens the vault popup over stacked panes without changing their scroll or route", async () => {
+    await click(label("Toggle stacked pages"));
+    await click(nav("Digital gardens"));
+    const panes = [...container.querySelectorAll(".stack-pane")];
+    const url = location.href;
+    await click(label("Graph view", label("Site navigation")));
+    expect([...container.querySelectorAll(".stack-pane")]).toEqual(panes);
+    expect(location.href).toBe(url);
+    await click(label("Close vault graph"));
+    expect([...container.querySelectorAll(".stack-pane")]).toEqual(panes);
+    expect(location.href).toBe(url);
+  });
+
+  it("keeps pointer dragging and zoom reset usable inside the graph popup", async () => {
+    await click(label("Graph view", label("Site navigation")));
+    const dialog = one('[role="dialog"][aria-label="Vault graph"]');
+    const svg = label("Interactive graph of connected notes", dialog);
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue({
+      width: 600,
+      height: 440,
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      bottom: 440,
+      right: 600,
+      toJSON: () => ({}),
+    });
+    Object.assign(svg, {
+      setPointerCapture: vi.fn(),
+      hasPointerCapture: vi.fn(() => false),
+    });
+    const pointer = async (
+      target: Element,
+      type: string,
+      x: number,
+      y: number,
+    ) => {
+      await act(async () =>
+        target.dispatchEvent(
+          new MouseEvent(type, { bubbles: true, clientX: x, clientY: y }),
+        ),
+      );
+    };
+    const transform = one("g[transform]", svg);
+    const start = transform.getAttribute("transform");
+    await pointer(svg, "pointerdown", 20, 20);
+    await pointer(svg, "pointermove", 60, 50);
+    await pointer(svg, "pointerup", 60, 50);
+    expect(transform.getAttribute("transform")).not.toBe(start);
+    await click(label("Reset graph", dialog));
+    expect(transform.getAttribute("transform")).toBe(start);
+    const node = label("Open Digital gardens", svg);
+    const nodeStart = node.getAttribute("transform");
+    await pointer(node, "pointerdown", 30, 30);
+    await pointer(svg, "pointermove", 50, 50);
+    await pointer(svg, "pointerup", 50, 50);
+    expect(node.getAttribute("transform")).not.toBe(nodeStart);
+    expect(one('[role="dialog"][aria-label="Vault graph"]')).toBe(dialog);
+    expect(titles()).toEqual(["Welcome to Lattice"]);
+  });
+
   it("preserves full graph search and zoom controls", async () => {
     await click(label("Graph view", label("Site navigation")));
-    const graphPage = one(".reader-page-content .graph-page");
-    const graph = one(".graph-view", graphPage);
+    const graphPopup = one('[role="dialog"][aria-label="Vault graph"]');
+    const graph = one(".graph-view", graphPopup);
     expect(graph.classList.contains("compact")).toBe(false);
     expect(label("Filter graph", graph)).toBeDefined();
     expect(label("Zoom in", graph)).toBeDefined();
@@ -2183,7 +2366,7 @@ describe("compiled-site reader", () => {
       expect(quickPaths()).not.toContain("References/On notebooks");
     });
 
-    it("opens Enter selections on clean compiled routes, leaves graph view and clears sidebar search while preserving stacking and truncating existing panes", async () => {
+    it("opens Enter selections on clean compiled routes, dismisses the graph popup and clears sidebar search while preserving stacking and truncating existing panes", async () => {
       await remount(site, "/garden/?stale=1#old-heading");
       const sidebarSearch = label(
         "Search page or heading...",
@@ -2649,13 +2832,15 @@ describe("compiled-site reader", () => {
     expect(window.location.pathname).toBe(backlinkTarget.url);
   });
 
-  it("disables page information in graph and multi-pane views and restores its fold state on return", async () => {
+  it("preserves page information behind graph popups and disables it only for multi-pane views", async () => {
     await click(sidebarControl("Fold right sidebar", "page-information", true));
+    const information = one<HTMLElement>("#page-information");
     await click(label("Graph view", label("Site navigation")));
-    expect(container.querySelector("#page-information")).toBeNull();
+    expect(one("#page-information")).toBe(information);
     expect(
       sidebarControl("Open right sidebar", "page-information", false).disabled,
-    ).toBe(true);
+    ).toBe(false);
+    await click(label("Close vault graph"));
     await click(nav("Digital gardens"));
     expect(
       sidebarControl("Open right sidebar", "page-information", false).disabled,

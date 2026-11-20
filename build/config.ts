@@ -164,7 +164,7 @@ export async function loadConfig(root = process.cwd()): Promise<BuildConfig> {
     hiddenPaths: [],
   };
   for (const key of Object.keys(site))
-    if (!(key in defaults) && key !== "navigationFolders")
+    if (!(key in defaults) && key !== "navigationFolders" && key !== "collapsedFolders")
       throw new Error(`Unknown site setting: ${key}`);
   for (const key of stringSettings)
     if (site[key] !== undefined)
@@ -182,7 +182,7 @@ export async function loadConfig(root = process.cwd()): Promise<BuildConfig> {
       );
     settings.theme = site.theme as SiteSettings["theme"];
   }
-  for (const key of ["navigation", "hiddenPaths"] as const)
+  for (const key of ["navigation", "hiddenPaths", "collapsedFolders"] as const)
     if (site[key] !== undefined)
       settings[key] = strings(site[key], `site.${key}`).map((item) =>
         vaultRelative(item, `site.${key}`),

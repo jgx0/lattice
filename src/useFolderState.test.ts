@@ -127,6 +127,34 @@ afterEach(async () => {
 });
 
 describe("useFolderState", () => {
+  it("uses configured folds only when saved choices are unavailable and preserves an explicitly empty choice", async () => {
+    const site = fixture();
+    site.settings.collapsedFolders = ["Field Notes", "Library", "Library/Books", "Missing"];
+    const key = folderStateKey(site);
+    await render(site);
+    expect(collapsed()).toEqual(["Field Notes", "Library", "Library/Books"]);
+    await toggle("Field Notes");
+    await toggle("Library");
+    await toggle("Library/Books");
+    expect(localStorage.getItem(key)).toBe("[]");
+    await remount(site);
+    expect(collapsed()).toEqual([]);
+
+    localStorage.setItem(key, '["Atlas"]');
+    await remount(site);
+    expect(collapsed()).toEqual(["Atlas"]);
+    localStorage.setItem(key, "{broken");
+    await remount(site);
+    expect(collapsed()).toEqual(["Field Notes", "Library", "Library/Books"]);
+    vi.spyOn(localStorage, "getItem").mockImplementation(() => {
+      throw new Error("Storage unavailable");
+    });
+    await remount(site);
+    expect(collapsed()).toEqual(["Field Notes", "Library", "Library/Books"]);
+    await toggle("Library");
+    expect(collapsed()).toEqual(["Field Notes", "Library/Books"]);
+  });
+
   it("scopes encoded keys to the canonical home URL and path and never cross-saves folds when the scope changes", async () => {
     const site = fixture();
     const key = folderStateKey(site);

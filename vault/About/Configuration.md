@@ -73,6 +73,8 @@ The **Projects** folder should now appear before **Notes**. Open each folder and
 
 Click a folder name to collapse it, then reload the page. It stays collapsed in your browser. These choices do not change your vault or configuration, and a rebuild does not reset them. New folders start open; if browser storage is blocked, fold choices last only for the current session. Hiding the entire sidebar is a separate control.
 
+To start a folder collapsed for new readers, add `"collapsedFolders": ["Notes"]` inside `site`. Use full displayed folder paths, such as `Library/Books`, for nested folders. This only sets the initial state: saved reader choices take precedence, including choosing to leave every folder open. The demo starts with every folder collapsed except **About**.
+
 ## 4. Leave a private folder out
 
 Create a folder named `Private` inside `my-vault/` and put a harmless test note, `Private/Test.md`, in it. Before adding anything personal, extend your configuration:

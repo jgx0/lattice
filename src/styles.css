@@ -2476,47 +2476,310 @@
 .app-shell .outline-item.level-4 {
   padding-left: 46px;
 }
-:where(.graph-popover-overlay) {
+/* Shared local/vault graph dialog; sidebar previews keep their compact layout. */
+.graph-popover-overlay.modal-container {
+  --graph-popover-gutter: 24px;
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-}
-:where(.local-graph-popover) {
-  width: min(640px, calc(100vw - 48px));
-  background: var(--background-primary);
-  color: var(--text-normal);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  box-shadow: 0 16px 64px #0005;
+  height: 100dvh;
+  padding: var(--graph-popover-gutter);
+  padding-top: max(var(--graph-popover-gutter), env(safe-area-inset-top));
+  padding-right: max(var(--graph-popover-gutter), env(safe-area-inset-right));
+  padding-bottom: max(var(--graph-popover-gutter), env(safe-area-inset-bottom));
+  padding-left: max(var(--graph-popover-gutter), env(safe-area-inset-left));
   overflow: hidden;
+  background: var(--background-modifier-cover);
 }
-:where(.graph-popover-header) {
+.modal.popover.graph-popover {
+  --graph-popover-width: 720px;
+  --graph-popover-height: 640px;
   display: flex;
+  flex-direction: column;
+  width: min(var(--graph-popover-width), 100%);
+  height: min(var(--graph-popover-height), 100%);
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--modal-background, var(--background-primary));
+  color: var(--text-normal);
+  border: 1px solid var(--modal-border-color, var(--background-modifier-border));
+  border-radius: var(--modal-radius, var(--radius-m));
+  box-shadow: var(--shadow-l, 0 16px 64px rgba(0, 0, 0, 0.3));
+  font-family: var(--font-interface);
+}
+.modal.popover.graph-popover.vault-graph-popover {
+  --graph-popover-width: 900px;
+  --graph-popover-height: 740px;
+}
+.graph-popover .graph-popover-header {
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
   padding: 12px 16px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
-:where(.graph-popover-header h2) {
+.graph-popover .graph-popover-header h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-normal);
   font-family: var(--font-interface);
   font-size: var(--font-ui-medium);
-  font-weight: 500;
-  margin: 0;
+  font-weight: 600;
+  line-height: var(--line-height-tight);
 }
-:where(.graph-popover-header > div) {
+.graph-popover .graph-popover-header > div {
   display: flex;
+  flex-shrink: 0;
   gap: 4px;
 }
-.local-graph-popover .graph-view.compact {
-  height: min(500px, 65vh);
+.graph-popover .graph-popover-header button,
+.graph-popover .graph-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  border-radius: var(--clickable-icon-radius, var(--radius-s));
+  color: var(--icon-color, var(--text-muted));
+}
+.graph-popover .graph-popover-header button:hover,
+.graph-popover .graph-controls button:hover,
+.graph-popover .graph-search button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--icon-color-hover, var(--text-normal));
+}
+.graph-popover .graph-view.full {
+  display: grid;
+  flex: 1 1 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  min-width: 0;
+  min-height: 0;
   margin: 0;
-  background: var(--background-primary);
+  padding: 0;
+  overflow: hidden;
   border: 0;
+  background: var(--background-primary);
+  color: var(--graph-text, var(--text-muted));
+}
+.graph-popover .graph-toolbar {
+  grid-area: 1 / 1;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-width: 0;
+  padding: 10px 16px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+}
+.graph-popover .graph-search {
+  flex: 1 1 220px;
+  width: auto;
+  min-width: 0;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: var(--input-radius, var(--radius-s));
+  color: var(--text-muted);
+  background: var(--background-primary);
+}
+.graph-popover .graph-search:focus-within {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+.graph-popover .graph-search input {
+  color: var(--text-normal);
+  box-shadow: none;
+}
+.graph-popover .graph-search input:focus-visible {
+  outline: none;
+}
+.graph-popover .graph-search button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-s);
+}
+.graph-popover .graph-local {
+  min-width: 0;
+  min-height: 32px;
+  cursor: pointer;
+}
+.graph-popover .graph-local input[type="checkbox"] {
+  appearance: auto;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--interactive-accent);
+  cursor: pointer;
+}
+.graph-popover .graph-view.full > svg {
+  grid-area: 2 / 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.graph-popover .graph-view > svg line {
+  stroke: var(--graph-line, var(--text-muted));
+}
+.graph-popover .graph-node circle {
+  fill: var(--graph-node, var(--text-muted));
+  stroke: var(--background-primary);
+}
+.graph-popover .graph-node.is-active circle {
+  fill: var(--graph-node-focused, var(--interactive-accent));
+}
+.graph-popover .graph-node:hover circle,
+.graph-popover .graph-node:focus-visible circle {
+  stroke: var(--graph-node-focused, var(--interactive-accent));
+}
+.graph-popover .graph-node text {
+  fill: var(--graph-text, var(--text-muted));
+}
+.graph-popover .graph-controls {
+  /* Share the SVG row so wrapped footers cannot cover the floating controls. */
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  grid-area: 2 / 1;
+  align-self: end;
+  justify-self: end;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+  margin: 8px;
+  padding: 3px;
+  color: var(--text-muted);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s, 0 2px 8px rgba(0, 0, 0, 0.12));
+}
+.graph-popover .graph-controls > span {
+  min-width: 4ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.graph-popover .graph-legend {
+  grid-area: 3 / 1;
+  gap: 6px 12px;
+  max-height: min(84px, 16dvh);
+  min-width: 0;
+  padding: 8px 16px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.graph-popover .graph-legend span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.graph-popover .graph-legend i {
+  flex-shrink: 0;
+}
+.graph-popover .graph-hint,
+.graph-popover .graph-limit {
+  position: static;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 16px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: var(--line-height-tight);
+  overflow-wrap: anywhere;
+}
+.graph-popover .graph-hint {
+  grid-area: 4 / 1;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+}
+.graph-popover .graph-limit {
+  grid-area: 5 / 1;
+  max-height: 15dvh;
+  overflow: auto;
+}
+.graph-popover .graph-empty {
+  position: static;
+  grid-area: 2 / 1;
+  align-self: center;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 16px;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+@media (max-width: 520px) {
+  .graph-popover-overlay.modal-container {
+    --graph-popover-gutter: 8px;
+  }
+  .graph-popover .graph-search {
+    flex-basis: 100%;
+  }
+  .graph-popover .graph-search input {
+    font-size: 16px;
+  }
+  .graph-popover .graph-popover-header,
+  .graph-popover .graph-toolbar,
+  .graph-popover .graph-legend,
+  .graph-popover .graph-hint,
+  .graph-popover .graph-limit {
+    padding-inline: 12px;
+  }
+}
+@media (pointer: coarse) and (min-height: 481px) {
+  .graph-popover .graph-popover-header button,
+  .graph-popover .graph-controls button {
+    width: 40px;
+    height: 40px;
+  }
+  .graph-popover .graph-local {
+    min-height: 40px;
+  }
+}
+@media (max-height: 480px) {
+  .graph-popover-overlay.modal-container {
+    --graph-popover-gutter: 8px;
+  }
+  .graph-popover .graph-popover-header,
+  .graph-popover .graph-toolbar,
+  .graph-popover .graph-hint,
+  .graph-popover .graph-limit {
+    padding-block: 6px;
+  }
+  .graph-popover .graph-legend {
+    max-height: 32px;
+    padding-block: 4px;
+  }
+  .graph-popover .graph-limit {
+    max-height: 32px;
+  }
+}
+@media (max-height: 320px) {
+  .graph-popover .graph-view.full {
+    /* Keep every control reachable when the toolbar/footer exceed the viewport. */
+    grid-template-rows: auto minmax(56px, 1fr) auto auto auto;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
 }
 @media (max-width: 1100px) {
   .app-shell:not(.right-sidebar-hidden) .reader > .right-sidebar {
@@ -2540,9 +2803,6 @@
   .app-shell:not(.right-sidebar-hidden) .reader > .right-sidebar {
     top: 44px;
     height: calc(100dvh - 44px);
-  }
-  .graph-popover-overlay {
-    padding: 14px;
   }
 }
 @media print {

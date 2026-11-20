@@ -6,31 +6,39 @@ import type { PublishedNote } from "./types";
 type Props = {
   notes: PublishedNote[];
   current: string;
+  scope: "local" | "vault";
+  onScopeChange: (scope: "local" | "vault") => void;
   onNavigate: (path: string) => void;
-  onGlobal: () => void;
   onClose: () => void;
 };
-export default function LocalGraphPopover({
+export default function GraphPopover({
   notes,
   current,
+  scope,
+  onScopeChange,
   onNavigate,
-  onGlobal,
   onClose,
 }: Props) {
   const panel = useRef<HTMLElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
+    const siblings = Array.from(
+      panel.current?.parentElement?.parentElement?.children ?? [],
+    ).filter((element) => element !== panel.current?.parentElement);
+    const inert = siblings.map((element) => element.hasAttribute("inert"));
+    siblings.forEach((element) => element.setAttribute("inert", ""));
     panel.current?.querySelector<HTMLElement>("button")?.focus();
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         onClose();
       }
       if (event.key === "Tab") {
         const targets = Array.from(
-          panel.current?.querySelectorAll<HTMLElement>(
-            'button:not([disabled]),input,[tabindex="0"]',
-          ) || [],
+          panel.current?.querySelectorAll<HTMLElement | SVGElement>(
+            'button:not([disabled]),input:not([disabled]),[tabindex="0"]',
+          ) ?? [],
         );
         const first = targets[0],
           last = targets[targets.length - 1];
@@ -43,40 +51,48 @@ export default function LocalGraphPopover({
         }
       }
     };
-    document.addEventListener("keydown", key);
+    document.addEventListener("keydown", key, true);
     return () => {
-      document.removeEventListener("keydown", key);
-      previous?.focus();
+      document.removeEventListener("keydown", key, true);
+      siblings.forEach((element, index) => {
+        if (!inert[index]) element.removeAttribute("inert");
+      });
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, [onClose]);
+  const title = scope === "local" ? "Local graph" : "Vault graph";
   return (
     <div
-      className="graph-popover-overlay"
+      className="graph-popover-overlay modal-container"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <section
         ref={panel}
-        className="popover local-graph-popover"
+        className={`modal popover graph-popover ${scope === "local" ? "local-graph-popover" : "vault-graph-popover"}`}
         role="dialog"
         aria-modal="true"
-        aria-label="Local graph"
+        aria-label={title}
       >
-        <header className="graph-popover-header">
-          <h2>Local graph</h2>
+        <header className="graph-popover-header modal-title">
+          <h2>{title}</h2>
           <div>
             <button
               className="clickable-icon"
-              aria-label="Open global graph"
-              title="Global graph"
-              onClick={onGlobal}
+              aria-label={
+                scope === "local" ? "Open global graph" : "Open local graph"
+              }
+              title={scope === "local" ? "Vault graph" : "Local graph"}
+              onClick={() =>
+                onScopeChange(scope === "local" ? "vault" : "local")
+              }
             >
               <GitFork size={16} />
             </button>
             <button
               className="clickable-icon"
-              aria-label="Close local graph"
+              aria-label={`Close ${title.toLowerCase()}`}
               title="Close"
               onClick={onClose}
             >
@@ -87,10 +103,11 @@ export default function LocalGraphPopover({
         <GraphView
           notes={notes}
           current={current}
-          compact
+          scope={scope}
+          onScopeChange={onScopeChange}
           onNavigate={(path) => {
-            onNavigate(path);
             onClose();
+            onNavigate(path);
           }}
         />
       </section>

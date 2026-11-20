@@ -18,6 +18,16 @@ describe("reader appearance defaults", () => {
     expect(site.themes?.map((theme) => theme.id)).toEqual(
       expect.arrayContaining(["default", "publish-theme"]),
     );
+    const folders = new Set(site.notes.map((note) => note.folder).filter(Boolean));
+    expect(new Set(site.settings.collapsedFolders)).toEqual(new Set([...folders].filter((folder) => folder !== "About")));
+    const dom = new JSDOM(renderPublishedPage('<html><head></head><body><div id="root"></div></body></html>', site));
+    const details = [...dom.window.document.querySelectorAll<HTMLDetailsElement>("details.nav-folder")];
+    expect(details).toHaveLength(folders.size);
+    for (const folder of details) {
+      const label = folder.querySelector("summary .nav-folder-title-content")!.textContent;
+      expect(folder.open, label ?? "").toBe(label === "About");
+    }
+    dom.window.close();
   });
   it("separates the Publish title from its top bar and hides only navigation scrollbar tracks", async () => {
     const publish = await readFile("src/themes/publish-theme.css", "utf8");

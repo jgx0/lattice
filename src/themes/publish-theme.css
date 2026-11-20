@@ -176,17 +176,17 @@ body .app-shell .aside-heading .section-toggle {
   font-size: 12px;
   font-weight: 500;
 }
-body .app-shell .graph-view.compact {
+body .app-shell .local-graph-shell .graph-view.compact {
   height: 250px;
   border: 0;
   border-radius: 0;
   background: transparent;
   margin: 0;
 }
-body .app-shell .graph-view.compact text {
+body .app-shell .local-graph-shell .graph-view.compact text {
   font-size: 11px;
 }
-body .app-shell .graph-view.compact > svg {
+body .app-shell .local-graph-shell .graph-view.compact > svg {
   height: 100%;
 }
 body .app-shell .outline-view-container {
