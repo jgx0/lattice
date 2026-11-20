@@ -19,6 +19,11 @@ describe('shared demo integration', () => {
     expect(defaultSettings.description).toBe('Publish connected Obsidian notes with a static, note-native reader.');
     const welcome = notes.find(note => note.path === 'Welcome.md')!;
     expect(welcome.title).toBe('Welcome to Lattice');
+    expect(welcome.links).toContain('Features');
+    const features = notes.find(note => note.path === 'Features.md')!;
+    expect(features.title).toBe('Features');
+    expect(features.headings.some(heading => heading.level === 1)).toBe(false);
+    expect(features.links).toEqual(expect.arrayContaining(['About/Quick start', 'About/Obsidian themes', 'About/Markdown and Bases', 'About/Deployment', 'About/Security and privacy']));
     expect(welcome.headings.some(heading => heading.id === 'follow-a-thread')).toBe(true);
     expect(welcome.body).toContain('Sample notes are illustrative fixtures');
     expect(welcome.body).not.toMatch(/maintainer|profile|biograph|jgx0|my website|contact details/i);
@@ -42,7 +47,7 @@ describe('shared demo integration', () => {
     expect(patternLanguage.properties.contributors).toContain('Max Jacobson');
   });
   it('keeps the homepage, project overview, docs, and SVG fixture synchronized with the filesystem vault', () => {
-    const paths = ['Welcome.md', 'Projects/Lattice.md', 'Atlas/Maps of meaning.md', 'Assets/Garden diagram.svg',
+    const paths = ['Welcome.md', 'Features.md', 'Projects/Lattice.md', 'Atlas/Maps of meaning.md', 'Assets/Garden diagram.svg',
       ...notes.filter(note => note.path.startsWith('About/')).map(note => note.path)];
     for (const path of paths) {
       const fixture = demoVault.files.find(file => file.path === path)!;

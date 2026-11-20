@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { GitFork, X } from "lucide-react";
+import { X } from "lucide-react";
 import GraphView from "./GraphView";
 import type { PublishedNote } from "./types";
 
@@ -7,7 +7,6 @@ type Props = {
   notes: PublishedNote[];
   current: string;
   scope: "local" | "vault";
-  onScopeChange: (scope: "local" | "vault") => void;
   onNavigate: (path: string) => void;
   onClose: () => void;
 };
@@ -15,7 +14,6 @@ export default function GraphPopover({
   notes,
   current,
   scope,
-  onScopeChange,
   onNavigate,
   onClose,
 }: Props) {
@@ -75,36 +73,19 @@ export default function GraphPopover({
         aria-modal="true"
         aria-label={title}
       >
-        <header className="graph-popover-header modal-title">
-          <h2>{title}</h2>
-          <div>
-            <button
-              className="clickable-icon"
-              aria-label={
-                scope === "local" ? "Open global graph" : "Open local graph"
-              }
-              title={scope === "local" ? "Vault graph" : "Local graph"}
-              onClick={() =>
-                onScopeChange(scope === "local" ? "vault" : "local")
-              }
-            >
-              <GitFork size={16} />
-            </button>
-            <button
-              className="clickable-icon"
-              aria-label={`Close ${title.toLowerCase()}`}
-              title="Close"
-              onClick={onClose}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </header>
+        <button
+          className="clickable-icon graph-popover-close"
+          aria-label={`Close ${title.toLowerCase()}`}
+          title="Close"
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
         <GraphView
           notes={notes}
           current={current}
           scope={scope}
-          onScopeChange={onScopeChange}
+          hideToolbar
           onNavigate={(path) => {
             onClose();
             onNavigate(path);

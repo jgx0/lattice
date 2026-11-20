@@ -7,6 +7,7 @@ type Props = {
   current?: string;
   onNavigate: (path: string) => void;
   compact?: boolean;
+  hideToolbar?: boolean;
   scope?: "local" | "vault";
   onScopeChange?: (scope: "local" | "vault") => void;
   onExpand?: () => void;
@@ -16,6 +17,7 @@ export default function GraphView({
   current,
   onNavigate,
   compact = false,
+  hideToolbar = false,
   scope,
   onScopeChange,
   onExpand,
@@ -149,7 +151,7 @@ export default function GraphView({
   const folders = [...new Set(notes.map((n) => n.folder))];
   return (
     <div className={`graph-view ${compact ? "compact" : "full"}`}>
-      {!compact && (
+      {!compact && !hideToolbar && (
         <div className="graph-toolbar">
           <div className="graph-search">
             <Search size={16} />

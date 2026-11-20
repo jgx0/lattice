@@ -15,6 +15,7 @@ description: Publish connected Obsidian notes with Lattice, and explore the docu
 
 Use **Use this template → Create a new repository** on GitHub to make your own Lattice site. Clone your copy, add a vault, point Lattice at its folder, and run `npm run dev`. [[About/Quick start|Quick start]] walks through it from the first button click to your notes on screen.
 
+- [[Features|Explore every Lattice feature]] — connected reading, real themes, rich notes, Bases, and publishing on your terms.
 - [[About/Documentation|Documentation]] — the guides, when you need them.
 - [[About/Quick start|Quick start]] — create your repository, add a vault, and open your site.
 - [[About/Obsidian themes|Obsidian themes]] — use an installed theme, enabled snippets, and `publish.css`.

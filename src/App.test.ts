@@ -1801,10 +1801,11 @@ describe("compiled-site reader", () => {
     });
   });
 
-  it("opens and zooms the graph, filters compiled nodes and navigates a node with Enter", async () => {
+  it("opens and zooms the minimal vault graph and navigates a node with Enter", async () => {
     await click(label("Graph view", label("Site navigation")));
     const popup = one('[role="dialog"][aria-label="Vault graph"]');
-    expect(one("h2", popup).textContent).toBe("Vault graph");
+    expect(popup.querySelector("header, h2, .graph-toolbar")).toBeNull();
+    expect(label("Close vault graph", popup)).toBeDefined();
     expect(titles()).toEqual(["Welcome to Lattice"]);
     const graph = label("Interactive graph of connected notes", popup);
     expect(graph.querySelectorAll(".graph-node")).toHaveLength(
@@ -1821,16 +1822,6 @@ describe("compiled-site reader", () => {
     expect(one(".graph-controls span").textContent).toBe("80%");
     await click(label("Reset graph"));
     expect(one(".graph-controls span").textContent).toBe("100%");
-    await input(label("Filter graph") as HTMLInputElement, "Digital gardens");
-    expect(graph.querySelectorAll(".graph-node")).toHaveLength(1);
-    await input(label("Filter graph") as HTMLInputElement, "no-such-note");
-    expect(one(".graph-empty").textContent).toBe(
-      "No matching notes. Try a different search.",
-    );
-    await click(label("Clear graph search"));
-    expect(graph.querySelectorAll(".graph-node")).toHaveLength(
-      site.notes.length,
-    );
     await key(label("Open Digital gardens", graph), "Enter");
     expect(titles()).toEqual(["Digital gardens"]);
     expect(window.location.pathname).toBe(
@@ -1872,15 +1863,14 @@ describe("compiled-site reader", () => {
     const overlay = one(".graph-popover-overlay");
     const dialog = one('[role="dialog"][aria-label="Local graph"]', overlay);
     expect(dialog.getAttribute("aria-modal")).toBe("true");
-    expect(document.activeElement).toBe(label("Open global graph", dialog));
+    expect(document.activeElement).toBe(label("Close local graph", dialog));
     expect(one(".graph-view", dialog).classList.contains("compact")).toBe(
       false,
     );
-    expect(label("Filter graph", dialog)).toBeDefined();
-    expect(label("Zoom in", dialog)).toBeDefined();
     expect(
-      (one('input[type="checkbox"]', dialog) as HTMLInputElement).checked,
-    ).toBe(true);
+      dialog.querySelector("header, h2, .graph-toolbar, input"),
+    ).toBeNull();
+    expect(label("Zoom in", dialog)).toBeDefined();
     const expectedLocal = new Set([
       page.getAttribute("data-note-path"),
       ...compiled("Field Notes/Digital gardens.md").outgoing,
@@ -1957,13 +1947,13 @@ describe("compiled-site reader", () => {
     expect(document.activeElement).toBe(trigger);
     await click(trigger);
     dialog = one('[role="dialog"][aria-label="Local graph"]');
-    await key(label("Open global graph", dialog), "Escape");
+    await key(label("Close local graph", dialog), "Escape");
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
     expect(window.location.href).toBe(url);
   });
 
-  it("switches local and vault scope in one popup without replacing the note, URL, focus, or sidebar state", async () => {
+  it("traps focus in the minimal vault popup without replacing the note, URL, or sidebar state", async () => {
     await remount(
       site,
       compiled("Field Notes/Digital gardens.md").url +
@@ -1982,24 +1972,15 @@ describe("compiled-site reader", () => {
     expect(dialog.querySelectorAll(".graph-node")).toHaveLength(
       site.notes.length,
     );
-    const switchScope = label("Open local graph", dialog);
-    await click(switchScope);
-    expect(one('[role="dialog"][aria-label="Local graph"]')).toBe(dialog);
-    expect(dialog.querySelectorAll(".graph-node").length).toBeLessThan(
-      site.notes.length,
-    );
-    expect(document.activeElement).toBe(switchScope);
-    await click(label("Open global graph", dialog));
-    expect(one('[role="dialog"][aria-label="Vault graph"]')).toBe(dialog);
-    expect(dialog.querySelectorAll(".graph-node")).toHaveLength(
-      site.notes.length,
-    );
+    expect(
+      dialog.querySelector("header, h2, .graph-toolbar, input"),
+    ).toBeNull();
     const close = label("Close vault graph", dialog);
     const reset = label("Reset graph", dialog);
     await act(async () => reset.focus());
     await key(reset, "Tab");
-    expect(document.activeElement).toBe(switchScope);
-    await key(switchScope, "Tab", { shiftKey: true });
+    expect(document.activeElement).toBe(close);
+    await key(close, "Tab", { shiftKey: true });
     expect(document.activeElement).toBe(reset);
     expect(one(".note-page")).toBe(page);
     expect(reader.scrollTop).toBe(240);
@@ -2082,12 +2063,12 @@ describe("compiled-site reader", () => {
     expect(titles()).toEqual(["Welcome to Lattice"]);
   });
 
-  it("preserves full graph search and zoom controls", async () => {
+  it("preserves graph zoom controls without a top bar", async () => {
     await click(label("Graph view", label("Site navigation")));
     const graphPopup = one('[role="dialog"][aria-label="Vault graph"]');
     const graph = one(".graph-view", graphPopup);
     expect(graph.classList.contains("compact")).toBe(false);
-    expect(label("Filter graph", graph)).toBeDefined();
+    expect(graph.querySelector(".graph-toolbar")).toBeNull();
     expect(label("Zoom in", graph)).toBeDefined();
     expect(label("Reset graph", graph)).toBeDefined();
     expect(one(".graph-controls span", graph).textContent).toBe("100%");

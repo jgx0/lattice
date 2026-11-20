@@ -910,7 +910,6 @@ export default function App({ site }: { site: CompiledSite }) {
           notes={notes}
           current={current.path}
           scope={graphScope}
-          onScopeChange={setGraphScope}
           onNavigate={navigate}
           onClose={closeGraph}
         />
